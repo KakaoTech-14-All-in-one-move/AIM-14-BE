@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: pitching-server
+
+server:
+  port: 8080
+  gateway:
+    protocol: ws
+    host: localhost
+    path: /ws/gateway
+    version: 1
+    heartbeat-interval: 45s
+
