@@ -7,7 +7,7 @@ public record IdentifyEvent(
         ReqOp reqOp,
         IdentifyData data
 ) implements OperationEvent {
-    public String getToken() {
-        return this.data.token();
-    }
+//    public String getToken() {
+//        return this.data.token();
+//    }
 }

@@ -40,7 +40,7 @@ public class VoiceWebSocketHandler implements WebSocketHandler {
 
     private Mono<Void> handleMessages(WebSocketSession session) {
         Flux<WebSocketMessage> responseFlux = session.receive()
-                .map(message -> operationHandler.handleMessage(message, session.getId()))
+                .flatMap(message -> operationHandler.handleMessage(message, session.getId()))
                 .map(session::textMessage);
         return session.send(responseFlux);
     }

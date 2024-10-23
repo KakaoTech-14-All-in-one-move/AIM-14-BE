@@ -1,16 +1,18 @@
 package com.example.pitching.voice.event.handler;
 
-import com.example.pitching.voice.event.IdentifyEvent;
-import com.example.pitching.voice.event.ReadyEvent;
-import com.example.pitching.voice.event.op.ReqOp;
 import com.example.pitching.voice.event.BeatEvent;
 import com.example.pitching.voice.event.OperationEvent;
+import com.example.pitching.voice.event.ReadyEvent;
 import com.example.pitching.voice.event.data.ReadyData;
+import com.example.pitching.voice.event.op.ReqOp;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.ReactiveSecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.socket.WebSocketMessage;
+import reactor.core.publisher.Mono;
 
 @Component
 @RequiredArgsConstructor
@@ -18,14 +20,13 @@ public class OperationHandler {
 
     private final ObjectMapper objectMapper;
 
-    public String handleMessage(WebSocketMessage webSocketMessage, String sessionId) {
+    public Mono<String> handleMessage(WebSocketMessage webSocketMessage, String sessionId) {
         ReqOp reqOp = readOpFromMessage(webSocketMessage);
-        OperationEvent event = switch (reqOp) {
-            case ReqOp.HEARTBEAT -> BeatEvent.of();
-            case ReqOp.IDENTIFY -> identify(webSocketMessage, sessionId);
-            default -> throw new RuntimeException("Unknown op code: " + reqOp);
-        };
-        return eventToJson(event);
+        return (switch (reqOp) {
+                    case ReqOp.HEARTBEAT -> Mono.just(BeatEvent.of());
+                    case ReqOp.IDENTIFY -> identify(sessionId);
+                    default -> throw new RuntimeException("Unknown op code: " + reqOp);
+                }).map(this::eventToJson);
     }
 
     public String eventToJson(OperationEvent event) {
@@ -44,11 +45,13 @@ public class OperationHandler {
         }
     }
 
-    private OperationEvent identify(WebSocketMessage webSocketMessage, String sessionId) {
-        String token = jsonToEvent(webSocketMessage.getPayloadAsText(), IdentifyEvent.class).getToken();
-        // TODO: 인증 처리 후 ReadyData 생성
-        ReadyData data = ReadyData.of(null, null, sessionId, null);
-        return ReadyEvent.of(data);
+    private Mono<OperationEvent> identify(String sessionId) {
+        return ReactiveSecurityContextHolder.getContext()
+                .map(ctx -> { // TODO: UserDetails 구현체로 변경
+                    UserDetails user = (UserDetails) ctx.getAuthentication().getPrincipal();
+                    ReadyData data = ReadyData.of(user, null, sessionId, null);
+                    return ReadyEvent.of(data);
+                });
     }
 
     private ReqOp readOpFromMessage(WebSocketMessage webSocketMessage) {
