@@ -1,4 +1,4 @@
-package com.example.pitching.voice.event.data;
+package com.example.pitching.voice.operation.res.data;
 
 import java.util.List;
 
