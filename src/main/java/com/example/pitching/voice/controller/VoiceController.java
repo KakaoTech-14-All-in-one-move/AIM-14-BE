@@ -18,6 +18,6 @@ public class VoiceController {
 
     @GetMapping(value = "/gateway", produces = MediaType.APPLICATION_JSON_VALUE)
     public Mono<UrlRes> getGateway() {
-        return Mono.just(UrlRes.of(serverProperties.getUrl()));
+        return Mono.just(UrlRes.of(serverProperties.getUrl(false)));
     }
 }
