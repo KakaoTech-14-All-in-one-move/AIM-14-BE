@@ -1,12 +1,11 @@
-package com.example.pitching.gateway.event.handler;
+package com.example.pitching.voice.event.handler;
 
-import com.example.pitching.gateway.event.BeatEvent;
-import com.example.pitching.gateway.event.GatewayEvent;
-import com.example.pitching.gateway.event.IdentifyEvent;
-import com.example.pitching.gateway.event.ReadyEvent;
-import com.example.pitching.gateway.event.data.IdentifyData;
-import com.example.pitching.gateway.event.data.ReadyData;
-import com.example.pitching.gateway.event.op.ReqOp;
+import com.example.pitching.voice.event.IdentifyEvent;
+import com.example.pitching.voice.event.ReadyEvent;
+import com.example.pitching.voice.event.op.ReqOp;
+import com.example.pitching.voice.event.BeatEvent;
+import com.example.pitching.voice.event.GatewayEvent;
+import com.example.pitching.voice.event.data.ReadyData;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;

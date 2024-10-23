@@ -1,6 +1,6 @@
-package com.example.pitching.gateway.event;
+package com.example.pitching.voice.event;
 
-import com.example.pitching.gateway.event.op.ResOp;
+import com.example.pitching.voice.event.op.ResOp;
 
 public record BeatEvent(ResOp op) implements GatewayEvent {
     public static BeatEvent of() {

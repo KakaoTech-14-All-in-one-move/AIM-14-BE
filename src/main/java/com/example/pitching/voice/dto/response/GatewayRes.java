@@ -1,4 +1,4 @@
-package com.example.pitching.gateway.dto.response;
+package com.example.pitching.voice.dto.response;
 
 public record GatewayRes(String url) {
     public static GatewayRes of(String url) {

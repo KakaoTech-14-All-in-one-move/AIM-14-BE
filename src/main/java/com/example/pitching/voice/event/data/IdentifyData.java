@@ -1,4 +1,4 @@
-package com.example.pitching.gateway.event.data;
+package com.example.pitching.voice.event.data;
 
 public record IdentifyData(
         String token,

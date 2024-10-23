@@ -1,4 +1,4 @@
-package com.example.pitching.gateway.event.op;
+package com.example.pitching.voice.event.op;
 
 import lombok.Getter;
 

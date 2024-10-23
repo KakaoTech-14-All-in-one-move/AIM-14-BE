@@ -1,8 +1,8 @@
-package com.example.pitching.gateway.handler;
+package com.example.pitching.voice.handler;
 
-import com.example.pitching.gateway.dto.properties.ServerProperties;
-import com.example.pitching.gateway.event.HelloEvent;
-import com.example.pitching.gateway.event.handler.GatewayEventHandler;
+import com.example.pitching.voice.event.HelloEvent;
+import com.example.pitching.voice.event.handler.GatewayEventHandler;
+import com.example.pitching.voice.dto.properties.ServerProperties;
 import io.micrometer.common.lang.NonNullApi;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

@@ -1,7 +1,7 @@
-package com.example.pitching.gateway.event;
+package com.example.pitching.voice.event;
 
-import com.example.pitching.gateway.event.data.ReadyData;
-import com.example.pitching.gateway.event.op.ResOp;
+import com.example.pitching.voice.event.data.ReadyData;
+import com.example.pitching.voice.event.op.ResOp;
 
 public record ReadyEvent(
         ResOp op,

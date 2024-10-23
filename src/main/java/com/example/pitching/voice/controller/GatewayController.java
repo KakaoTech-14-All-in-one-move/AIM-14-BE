@@ -1,7 +1,7 @@
-package com.example.pitching.gateway.controller;
+package com.example.pitching.voice.controller;
 
-import com.example.pitching.gateway.dto.properties.ServerProperties;
-import com.example.pitching.gateway.dto.response.GatewayRes;
+import com.example.pitching.voice.dto.response.GatewayRes;
+import com.example.pitching.voice.dto.properties.ServerProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
