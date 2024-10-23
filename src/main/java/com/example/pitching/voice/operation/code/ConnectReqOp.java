@@ -1,9 +1,9 @@
-package com.example.pitching.voice.event.op;
+package com.example.pitching.voice.operation.code;
 
 import lombok.Getter;
 
 @Getter
-public enum ReqOp {
+public enum ConnectReqOp {
 
     HEARTBEAT(1, "Request/Response", "Fired periodically by the client to keep the connection alive."),
     IDENTIFY(2, "Request", "Starts a new session during the initial handshake."),
@@ -17,14 +17,14 @@ public enum ReqOp {
     private final String direction;
     private final String description;
 
-    ReqOp(int code, String direction, String description) {
+    ConnectReqOp(int code, String direction, String description) {
         this.code = code;
         this.direction = direction;
         this.description = description;
     }
 
-    public static ReqOp from(int code) {
-        for (ReqOp type : values()) {
+    public static ConnectReqOp from(int code) {
+        for (ConnectReqOp type : values()) {
             if (type.getCode() == code) {
                 return type;
             }
