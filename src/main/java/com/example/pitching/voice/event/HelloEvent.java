@@ -6,7 +6,7 @@ import com.example.pitching.voice.event.op.ResOp;
 public record HelloEvent(
         ResOp op,
         HelloData data
-) implements GatewayEvent {
+) implements OperationEvent {
     public static HelloEvent of(long interval) {
         return new HelloEvent(ResOp.HELLO, HelloData.of(interval));
     }

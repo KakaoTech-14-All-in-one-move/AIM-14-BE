@@ -6,7 +6,7 @@ import com.example.pitching.voice.event.op.ResOp;
 public record ReadyEvent(
         ResOp op,
         ReadyData data
-) implements GatewayEvent {
+) implements OperationEvent {
     public static ReadyEvent of(ReadyData data) {
         return new ReadyEvent(ResOp.DISPATCH, data);
     }

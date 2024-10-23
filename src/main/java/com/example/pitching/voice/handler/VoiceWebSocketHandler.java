@@ -1,7 +1,7 @@
 package com.example.pitching.voice.handler;
 
 import com.example.pitching.voice.event.HelloEvent;
-import com.example.pitching.voice.event.handler.GatewayEventHandler;
+import com.example.pitching.voice.event.handler.OperationHandler;
 import com.example.pitching.voice.dto.properties.ServerProperties;
 import io.micrometer.common.lang.NonNullApi;
 import lombok.RequiredArgsConstructor;
@@ -17,10 +17,10 @@ import java.util.List;
 @NonNullApi
 @Component
 @RequiredArgsConstructor
-public class GatewayWebSocketHandler implements WebSocketHandler {
+public class VoiceWebSocketHandler implements WebSocketHandler {
 
     private final ServerProperties serverProperties;
-    private final GatewayEventHandler gatewayEventHandler;
+    private final OperationHandler operationHandler;
 
     @Override
     public List<String> getSubProtocols() {
@@ -34,13 +34,13 @@ public class GatewayWebSocketHandler implements WebSocketHandler {
     }
 
     private Mono<Void> sendHelloEvent(WebSocketSession session) {
-        String jsonHelloEvent = gatewayEventHandler.eventToJson(HelloEvent.of(serverProperties.getHeartbeatInterval()));
+        String jsonHelloEvent = operationHandler.eventToJson(HelloEvent.of(serverProperties.getHeartbeatInterval()));
         return session.send(Mono.just(session.textMessage(jsonHelloEvent)));
     }
 
     private Mono<Void> handleMessages(WebSocketSession session) {
         Flux<WebSocketMessage> responseFlux = session.receive()
-                .map(message -> gatewayEventHandler.handleMessage(message, session.getId()))
+                .map(message -> operationHandler.handleMessage(message, session.getId()))
                 .map(session::textMessage);
         return session.send(responseFlux);
     }

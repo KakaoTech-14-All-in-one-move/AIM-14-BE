@@ -6,16 +6,16 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.time.Duration;
 
 @ConfigurationProperties("server")
-public record ServerProperties(int port, Gateway gateway) {
+public record ServerProperties(int port, Voice voice) {
     public String getUrl() {
-        return this.gateway.makeUrl(this.port);
+        return this.voice.makeUrl(this.port);
     }
 
     public long getHeartbeatInterval() {
-        return this.gateway.heartbeatInterval.toMillis();
+        return this.voice.heartbeatInterval.toMillis();
     }
 
-    public record Gateway(String protocol, String host, String path, int version, Duration heartbeatInterval) {
+    public record Voice(String protocol, String host, String path, int version, Duration heartbeatInterval) {
         private String makeUrl(int port) {
             return UriComponentsBuilder.newInstance()
                     .scheme(protocol)

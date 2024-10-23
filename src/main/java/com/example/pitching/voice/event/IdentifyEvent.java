@@ -6,7 +6,7 @@ import com.example.pitching.voice.event.op.ReqOp;
 public record IdentifyEvent(
         ReqOp reqOp,
         IdentifyData data
-) implements GatewayEvent{
+) implements OperationEvent {
     public String getToken() {
         return this.data.token();
     }

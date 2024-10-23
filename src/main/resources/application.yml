@@ -4,10 +4,10 @@ spring:
 
 server:
   port: 8080
-  gateway:
+  voice:
     protocol: ws
     host: localhost
-    path: /ws/gateway
+    path: /ws/voice
     version: 1
     heartbeat-interval: 45s
 

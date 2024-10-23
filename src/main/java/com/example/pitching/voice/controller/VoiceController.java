@@ -1,6 +1,6 @@
 package com.example.pitching.voice.controller;
 
-import com.example.pitching.voice.dto.response.GatewayRes;
+import com.example.pitching.voice.dto.response.UrlRes;
 import com.example.pitching.voice.dto.properties.ServerProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -12,12 +12,12 @@ import reactor.core.publisher.Mono;
 @RestController
 @RequestMapping("/api/v1")
 @RequiredArgsConstructor
-public class GatewayController {
+public class VoiceController {
 
     private final ServerProperties serverProperties;
 
     @GetMapping(value = "/gateway", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Mono<GatewayRes> getGateway() {
-        return Mono.just(GatewayRes.of(serverProperties.getUrl()));
+    public Mono<UrlRes> getGateway() {
+        return Mono.just(UrlRes.of(serverProperties.getUrl()));
     }
 }
