@@ -1,5 +1,6 @@
 package com.example.pitching.voice.event.handler;
 
+import com.example.pitching.voice.dto.properties.ServerProperties;
 import com.example.pitching.voice.event.BeatEvent;
 import com.example.pitching.voice.event.OperationEvent;
 import com.example.pitching.voice.event.ReadyEvent;
@@ -18,6 +19,7 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class OperationHandler {
 
+    private final ServerProperties serverProperties;
     private final ObjectMapper objectMapper;
 
     public Mono<String> handleMessage(WebSocketMessage webSocketMessage, String sessionId) {
@@ -49,7 +51,7 @@ public class OperationHandler {
         return ReactiveSecurityContextHolder.getContext()
                 .map(ctx -> { // TODO: UserDetails 구현체로 변경
                     UserDetails user = (UserDetails) ctx.getAuthentication().getPrincipal();
-                    ReadyData data = ReadyData.of(user, null, sessionId, null);
+                    ReadyData data = ReadyData.of(user, null, sessionId, serverProperties.getUrl());
                     return ReadyEvent.of(data);
                 });
     }
