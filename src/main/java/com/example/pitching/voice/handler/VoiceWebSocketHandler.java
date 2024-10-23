@@ -1,8 +1,8 @@
 package com.example.pitching.voice.handler;
 
+import com.example.pitching.voice.dto.properties.ServerProperties;
 import com.example.pitching.voice.event.HelloEvent;
 import com.example.pitching.voice.event.handler.OperationHandler;
-import com.example.pitching.voice.dto.properties.ServerProperties;
 import io.micrometer.common.lang.NonNullApi;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

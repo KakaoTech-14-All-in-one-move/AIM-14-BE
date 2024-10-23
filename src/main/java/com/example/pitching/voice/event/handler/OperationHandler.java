@@ -25,10 +25,10 @@ public class OperationHandler {
     public Mono<String> handleMessage(WebSocketMessage webSocketMessage, String sessionId) {
         ReqOp reqOp = readOpFromMessage(webSocketMessage);
         return (switch (reqOp) {
-                    case ReqOp.HEARTBEAT -> Mono.just(BeatEvent.of());
-                    case ReqOp.IDENTIFY -> identify(sessionId);
-                    default -> throw new RuntimeException("Unknown op code: " + reqOp);
-                }).map(this::eventToJson);
+            case ReqOp.HEARTBEAT -> Mono.just(BeatEvent.of());
+            case ReqOp.IDENTIFY -> identify(sessionId);
+            default -> throw new RuntimeException("Unknown op code: " + reqOp);
+        }).map(this::eventToJson);
     }
 
     public String eventToJson(OperationEvent event) {
