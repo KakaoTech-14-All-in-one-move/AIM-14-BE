@@ -30,7 +30,7 @@ public class WebfluxSecurityConfig {
     @Bean
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
         return http
-                .csrf(csrf -> csrf.disable()) 
+                .csrf(csrf -> csrf.disable())
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers("/auth/token").permitAll()
                         .pathMatchers("/api/**").authenticated()
@@ -49,6 +49,7 @@ public class WebfluxSecurityConfig {
         return authenticationManager;
     }
 
+    // TODO: 삭제 해야하는 method
     @Bean
     public ReactiveUserDetailsService userDetailsService() {
         UserDetails user = User.builder()
