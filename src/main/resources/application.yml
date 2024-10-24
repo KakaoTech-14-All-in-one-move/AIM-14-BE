@@ -4,3 +4,5 @@ spring:
 
 jwt:
   secret: ${JWT_SECRET_KEY}
+  # TODO: ?? ??
+  expiration: 86400000
