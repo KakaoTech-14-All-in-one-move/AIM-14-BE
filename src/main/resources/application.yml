@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: pitching
+
+jwt:
+  secret: ${JWT_SECRET_KEY}
