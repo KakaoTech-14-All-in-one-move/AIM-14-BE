@@ -33,7 +33,7 @@ class VoiceControllerTest {
     }
 
     @Test
-    void when_requests_without_mock_user_then_returns_unauthorized_status() {
+    void when_requests_without_authentication_then_returns_unauthorized_status() {
         // given
 
         // when & then
