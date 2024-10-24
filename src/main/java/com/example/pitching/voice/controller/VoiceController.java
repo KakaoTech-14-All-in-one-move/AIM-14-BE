@@ -16,8 +16,8 @@ public class VoiceController {
 
     private final ServerProperties serverProperties;
 
-    @GetMapping(value = "/gateway", produces = MediaType.APPLICATION_JSON_VALUE)
-    public Mono<UrlRes> getGateway() {
+    @GetMapping(value = "/websocket", produces = MediaType.APPLICATION_JSON_VALUE)
+    public Mono<UrlRes> getConnectUrl() {
         return Mono.just(UrlRes.of(serverProperties.getUrl(false)));
     }
 }
