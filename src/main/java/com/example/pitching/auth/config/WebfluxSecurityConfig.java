@@ -30,6 +30,7 @@ public class WebfluxSecurityConfig {
     @Bean
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
         return http
+                .csrf(csrf -> csrf.disable()) 
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers("/auth/token").permitAll()
                         .pathMatchers("/api/**").authenticated()
