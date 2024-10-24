@@ -1,6 +1,7 @@
 package com.example.pitching.voice.controller;
 
 import com.example.pitching.voice.dto.properties.ServerProperties;
+import com.example.pitching.voice.dto.response.UrlRes;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -31,9 +32,6 @@ class VoiceControllerTest {
         assertThat(serverProperties).isNotNull();
     }
 
-    public record UrlRes(String url) {
-    }
-
     @Test
     void when_requests_without_mock_user_then_returns_unauthorized_status() {
         // given
@@ -61,7 +59,7 @@ class VoiceControllerTest {
                 .expectHeader()
                 .contentType(MediaType.APPLICATION_JSON)
                 .expectBody(UrlRes.class)
-                .value(urlRes -> assertThat(urlRes.url).isEqualTo(connectUrl))
+                .value(urlRes -> assertThat(urlRes.url()).isEqualTo(connectUrl))
                 .value(System.out::println);
     }
 }
