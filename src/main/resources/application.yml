@@ -1,6 +1,10 @@
 spring:
   application:
     name: pitching
+  sql:
+    init:
+      mode: always        # ?????? ??? ?? schema.sql ??
+      schema-locations: classpath:schema.sql  # schema.sql ?? ?? ??
   security:
     oauth2:
       client:
