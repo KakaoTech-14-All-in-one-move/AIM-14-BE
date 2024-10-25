@@ -1,57 +1,84 @@
 package com.example.pitching.auth.config;
 
-import io.jsonwebtoken.security.Keys;
-import org.springframework.beans.factory.annotation.Value;
+import com.example.pitching.auth.service.JwtAuthenticationEntryPoint;
+import com.example.pitching.auth.service.JwtTokenProvider;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
-import org.springframework.security.authentication.UserDetailsRepositoryReactiveAuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
+import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.MapReactiveUserDetailsService;
-import org.springframework.security.core.userdetails.ReactiveUserDetailsService;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
-import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
-import io.jsonwebtoken.io.Decoders;
-import javax.crypto.SecretKey;
+import org.springframework.security.web.server.authentication.AuthenticationWebFilter;
+import org.springframework.security.web.server.context.NoOpServerSecurityContextRepository;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.reactive.CorsConfigurationSource;
+import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
+import reactor.core.publisher.Mono;
+
+import java.util.Arrays;
+import java.util.Collections;
 
 @Configuration
 @EnableWebFluxSecurity
+@RequiredArgsConstructor
 public class WebfluxSecurityConfig {
 
-    @Value("${jwt.secret}")
-    private String secret;
+    private final JwtTokenProvider jwtTokenProvider;
+    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
     @Bean
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
         return http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
+                .httpBasic(httpBasic -> httpBasic.disable())
+                .formLogin(formLogin -> formLogin.disable())
                 .authorizeExchange(exchanges -> exchanges
-                        .pathMatchers("/auth/token").permitAll()
+                        .pathMatchers("/auth/**", "/oauth2/**").permitAll()
                         .pathMatchers("/api/**").authenticated()
                         .anyExchange().authenticated()
                 )
-                .httpBasic(basic -> basic.authenticationManager(authenticationManager()))
-                .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtDecoder(jwtDecoder())))
+                .exceptionHandling(exceptionHandling ->
+                        exceptionHandling.authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                )
+                .addFilterAt(jwtAuthenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
                 .build();
     }
 
     @Bean
     public ReactiveAuthenticationManager authenticationManager() {
-        UserDetailsRepositoryReactiveAuthenticationManager authenticationManager =
-                new UserDetailsRepositoryReactiveAuthenticationManager(userDetailsService());
-        authenticationManager.setPasswordEncoder(passwordEncoder());
-        return authenticationManager;
+        return authentication -> {
+            if (authentication.getCredentials() != null) {
+                String username = authentication.getName();
+                String password = authentication.getCredentials().toString();
+
+                return userDetailsService().findByUsername(username)
+                        .filter(userDetails ->
+                                passwordEncoder().matches(password, userDetails.getPassword()))
+                        .map(userDetails -> new UsernamePasswordAuthenticationToken(
+                                userDetails.getUsername(),
+                                null,
+                                userDetails.getAuthorities()
+                        ));
+            }
+            return Mono.empty();
+        };
     }
 
-    // TODO: 삭제 해야하는 method
+    // 테스트용 임시 사용자 설정
     @Bean
-    public ReactiveUserDetailsService userDetailsService() {
+    public MapReactiveUserDetailsService userDetailsService() {
         UserDetails user = User.builder()
                 .username("user")
                 .password(passwordEncoder().encode("password"))
@@ -61,14 +88,56 @@ public class WebfluxSecurityConfig {
     }
 
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        // HTTPS 프로토콜 명시
+        configuration.setAllowedOrigins(Arrays.asList("https://localhost:3000"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
+
+    private AuthenticationWebFilter jwtAuthenticationFilter() {
+        ReactiveAuthenticationManager authenticationManager = new ReactiveAuthenticationManager() {
+            @Override
+            public Mono<Authentication> authenticate(Authentication authentication) {
+                String token = authentication.getCredentials().toString();
+                try {
+                    String username = jwtTokenProvider.validateAndGetUsername(token);
+                    return Mono.just(new UsernamePasswordAuthenticationToken(
+                            username,
+                            null,
+                            Collections.emptyList()
+                    ));
+                } catch (Exception e) {
+                    return Mono.error(e);
+                }
+            }
+        };
+
+        AuthenticationWebFilter filter = new AuthenticationWebFilter(authenticationManager);
+
+        filter.setServerAuthenticationConverter(exchange -> {
+            String token = exchange.getRequest().getHeaders()
+                    .getFirst(HttpHeaders.AUTHORIZATION);
+
+            if (token != null && token.startsWith("Bearer ")) {
+                token = token.substring(7);
+                return Mono.just(new UsernamePasswordAuthenticationToken(token, token));
+            }
+
+            return Mono.empty();
+        });
+
+        return filter;
     }
 
     @Bean
-    public ReactiveJwtDecoder jwtDecoder() {
-        byte[] keyBytes = Decoders.BASE64.decode(secret);
-        SecretKey key = Keys.hmacShaKeyFor(keyBytes);
-        return NimbusReactiveJwtDecoder.withSecretKey(key).build();
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 }
