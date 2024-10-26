@@ -3,6 +3,8 @@ package com.example.pitching.call.handler;
 import com.example.pitching.call.dto.properties.ServerProperties;
 import com.example.pitching.call.operation.res.Hello;
 import com.example.pitching.call.operation.res.Response;
+import io.lettuce.core.XAddArgs;
+import io.lettuce.core.api.reactive.RedisReactiveCommands;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Range;
 import org.springframework.data.redis.connection.ReactiveRedisConnectionFactory;
@@ -35,15 +37,17 @@ public class SinkManager {
     private final StreamReceiver<String, MapRecord<String, String, String>> streamReceiver;
     private final ConvertService convertService;
     private final ServerProperties serverProperties;
+    private final RedisReactiveCommands<String, String> redisCommands;
 
     public SinkManager(ConvertService convertService,
                        ServerProperties serverProperties,
                        ReactiveStringRedisTemplate redisTemplate,
-                       ReactiveRedisConnectionFactory redisConnectionFactory) {
+                       ReactiveRedisConnectionFactory redisConnectionFactory,
+                       RedisReactiveCommands<String, String> redisCommands) {
         this.convertService = convertService;
         this.serverProperties = serverProperties;
-
         this.streamOperations = redisTemplate.opsForStream();
+        this.redisCommands = redisCommands;
 
         var options = StreamReceiver.StreamReceiverOptions.builder()
                 .pollTimeout(Duration.ofMillis(100L))
@@ -96,7 +100,9 @@ public class SinkManager {
     }
 
     public void addVoiceMessageToStream(String userId, String message) {
-        streamOperations.add(userId + ":voice", Map.of("message", message))
+        XAddArgs xAddArgs = new XAddArgs().maxlen(500).approximateTrimming(true);
+        redisCommands
+                .xadd(userId + ":voice", xAddArgs, Map.of("message", message))
                 .subscribe(record -> log.info("Publish Voice to Redis: {}", record));
     }
 

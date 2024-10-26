@@ -2,6 +2,10 @@ spring:
   application:
     name: pitching-server
 
+redis:
+  host: localhost
+  port: 6379
+
 server:
   port: 8080
   call:
@@ -10,4 +14,3 @@ server:
     voice-path: /ws/v1/voice
     video-path: /ws/v1/video
     heartbeat-interval: 45s
-
