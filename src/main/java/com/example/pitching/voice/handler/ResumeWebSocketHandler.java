@@ -1,7 +1,6 @@
 package com.example.pitching.voice.handler;
 
 import com.example.pitching.voice.operation.handler.ConnectOperationHandler;
-import com.example.pitching.voice.operation.handler.ResumeHandler;
 import io.micrometer.common.lang.NonNullApi;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -17,7 +16,6 @@ import java.util.List;
 public class ResumeWebSocketHandler implements WebSocketHandler {
 
     private final ConnectOperationHandler connectOperationHandler;
-    private final ResumeHandler resumeHandler;
 
     @Override
     public List<String> getSubProtocols() {
@@ -26,7 +24,6 @@ public class ResumeWebSocketHandler implements WebSocketHandler {
 
     @Override
     public Mono<Void> handle(WebSocketSession session) {
-        return resumeHandler.resumeDispatchEvents(session)
-                .then(connectOperationHandler.handleMessages(session));
+        return connectOperationHandler.handleMessages(session);
     }
 }

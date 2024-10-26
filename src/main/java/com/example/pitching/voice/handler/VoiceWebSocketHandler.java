@@ -25,6 +25,6 @@ public class VoiceWebSocketHandler implements WebSocketHandler {
     @Override
     public Mono<Void> handle(WebSocketSession session) {
         return connectOperationHandler.sendHello(session)
-                .then(connectOperationHandler.handleMessages(session));
+                .and(connectOperationHandler.handleMessages(session));
     }
 }
