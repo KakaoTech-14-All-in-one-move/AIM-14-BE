@@ -7,7 +7,7 @@ import lombok.Getter;
 public enum ReqOp {
 
     HEARTBEAT(1, "Request/Response", "Fired periodically by the client to keep the connection alive."),
-    RESUME(2, "Request", "");
+    RESUME(2, "Request", "Request events after the last sequence.");
 
     @JsonValue
     private final int code;
