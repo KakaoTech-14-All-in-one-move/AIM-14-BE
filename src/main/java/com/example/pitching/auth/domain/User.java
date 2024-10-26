@@ -17,7 +17,7 @@ import java.util.List;
 @AllArgsConstructor
 public class User implements UserDetails {
     @Id
-    private Long id;
+    private String email;
     private String username;
     private String password;
     private String role;
@@ -31,10 +31,16 @@ public class User implements UserDetails {
     public String getPassword() {
         return password;
     }
-
+/*
     @Override
     public String getUsername() {
         return username;
+    }*/
+
+    @Override
+    public String getUsername() {
+        // email을 username으로 사용
+        return this.email;
     }
 
     @Override
