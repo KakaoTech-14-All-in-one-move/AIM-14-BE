@@ -23,8 +23,8 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
-    public Mono<TokenInfo> authenticate(String username, String password) {
-        return userDetailsService.findByUsername(username)
+    public Mono<TokenInfo> authenticate(String email, String password) {
+        return userDetailsService.findByUsername(email)
                 .filter(user -> passwordEncoder.matches(password, user.getPassword()))
                 .map(user -> user.getUsername())
                 .map(jwtTokenProvider::createTokenInfo)
