@@ -1,6 +1,6 @@
 package com.example.pitching.voice.handler;
 
-import com.example.pitching.voice.operation.handler.ConnectOperationHandler;
+import com.example.pitching.voice.handler.service.ConnectOperationService;
 import io.micrometer.common.lang.NonNullApi;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -15,7 +15,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class VoiceWebSocketHandler implements WebSocketHandler {
 
-    private final ConnectOperationHandler connectOperationHandler;
+    private final ConnectOperationService connectOperationService;
 
     @Override
     public List<String> getSubProtocols() {
@@ -24,7 +24,7 @@ public class VoiceWebSocketHandler implements WebSocketHandler {
 
     @Override
     public Mono<Void> handle(WebSocketSession session) {
-        return connectOperationHandler.sendHello(session)
-                .and(connectOperationHandler.handleMessages(session));
+        return connectOperationService.sendHello(session)
+                .and(connectOperationService.handleMessages(session));
     }
 }

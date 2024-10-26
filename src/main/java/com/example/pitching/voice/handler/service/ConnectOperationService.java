@@ -1,4 +1,4 @@
-package com.example.pitching.voice.operation.handler;
+package com.example.pitching.voice.handler.service;
 
 import com.example.pitching.voice.dto.properties.ServerProperties;
 import com.example.pitching.voice.operation.Operation;
@@ -21,7 +21,7 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class ConnectOperationHandler {
+public class ConnectOperationService {
 
     private final ServerProperties serverProperties;
     private final ObjectMapper objectMapper;
