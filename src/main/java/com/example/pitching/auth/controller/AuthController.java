@@ -27,7 +27,7 @@ public class AuthController {
 
     @PostMapping("/login")
     public Mono<TokenInfo> login(@RequestBody LoginRequest request) {
-        return authService.authenticate(request.username(), request.password());
+        return authService.authenticate(request.email(), request.password());
     }
 
     @PostMapping("/refresh")
