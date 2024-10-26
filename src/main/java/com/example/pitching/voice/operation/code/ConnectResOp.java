@@ -22,4 +22,13 @@ public enum ConnectResOp {
         this.direction = direction;
         this.description = description;
     }
+
+    public static ConnectResOp from(int code) {
+        for (ConnectResOp type : values()) {
+            if (type.getCode() == code) {
+                return type;
+            }
+        }
+        throw new IllegalArgumentException("Invalid code: " + code);
+    }
 }
