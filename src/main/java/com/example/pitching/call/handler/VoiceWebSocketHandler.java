@@ -12,7 +12,6 @@ import org.springframework.web.reactive.socket.WebSocketSession;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Slf4j
@@ -21,9 +20,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class VoiceWebSocketHandler implements WebSocketHandler {
 
+    private static final String INITIAL_SEQ = "";
     private final SinkManager sinkManager;
     private final ConvertService convertService;
-    private static final String INITIAL_SEQ = "";
 
     @Override
     public List<String> getSubProtocols() {
@@ -55,7 +54,7 @@ public class VoiceWebSocketHandler implements WebSocketHandler {
         ReqOp reqOp = convertService.readReqOpFromMessage(jsonMessage);
         log.info("REQ : {}", reqOp);
         return (switch (reqOp) {
-            case ReqOp.HEARTBEAT -> Flux.just(HeartbeatAck.of(null));
+            case ReqOp.HEARTBEAT -> Flux.just(HeartbeatAck.of(INITIAL_SEQ));
         }).map(convertService::eventToJson);
     }
 }
