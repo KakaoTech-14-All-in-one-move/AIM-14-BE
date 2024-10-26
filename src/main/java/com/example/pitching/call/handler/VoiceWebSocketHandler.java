@@ -52,6 +52,7 @@ public class VoiceWebSocketHandler implements WebSocketHandler {
         return userIdMono
                 .flatMapMany(userId -> session.receive()
                         .map(WebSocketMessage::getPayloadAsText)
+                        .onBackpressureBuffer()
                         .doOnNext(jsonMessage -> handle(jsonMessage, userId))
                         .timeout(serverProperties.getTimeout())
                         .doOnError(error -> log.error("Error occurs in receiveMessages()", error))

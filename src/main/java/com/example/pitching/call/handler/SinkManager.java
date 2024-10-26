@@ -1,5 +1,6 @@
 package com.example.pitching.call.handler;
 
+import com.example.pitching.call.config.RedisConfig;
 import com.example.pitching.call.dto.properties.ServerProperties;
 import com.example.pitching.call.operation.res.Hello;
 import com.example.pitching.call.operation.res.Response;
@@ -38,16 +39,19 @@ public class SinkManager {
     private final ConvertService convertService;
     private final ServerProperties serverProperties;
     private final RedisReactiveCommands<String, String> redisCommands;
+    private final RedisConfig.RedisProperties redisProperties;
 
     public SinkManager(ConvertService convertService,
                        ServerProperties serverProperties,
                        ReactiveStringRedisTemplate redisTemplate,
                        ReactiveRedisConnectionFactory redisConnectionFactory,
-                       RedisReactiveCommands<String, String> redisCommands) {
+                       RedisReactiveCommands<String, String> redisCommands,
+                       RedisConfig.RedisProperties redisProperties) {
         this.convertService = convertService;
         this.serverProperties = serverProperties;
         this.streamOperations = redisTemplate.opsForStream();
         this.redisCommands = redisCommands;
+        this.redisProperties = redisProperties;
 
         var options = StreamReceiver.StreamReceiverOptions.builder()
                 .pollTimeout(Duration.ofMillis(100L))
@@ -100,7 +104,7 @@ public class SinkManager {
     }
 
     public void addVoiceMessageToStream(String userId, String message) {
-        XAddArgs xAddArgs = new XAddArgs().maxlen(500).approximateTrimming(true);
+        XAddArgs xAddArgs = new XAddArgs().maxlen(redisProperties.maxlen()).approximateTrimming(true);
         redisCommands
                 .xadd(userId + ":voice", xAddArgs, Map.of("message", message))
                 .subscribe(record -> log.info("Publish Voice to Redis: {}", record));

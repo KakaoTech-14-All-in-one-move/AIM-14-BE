@@ -11,10 +11,10 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RedisConfig {
     @Bean
-    public RedisClient redisClient(Redis redis) {
+    public RedisClient redisClient(RedisProperties redisProperties) {
         return RedisClient.create(RedisURI.builder()
-                .withHost(redis.host)
-                .withPort(redis.port)
+                .withHost(redisProperties.host)
+                .withPort(redisProperties.port)
                 .build());
     }
 
@@ -29,6 +29,6 @@ public class RedisConfig {
     }
 
     @ConfigurationProperties("redis")
-    public record Redis(String host, int port) {
+    public record RedisProperties(String host, int port, int maxlen) {
     }
 }

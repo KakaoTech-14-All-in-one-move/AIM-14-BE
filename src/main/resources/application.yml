@@ -5,6 +5,7 @@ spring:
 redis:
   host: localhost
   port: 6379
+  maxlen: 500
 
 server:
   port: 8080
