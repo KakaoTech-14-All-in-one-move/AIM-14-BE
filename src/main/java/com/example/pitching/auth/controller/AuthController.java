@@ -32,22 +32,6 @@ public class AuthController {
 
     @PostMapping("/refresh")
     public Mono<TokenInfo> refresh(@RequestBody RefreshRequest request) {
-        try {
-            // 1. Refresh 토큰 유효성 검증
-            if (jwtTokenProvider.isTokenExpired(request.refreshToken())) {
-                return Mono.error(new ResponseStatusException(
-                        HttpStatus.UNAUTHORIZED, "Refresh token has expired"));
-            }
-
-            // 2. Refresh 토큰에서 사용자 정보 추출
-            String username = jwtTokenProvider.validateAndGetUsername(request.refreshToken());
-
-            // 3. Access 토큰만 새로 발급
-            return Mono.just(jwtTokenProvider.recreateAccessToken(username));
-
-        } catch (JwtException e) {
-            return Mono.error(new ResponseStatusException(
-                    HttpStatus.UNAUTHORIZED, "Invalid refresh token"));
-        }
+        return authService.refreshToken(request.refreshToken());
     }
 }
