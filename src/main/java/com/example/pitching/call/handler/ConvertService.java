@@ -1,7 +1,7 @@
 package com.example.pitching.call.handler;
 
 import com.example.pitching.call.operation.Operation;
-import com.example.pitching.call.operation.code.ConnectReqOp;
+import com.example.pitching.call.operation.code.ReqOp;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -29,10 +29,10 @@ public class ConvertService {
         }
     }
 
-    public ConnectReqOp readOpFromMessage(WebSocketMessage webSocketMessage) {
+    public ReqOp readOpFromMessage(WebSocketMessage webSocketMessage) {
         String jsonMessage = webSocketMessage.getPayloadAsText();
         try {
-            return ConnectReqOp.from(objectMapper.readTree(jsonMessage).get("op").asInt());
+            return ReqOp.from(objectMapper.readTree(jsonMessage).get("op").asInt());
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }

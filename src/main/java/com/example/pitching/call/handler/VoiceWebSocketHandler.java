@@ -1,6 +1,7 @@
 package com.example.pitching.call.handler;
 
-import com.example.pitching.call.operation.code.ConnectReqOp;
+import com.example.pitching.call.operation.code.ReqOp;
+import com.example.pitching.call.operation.res.Error;
 import com.example.pitching.call.operation.res.HeartbeatAck;
 import io.micrometer.common.lang.NonNullApi;
 import lombok.RequiredArgsConstructor;
@@ -44,15 +45,15 @@ public class VoiceWebSocketHandler implements WebSocketHandler {
     private Flux<String> receiveMessages(WebSocketSession session, Mono<String> userIdMono) {
         return session.receive()
                 .flatMap(this::handle)
-                .doOnNext(message -> sinkManager.addVoiceMessage(userIdMono, message));
+                .doOnNext(message -> sinkManager.addVoiceMessage(userIdMono, message))
+                .doOnError(error -> log.error("Error occurs in receiveMessages()", error));
     }
 
     private Flux<String> handle(WebSocketMessage webSocketMessage) {
-        ConnectReqOp connectReqOp = convertService.readOpFromMessage(webSocketMessage);
-        log.info("REQ : {}", connectReqOp);
-        return (switch (connectReqOp) {
-            case ConnectReqOp.HEARTBEAT -> Flux.just(HeartbeatAck.of());
-            default -> throw new RuntimeException("Unknown op code: " + connectReqOp);
+        ReqOp reqOp = convertService.readOpFromMessage(webSocketMessage);
+        log.info("REQ : {}", reqOp);
+        return (switch (reqOp) {
+            case ReqOp.HEARTBEAT -> Flux.just(HeartbeatAck.of());
         }).map(convertService::eventToJson);
     }
 }

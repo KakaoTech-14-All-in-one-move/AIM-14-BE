@@ -3,7 +3,7 @@ package com.example.pitching.call.operation.code;
 import lombok.Getter;
 
 @Getter
-public enum ConnectReqOp {
+public enum ReqOp {
 
     HEARTBEAT(1, "Request/Response", "Fired periodically by the client to keep the connection alive.");
 
@@ -11,14 +11,14 @@ public enum ConnectReqOp {
     private final String direction;
     private final String description;
 
-    ConnectReqOp(int code, String direction, String description) {
+    ReqOp(int code, String direction, String description) {
         this.code = code;
         this.direction = direction;
         this.description = description;
     }
 
-    public static ConnectReqOp from(int code) {
-        for (ConnectReqOp type : values()) {
+    public static ReqOp from(int code) {
+        for (ReqOp type : values()) {
             if (type.getCode() == code) {
                 return type;
             }

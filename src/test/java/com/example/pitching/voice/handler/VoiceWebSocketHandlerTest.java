@@ -2,7 +2,7 @@ package com.example.pitching.voice.handler;
 
 import com.example.pitching.call.dto.properties.ServerProperties;
 import com.example.pitching.call.operation.Operation;
-import com.example.pitching.call.operation.code.ConnectResOp;
+import com.example.pitching.call.operation.code.ResOp;
 import com.example.pitching.call.operation.req.Heartbeat;
 import com.example.pitching.call.operation.res.Hello;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -88,7 +88,7 @@ class VoiceWebSocketHandlerTest {
                         .log()
                         .map(json -> jsonToEvent(json, Hello.class))
                         .doOnNext(hello -> {
-                            assertThat(hello.op()).isEqualTo(ConnectResOp.HELLO);
+                            assertThat(hello.op()).isEqualTo(ResOp.HELLO);
                             assertThat(hello.data().heartbeatInterval())
                                     .isEqualTo(serverProperties.getHeartbeatInterval());
                         })
@@ -141,9 +141,9 @@ class VoiceWebSocketHandlerTest {
         }
     }
 
-    private boolean isTargetOperation(String jsonMessage, ConnectResOp op) {
+    private boolean isTargetOperation(String jsonMessage, ResOp op) {
         try {
-            ConnectResOp resOp = ConnectResOp.from(objectMapper.readTree(jsonMessage).get("op").asInt());
+            ResOp resOp = ResOp.from(objectMapper.readTree(jsonMessage).get("op").asInt());
             return Objects.equals(op, resOp);
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
