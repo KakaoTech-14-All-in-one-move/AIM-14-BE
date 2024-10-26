@@ -1,7 +1,6 @@
 package com.example.pitching.call.handler;
 
 import com.example.pitching.call.operation.code.ReqOp;
-import com.example.pitching.call.operation.res.Error;
 import com.example.pitching.call.operation.res.HeartbeatAck;
 import io.micrometer.common.lang.NonNullApi;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +12,7 @@ import org.springframework.web.reactive.socket.WebSocketSession;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Slf4j
@@ -23,6 +23,7 @@ public class VoiceWebSocketHandler implements WebSocketHandler {
 
     private final SinkManager sinkManager;
     private final ConvertService convertService;
+    private static final String INITIAL_SEQ = "";
 
     @Override
     public List<String> getSubProtocols() {
@@ -44,16 +45,17 @@ public class VoiceWebSocketHandler implements WebSocketHandler {
 
     private Flux<String> receiveMessages(WebSocketSession session, Mono<String> userIdMono) {
         return session.receive()
+                .map(WebSocketMessage::getPayloadAsText)
                 .flatMap(this::handle)
                 .doOnNext(message -> sinkManager.addVoiceMessage(userIdMono, message))
                 .doOnError(error -> log.error("Error occurs in receiveMessages()", error));
     }
 
-    private Flux<String> handle(WebSocketMessage webSocketMessage) {
-        ReqOp reqOp = convertService.readOpFromMessage(webSocketMessage);
+    private Flux<String> handle(String jsonMessage) {
+        ReqOp reqOp = convertService.readReqOpFromMessage(jsonMessage);
         log.info("REQ : {}", reqOp);
         return (switch (reqOp) {
-            case ReqOp.HEARTBEAT -> Flux.just(HeartbeatAck.of());
+            case ReqOp.HEARTBEAT -> Flux.just(HeartbeatAck.of(null));
         }).map(convertService::eventToJson);
     }
 }

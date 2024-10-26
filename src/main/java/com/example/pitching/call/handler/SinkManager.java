@@ -2,6 +2,7 @@ package com.example.pitching.call.handler;
 
 import com.example.pitching.call.dto.properties.ServerProperties;
 import com.example.pitching.call.operation.res.Hello;
+import com.example.pitching.call.operation.res.Response;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.connection.ReactiveRedisConnectionFactory;
 import org.springframework.data.redis.connection.stream.MapRecord;
@@ -18,6 +19,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -26,10 +28,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SinkManager {
     public static final Map<String, Sinks.Many<String>> voiceSinkMap = new ConcurrentHashMap<>();
     public static final Map<String, Sinks.Many<String>> videoSinkMap = new ConcurrentHashMap<>();
+    private final ReactiveStreamOperations<String, Object, Object> streamOperations;
+    private final StreamReceiver<String, MapRecord<String, String, String>> streamReceiver;
     private final ConvertService convertService;
     private final ServerProperties serverProperties;
-    private ReactiveStreamOperations<String, Object, Object> streamOperations;
-    private StreamReceiver<String, MapRecord<String, String, String>> streamReceiver;
 
     public SinkManager(ConvertService convertService,
                        ServerProperties serverProperties,
@@ -58,17 +60,23 @@ public class SinkManager {
         streamReceiver.receive(streamOffsetForVoice)
                 .subscribe(record -> {
                     log.info("Subscribe Voice from Redis: {}", record);
-                    var values = record.getValue();
-                    var message = values.get("message");
-                    Sinks.Many<String> voiceSink = voiceSinkMap.get(userId);
-                    voiceSink.tryEmitNext(message);
+                    addSeqBeforeEmit(userId, record);
                 });
+    }
+
+    private void addSeqBeforeEmit(String userId, MapRecord<String, String, String> record) {
+        var values = record.getValue();
+        var message = values.get("message");
+        String seq = record.getId().getValue();
+        Response response = convertService.createEventFromJson(message).setValue(seq);
+        Sinks.Many<String> voiceSink = voiceSinkMap.get(userId);
+        voiceSink.tryEmitNext(convertService.eventToJson(response));
     }
 
     public void addVoiceMessage(Mono<String> userIdMono, String message) {
         userIdMono
                 .flatMap(userId -> streamOperations.add(userId + ":voice",
-                        Map.of("message", message, "seq", "")))
+                        Map.of("message", message)))
                 .subscribe(record -> log.info("Publish Voice to Redis: {}", record));
     }
 
