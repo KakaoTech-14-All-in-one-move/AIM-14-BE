@@ -2,16 +2,16 @@ package com.example.pitching.call.operation.res;
 
 import com.example.pitching.call.operation.code.ResOp;
 
-public record HeartbeatAck(
+public record Resumed(
         ResOp op,
         String seq
 ) implements Response {
-    public static HeartbeatAck of(String seq) {
-        return new HeartbeatAck(ResOp.HEARTBEAT_ACK, seq);
+    public static Resumed of(String seq) {
+        return new Resumed(ResOp.RESUMED, seq);
     }
 
     @Override
     public Response setSeq(String seq) {
-        return HeartbeatAck.of(seq);
+        return Resumed.of(seq);
     }
 }

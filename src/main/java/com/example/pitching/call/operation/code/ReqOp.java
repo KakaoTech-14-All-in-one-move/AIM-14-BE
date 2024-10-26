@@ -1,12 +1,15 @@
 package com.example.pitching.call.operation.code;
 
+import com.fasterxml.jackson.annotation.JsonValue;
 import lombok.Getter;
 
 @Getter
 public enum ReqOp {
 
-    HEARTBEAT(1, "Request/Response", "Fired periodically by the client to keep the connection alive.");
+    HEARTBEAT(1, "Request/Response", "Fired periodically by the client to keep the connection alive."),
+    RESUME(2, "Request", "");
 
+    @JsonValue
     private final int code;
     private final String direction;
     private final String description;

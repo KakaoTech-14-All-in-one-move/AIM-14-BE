@@ -5,6 +5,7 @@ import com.example.pitching.call.operation.code.ReqOp;
 import com.example.pitching.call.operation.code.ResOp;
 import com.example.pitching.call.operation.res.HeartbeatAck;
 import com.example.pitching.call.operation.res.Response;
+import com.example.pitching.call.operation.res.Resumed;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -31,19 +32,20 @@ public class ConvertService {
         }
     }
 
-    public Response createEventFromJson(String jsonMessage) {
+    public Response createResFromJson(String jsonMessage) {
         try {
-            ResOp op = ResOp.from(objectMapper.readTree(jsonMessage).get("op").asInt());
-            return switch (op) {
+            ResOp resOp = ResOp.from(objectMapper.readTree(jsonMessage).get("op").asInt());
+            return switch (resOp) {
                 case HEARTBEAT_ACK -> jsonToEvent(jsonMessage, HeartbeatAck.class);
-                default -> throw new RuntimeException("Unsupported operation: " + op);
+                case RESUMED -> jsonToEvent(jsonMessage, Resumed.class);
+                default -> throw new RuntimeException("Unsupported operation: " + resOp);
             };
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private <T extends Operation> T jsonToEvent(String jsonMessage, Class<T> eventClass) {
+    public <T extends Operation> T jsonToEvent(String jsonMessage, Class<T> eventClass) {
         try {
             return objectMapper.readValue(jsonMessage, eventClass);
         } catch (JsonProcessingException e) {

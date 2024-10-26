@@ -2,7 +2,9 @@ package com.example.pitching.call.handler;
 
 import com.example.pitching.call.dto.properties.ServerProperties;
 import com.example.pitching.call.operation.code.ReqOp;
+import com.example.pitching.call.operation.req.Resume;
 import com.example.pitching.call.operation.res.HeartbeatAck;
+import com.example.pitching.call.operation.res.Resumed;
 import io.micrometer.common.lang.NonNullApi;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,31 +41,46 @@ public class VoiceWebSocketHandler implements WebSocketHandler {
     }
 
     private Mono<Void> sendMessages(WebSocketSession session, Mono<String> userIdMono) {
-        Flux<WebSocketMessage> messageFlux = sinkManager.registerVoice(userIdMono)
-                .doOnNext(message -> log.info("RES : {}", message))
-                .map(session::textMessage);
-        return session.send(messageFlux);
+        Flux<WebSocketMessage> webSocketMessageFlux = userIdMono
+                .flatMapMany(userId -> sinkManager.registerVoice(userId)
+                        .doOnNext(message -> log.info("RES for {} : {}", userId, message))
+                        .map(session::textMessage));
+        return session.send(webSocketMessageFlux);
     }
 
     private Flux<String> receiveMessages(WebSocketSession session, Mono<String> userIdMono) {
-        return session.receive()
-                .map(WebSocketMessage::getPayloadAsText)
-                .flatMap(this::handle)
-                .doOnNext(message -> sinkManager.addVoiceMessage(userIdMono, message))
-                .timeout(serverProperties.getTimeout())
-                .doOnError(error -> log.error("Error occurs in receiveMessages()", error))
-                .publishOn(Schedulers.boundedElastic())
-                .doFinally(signalType -> {
-                    log.info("WebSocket connection closed with signal: {}", signalType);
-                    userIdMono.doOnSuccess(sinkManager::unregisterVoiceStream).subscribe();
-                });
+        return userIdMono
+                .flatMapMany(userId -> session.receive()
+                        .map(WebSocketMessage::getPayloadAsText)
+                        .doOnNext(jsonMessage -> handle(jsonMessage, userId))
+                        .timeout(serverProperties.getTimeout())
+                        .doOnError(error -> log.error("Error occurs in receiveMessages()", error))
+                        .publishOn(Schedulers.boundedElastic())
+                        .doFinally(signalType -> {
+                            log.info("WebSocket connection closed with signal: {}", signalType);
+                            userIdMono.doOnSuccess(sinkManager::unregisterVoiceStream).subscribe();
+                        }));
     }
 
-    private Flux<String> handle(String jsonMessage) {
-        ReqOp reqOp = convertService.readReqOpFromMessage(jsonMessage);
+    private void handle(String receivedMessage, String userId) {
+        ReqOp reqOp = convertService.readReqOpFromMessage(receivedMessage);
         log.info("REQ : {}", reqOp);
-        return (switch (reqOp) {
-            case ReqOp.HEARTBEAT -> Flux.just(HeartbeatAck.of(INITIAL_SEQ));
-        }).map(convertService::eventToJson);
+        switch (reqOp) {
+            case ReqOp.HEARTBEAT -> sendHeartbeatAck(userId);
+            case ReqOp.RESUME -> resumeMissedEvent(receivedMessage, userId);
+        }
+        ;
+    }
+
+    private void sendHeartbeatAck(String userId) {
+        String heartbeatAck = convertService.eventToJson(HeartbeatAck.of(INITIAL_SEQ));
+        sinkManager.addVoiceMessageToStream(userId, heartbeatAck);
+    }
+
+    private void resumeMissedEvent(String jsonMessage, String userId) {
+        Resume resume = convertService.jsonToEvent(jsonMessage, Resume.class);
+        sinkManager.addMissedVoiceMessageToStream(userId, resume.seq());
+        String resumed = convertService.eventToJson(Resumed.of(INITIAL_SEQ));
+        sinkManager.addVoiceMessageToStream(userId, resumed);
     }
 }

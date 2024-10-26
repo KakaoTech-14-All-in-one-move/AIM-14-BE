@@ -4,6 +4,7 @@ import com.example.pitching.call.dto.properties.ServerProperties;
 import com.example.pitching.call.operation.res.Hello;
 import com.example.pitching.call.operation.res.Response;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Range;
 import org.springframework.data.redis.connection.ReactiveRedisConnectionFactory;
 import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.connection.stream.ReadOffset;
@@ -51,10 +52,8 @@ public class SinkManager {
         streamReceiver = StreamReceiver.create(redisConnectionFactory, options);
     }
 
-    public Flux<String> registerVoice(Mono<String> userIdMono) {
-        return userIdMono
-                .flux()
-                .flatMap(userId -> initSinkMap(userId, voiceSinkMap));
+    public Flux<String> registerVoice(String userId) {
+        return initSinkMap(userId, voiceSinkMap);
     }
 
     public void unregisterVoiceStream(String userId) {
@@ -69,33 +68,40 @@ public class SinkManager {
         var streamOffsetForVoice = StreamOffset.create(userId + ":voice", ReadOffset.latest());
         Disposable subscription = streamReceiver.receive(streamOffsetForVoice)
                 .subscribe(record -> {
-                    log.info("Subscribe Voice from Redis: {}", record.getId().getValue());
-                    addSeqBeforeEmit(userId, record);
+                    String seq = record.getId().getValue();
+                    log.info("Subscribe Voice from Redis: {}", seq);
+                    String message = record.getValue().get("message");
+                    addSeqBeforeEmit(userId, seq, message, voiceSinkMap);
                 });
         voiceStream.put(userId, subscription);
         log.info("Register Voice Stream: {}", userId);
     }
 
-    private void addSeqBeforeEmit(String userId, MapRecord<String, String, String> record) {
-        var values = record.getValue();
-        var message = values.get("message");
-        String seq = record.getId().getValue();
-        Response response = convertService.createEventFromJson(message).setValue(seq);
-        Sinks.Many<String> voiceSink = voiceSinkMap.get(userId);
+    private void addSeqBeforeEmit(String userId, String seq, String message,
+                                  Map<String, Sinks.Many<String>> sinkMap) {
+        Response response = convertService.createResFromJson(message).setSeq(seq);
+        Sinks.Many<String> voiceSink = sinkMap.get(userId);
         voiceSink.tryEmitNext(convertService.eventToJson(response));
     }
 
-    public void addVoiceMessage(Mono<String> userIdMono, String message) {
-        userIdMono
-                .flatMap(userId -> streamOperations.add(userId + ":voice",
-                        Map.of("message", message)))
+    public void addMissedVoiceMessageToStream(String userId, String lastRecordId) {
+        Range<String> range = Range.rightOpen(lastRecordId, "+");
+        streamOperations.range(userId + ":voice", range)
+                .skip(1)
+                .subscribe(record -> {
+                    String seq = record.getId().getValue();
+                    String message = record.getValue().get("message").toString();
+                    addSeqBeforeEmit(userId, seq, message, voiceSinkMap);
+                });
+    }
+
+    public void addVoiceMessageToStream(String userId, String message) {
+        streamOperations.add(userId + ":voice", Map.of("message", message))
                 .subscribe(record -> log.info("Publish Voice to Redis: {}", record));
     }
 
-    public Flux<String> registerVideo(Mono<String> getUserIdFromContext) {
-        return getUserIdFromContext
-                .flux()
-                .flatMap(userId -> initSinkMap(userId, videoSinkMap));
+    public Flux<String> registerVideo(String userId) {
+        return initSinkMap(userId, videoSinkMap);
     }
 
     public Mono<String> getUserIdFromContext() {
@@ -113,7 +119,6 @@ public class SinkManager {
         sendHello(sink);
         return sink.asFlux();
     }
-
 
     private void sendHello(Sinks.Many<String> sink) {
         String jsonHelloEvent = convertService.eventToJson(Hello.of(serverProperties.getHeartbeatInterval()));
