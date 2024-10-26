@@ -20,6 +20,10 @@ public record ServerProperties(int port, Call call) {
         return this.call.heartbeatInterval.toMillis();
     }
 
+    public Duration getTimeout() {
+        return this.call.heartbeatInterval;
+    }
+
     public String getVoicePath() {
         return this.call.voicePath;
     }

@@ -1,5 +1,6 @@
 package com.example.pitching.call.handler;
 
+import com.example.pitching.call.dto.properties.ServerProperties;
 import com.example.pitching.call.operation.code.ReqOp;
 import com.example.pitching.call.operation.res.HeartbeatAck;
 import io.micrometer.common.lang.NonNullApi;
@@ -12,6 +13,7 @@ import org.springframework.web.reactive.socket.WebSocketSession;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.util.List;
 
 @Slf4j
@@ -23,6 +25,7 @@ public class VoiceWebSocketHandler implements WebSocketHandler {
     private static final String INITIAL_SEQ = "";
     private final SinkManager sinkManager;
     private final ConvertService convertService;
+    private final ServerProperties serverProperties;
 
     @Override
     public List<String> getSubProtocols() {
@@ -47,6 +50,7 @@ public class VoiceWebSocketHandler implements WebSocketHandler {
                 .map(WebSocketMessage::getPayloadAsText)
                 .flatMap(this::handle)
                 .doOnNext(message -> sinkManager.addVoiceMessage(userIdMono, message))
+                .timeout(serverProperties.getTimeout())
                 .doOnError(error -> log.error("Error occurs in receiveMessages()", error));
     }
 
