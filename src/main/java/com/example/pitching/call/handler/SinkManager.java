@@ -14,6 +14,7 @@ import org.springframework.data.redis.stream.StreamReceiver;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
+import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
@@ -27,6 +28,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SinkManager {
     public static final Map<String, Sinks.Many<String>> voiceSinkMap = new ConcurrentHashMap<>();
     public static final Map<String, Sinks.Many<String>> videoSinkMap = new ConcurrentHashMap<>();
+    private final Map<String, Disposable> voiceStream = new ConcurrentHashMap<>();
+    private final Map<String, Disposable> videoStream = new ConcurrentHashMap<>();
     private final ReactiveStreamOperations<String, Object, Object> streamOperations;
     private final StreamReceiver<String, MapRecord<String, String, String>> streamReceiver;
     private final ConvertService convertService;
@@ -54,13 +57,23 @@ public class SinkManager {
                 .flatMap(userId -> initSinkMap(userId, voiceSinkMap));
     }
 
+    public void unregisterVoiceStream(String userId) {
+        var subscription = voiceStream.get(userId);
+        if (subscription != null) {
+            subscription.dispose();
+            log.info("Unregister Voice Stream: {}", userId);
+        }
+    }
+
     private void registerVoiceStream(String userId) {
         var streamOffsetForVoice = StreamOffset.create(userId + ":voice", ReadOffset.latest());
-        streamReceiver.receive(streamOffsetForVoice)
+        Disposable subscription = streamReceiver.receive(streamOffsetForVoice)
                 .subscribe(record -> {
-                    log.info("Subscribe Voice from Redis: {}", record);
+                    log.info("Subscribe Voice from Redis: {}", record.getId().getValue());
                     addSeqBeforeEmit(userId, record);
                 });
+        voiceStream.put(userId, subscription);
+        log.info("Register Voice Stream: {}", userId);
     }
 
     private void addSeqBeforeEmit(String userId, MapRecord<String, String, String> record) {

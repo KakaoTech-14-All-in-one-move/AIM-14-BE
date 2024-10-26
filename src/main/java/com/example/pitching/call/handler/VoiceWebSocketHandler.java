@@ -12,8 +12,8 @@ import org.springframework.web.reactive.socket.WebSocketMessage;
 import org.springframework.web.reactive.socket.WebSocketSession;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
-import java.time.Duration;
 import java.util.List;
 
 @Slf4j
@@ -51,7 +51,12 @@ public class VoiceWebSocketHandler implements WebSocketHandler {
                 .flatMap(this::handle)
                 .doOnNext(message -> sinkManager.addVoiceMessage(userIdMono, message))
                 .timeout(serverProperties.getTimeout())
-                .doOnError(error -> log.error("Error occurs in receiveMessages()", error));
+                .doOnError(error -> log.error("Error occurs in receiveMessages()", error))
+                .publishOn(Schedulers.boundedElastic())
+                .doFinally(signalType -> {
+                    log.info("WebSocket connection closed with signal: {}", signalType);
+                    userIdMono.doOnSuccess(sinkManager::unregisterVoiceStream).subscribe();
+                });
     }
 
     private Flux<String> handle(String jsonMessage) {
