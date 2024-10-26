@@ -1,5 +1,6 @@
 package com.example.pitching.auth.service;
 
+import com.example.pitching.auth.domain.TokenStatus;
 import com.example.pitching.auth.dto.TokenInfo;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -77,31 +78,42 @@ public class JwtTokenProvider {
         }
     }
 
-    public boolean isTokenExpired(String token) {
-        try {
-            Jwts.parserBuilder()
-                    .setSigningKey(getSecretKey())
-                    .build()
-                    .parseClaimsJws(token);
-            return false;
-        } catch (ExpiredJwtException e) {
-            return true;
-        }
-    }
-
-    public boolean isRefreshToken(String token) {
+    public TokenStatus validateRefreshToken(String token) {
         try {
             Claims claims = Jwts.parserBuilder()
                     .setSigningKey(getSecretKey())
                     .build()
                     .parseClaimsJws(token)
                     .getBody();
-            return "refresh".equals(claims.get("type", String.class));
+
+            // Refresh 토큰 타입 검증
+            if (!"refresh".equals(claims.get("type", String.class))) {
+                return TokenStatus.INVALID;
+            }
+
+            // 토큰 만료 시간 검증
+            if (claims.getExpiration().before(new Date())) {
+                return TokenStatus.EXPIRED;
+            }
+
+            // TODO: 필요한 경우 검증 로직 추가
+
+            return TokenStatus.VALID;
+
         } catch (ExpiredJwtException e) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token has expired");
+            return TokenStatus.EXPIRED;
         } catch (Exception e) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
+            return TokenStatus.INVALID;
         }
+    }
+
+    public String extractUsername(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(getSecretKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+        return claims.getSubject();
     }
 
     private SecretKey getSecretKey() {
