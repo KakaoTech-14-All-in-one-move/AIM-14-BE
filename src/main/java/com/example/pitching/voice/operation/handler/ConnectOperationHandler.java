@@ -59,7 +59,7 @@ public class ConnectOperationHandler {
         return ReactiveSecurityContextHolder.getContext()
                 .map(ctx -> { // TODO: UserDetails 구현체로 변경
                     UserDetails user = (UserDetails) ctx.getAuthentication().getPrincipal();
-                    ReadyData data = ReadyData.of(user, null, sessionId, serverProperties.getUrl(true));
+                    ReadyData data = ReadyData.of(user, null, sessionId, serverProperties.getUrl());
                     return Ready.of(data);
                 }).flux();
     }
@@ -71,7 +71,7 @@ public class ConnectOperationHandler {
         log.info("resume: sessionId={}, lastSeq={}", receivedSessionId, lastSeq);
 
         // TODO: Redis 에 저장된 sessionId 와 비교
-        if (!"redisSessionId".equals(receivedSessionId)) return Flux.just(InvalidSession.of(false));
+        if (!"redisSessionId".equals(receivedSessionId)) return Flux.just(InvalidSession.of());
 
         // TODO: lastSeq 이후의 이벤트 가져오기
         return getEventsAfterLastSeq(receivedSessionId, lastSeq).concatWith(Mono.just(Resumed.of()));

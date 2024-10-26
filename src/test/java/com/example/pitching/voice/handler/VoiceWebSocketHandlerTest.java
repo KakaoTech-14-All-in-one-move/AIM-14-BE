@@ -79,7 +79,7 @@ class VoiceWebSocketHandlerTest {
         @WithMockUser
         void when_connects_web_socket_then_returns_hello_operation() {
             // Given
-            URI uri = URI.create(serverProperties.getUrlForTest(port, false));
+            URI uri = URI.create(serverProperties.getUrlForTest(port));
 
             // When & Then
             webSocketClient.execute(uri, session -> {
@@ -106,7 +106,7 @@ class VoiceWebSocketHandlerTest {
         @Disabled("서버로부터 두번째 메세지 수신이 안됨..")
         void when_sends_heartbeat_then_returns_heartbeat_ack() {
             // Given
-            URI uri = URI.create(serverProperties.getUrlForTest(port, false));
+            URI uri = URI.create(serverProperties.getUrlForTest(port));
 
             // When & Then
             webSocketClient.execute(uri, session -> {

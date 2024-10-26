@@ -48,7 +48,7 @@ class VoiceControllerTest {
     @WithMockUser
     void when_requests_with_mock_user_then_returns_connect_url() {
         // given
-        String connectUrl = serverProperties.getUrl(false);
+        String connectUrl = serverProperties.getUrl();
 
         // when & then
         client.get()

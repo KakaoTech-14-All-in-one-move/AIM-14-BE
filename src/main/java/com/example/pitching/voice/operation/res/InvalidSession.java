@@ -4,10 +4,9 @@ import com.example.pitching.voice.operation.Operation;
 import com.example.pitching.voice.operation.code.ConnectResOp;
 
 public record InvalidSession(
-        ConnectResOp op,
-        boolean resume
+        ConnectResOp op
 ) implements Operation {
-    public static InvalidSession of(boolean d) {
-        return new InvalidSession(ConnectResOp.INVALID_SESSION, d);
+    public static InvalidSession of() {
+        return new InvalidSession(ConnectResOp.INVALID_SESSION);
     }
 }

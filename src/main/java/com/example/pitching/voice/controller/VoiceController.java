@@ -18,6 +18,6 @@ public class VoiceController {
 
     @GetMapping(value = "/websocket", produces = MediaType.APPLICATION_JSON_VALUE)
     public Mono<UrlRes> getConnectUrl() {
-        return Mono.just(UrlRes.of(serverProperties.getUrl(false)));
+        return Mono.just(UrlRes.of(serverProperties.getUrl()));
     }
 }

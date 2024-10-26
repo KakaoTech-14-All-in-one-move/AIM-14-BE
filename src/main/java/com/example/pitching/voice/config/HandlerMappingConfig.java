@@ -1,7 +1,6 @@
 package com.example.pitching.voice.config;
 
 import com.example.pitching.voice.dto.properties.ServerProperties;
-import com.example.pitching.voice.handler.ResumeWebSocketHandler;
 import com.example.pitching.voice.handler.VoiceWebSocketHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Bean;
@@ -15,10 +14,9 @@ public class HandlerMappingConfig {
 
     @Bean
     public SimpleUrlHandlerMapping simpleUrlHandlerMapping(
-            VoiceWebSocketHandler voiceWebSocketHandler, ResumeWebSocketHandler resumeWebSocketHandler, ServerProperties serverProperties) {
+            VoiceWebSocketHandler voiceWebSocketHandler, ServerProperties serverProperties) {
         return new SimpleUrlHandlerMapping(Map.of(
-                serverProperties.voice().path(), voiceWebSocketHandler,
-                serverProperties.voice().resumePath(), resumeWebSocketHandler
+                serverProperties.voice().path(), voiceWebSocketHandler
         ), 1);
     }
 

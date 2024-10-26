@@ -8,6 +8,5 @@ server:
     protocol: ws
     host: localhost
     path: /ws/v1/voice
-    resume-path: /ws/v1/resume/voice
     heartbeat-interval: 45s
 

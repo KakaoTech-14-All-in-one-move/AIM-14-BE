@@ -7,12 +7,12 @@ import java.time.Duration;
 
 @ConfigurationProperties("server")
 public record ServerProperties(int port, Voice voice) {
-    public String getUrl(boolean resume) {
-        return this.voice.makeUrl(this.port, resume);
+    public String getUrl() {
+        return this.voice.makeUrl(this.port);
     }
 
-    public String getUrlForTest(int port, boolean resume) {
-        return this.voice.makeUrl(port, resume);
+    public String getUrlForTest(int port) {
+        return this.voice.makeUrl(port);
     }
 
     public int getVersion() {
@@ -23,14 +23,14 @@ public record ServerProperties(int port, Voice voice) {
         return this.voice.heartbeatInterval.toMillis();
     }
 
-    public record Voice(String protocol, String host, String path, String resumePath, int version,
+    public record Voice(String protocol, String host, String path, int version,
                         Duration heartbeatInterval) {
-        private String makeUrl(int port, boolean resume) {
+        private String makeUrl(int port) {
             return UriComponentsBuilder.newInstance()
                     .scheme(protocol)
                     .host(host)
                     .port(port)
-                    .path(resume ? resumePath : path)
+                    .path(path)
                     .build()
                     .toString();
         }
