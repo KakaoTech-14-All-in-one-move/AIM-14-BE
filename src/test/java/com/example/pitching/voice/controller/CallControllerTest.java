@@ -47,13 +47,32 @@ class CallControllerTest {
 
     @Test
     @WithMockUser
-    void when_requests_voice_url_with_authentication_then_returns_voice_connect_url() {
+    void when_requests_wrong_url_with_authentication_then_returns_bad_request_status() {
         // given
-        String connectUrl = serverProperties.getUrl("voice");
+        String wrongChannel = "wrong";
 
         // when & then
         client.get()
-                .uri("/api/v1/call/voice")
+                .uri("/api/v1/call/" + wrongChannel)
+                .exchange()
+                .expectStatus()
+                .isBadRequest()
+                .expectHeader()
+                .contentType(MediaType.APPLICATION_JSON)
+                .expectBody()
+                .jsonPath("$.error").isEqualTo("Invalid channel");
+    }
+
+    @Test
+    @WithMockUser
+    void when_requests_voice_url_with_authentication_then_returns_voice_connect_url() {
+        // given
+        String channel = "voice";
+        String connectUrl = serverProperties.getUrl(channel);
+
+        // when & then
+        client.get()
+                .uri("/api/v1/call/" + channel)
                 .exchange()
                 .expectStatus()
                 .isOk()
@@ -68,11 +87,12 @@ class CallControllerTest {
     @WithMockUser
     void when_requests_video_url_with_authentication_then_returns_video_connect_url() {
         // given
-        String connectUrl = serverProperties.getUrl("video");
+        String channel = "video";
+        String connectUrl = serverProperties.getUrl(channel);
 
         // when & then
         client.get()
-                .uri("/api/v1/call/video")
+                .uri("/api/v1/call/" + channel)
                 .exchange()
                 .expectStatus()
                 .isOk()
