@@ -11,6 +11,14 @@ public record ServerProperties(int port, Voice voice) {
         return this.voice.makeUrl(this.port, resume);
     }
 
+    public String getUrlForTest(int port, boolean resume) {
+        return this.voice.makeUrl(port, resume);
+    }
+
+    public int getVersion() {
+        return this.voice.version;
+    }
+
     public long getHeartbeatInterval() {
         return this.voice.heartbeatInterval.toMillis();
     }
@@ -23,8 +31,6 @@ public record ServerProperties(int port, Voice voice) {
                     .host(host)
                     .port(port)
                     .path(resume ? resumePath : path)
-                    .queryParam("v", version)
-                    .queryParam("encoding", "json")
                     .build()
                     .toString();
         }
