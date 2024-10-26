@@ -4,9 +4,10 @@ spring:
 
 server:
   port: 8080
-  voice:
+  call:
     protocol: ws
     host: localhost
-    path: /ws/v1/voice
+    voice-path: /ws/v1/voice
+    video-path: /ws/v1/video
     heartbeat-interval: 45s
 

@@ -1,10 +1,10 @@
 package com.example.pitching.voice.handler;
 
-import com.example.pitching.voice.dto.properties.ServerProperties;
-import com.example.pitching.voice.operation.Operation;
-import com.example.pitching.voice.operation.code.ConnectResOp;
-import com.example.pitching.voice.operation.req.Heartbeat;
-import com.example.pitching.voice.operation.res.Hello;
+import com.example.pitching.call.dto.properties.ServerProperties;
+import com.example.pitching.call.operation.Operation;
+import com.example.pitching.call.operation.code.ConnectResOp;
+import com.example.pitching.call.operation.req.Heartbeat;
+import com.example.pitching.call.operation.res.Hello;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -65,7 +65,7 @@ class VoiceWebSocketHandlerTest {
         @Test
         void when_connects_web_socket_without_authentication_then_returns_unauthorized_status() {
             // Given
-            String path = serverProperties.voice().path();
+            String path = serverProperties.getVoicePath();
 
             // When & Then
             client.get()
@@ -79,7 +79,7 @@ class VoiceWebSocketHandlerTest {
         @WithMockUser
         void when_connects_web_socket_then_returns_hello_operation() {
             // Given
-            URI uri = URI.create(serverProperties.getUrlForTest(port));
+            URI uri = URI.create(serverProperties.getUrlForTest(port, "voice"));
 
             // When & Then
             webSocketClient.execute(uri, session -> {
@@ -106,7 +106,7 @@ class VoiceWebSocketHandlerTest {
         @Disabled("서버로부터 두번째 메세지 수신이 안됨..")
         void when_sends_heartbeat_then_returns_heartbeat_ack() {
             // Given
-            URI uri = URI.create(serverProperties.getUrlForTest(port));
+            URI uri = URI.create(serverProperties.getUrlForTest(port, "voice"));
 
             // When & Then
             webSocketClient.execute(uri, session -> {
