@@ -80,7 +80,7 @@ public class WebfluxSecurityConfig {
     @Bean
     public MapReactiveUserDetailsService userDetailsService() {
         UserDetails user = User.builder()
-                .username("user")
+                .username("user@test.com")
                 .password(passwordEncoder().encode("password"))
                 .roles("USER")
                 .build();
@@ -91,7 +91,7 @@ public class WebfluxSecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         // HTTPS 프로토콜 명시
-        configuration.setAllowedOrigins(Arrays.asList("https://localhost:3000"));
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
