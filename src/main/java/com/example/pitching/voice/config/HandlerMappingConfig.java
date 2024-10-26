@@ -15,10 +15,10 @@ public class HandlerMappingConfig {
 
     @Bean
     public SimpleUrlHandlerMapping simpleUrlHandlerMapping(
-            VoiceWebSocketHandler voiceHandler, ResumeWebSocketHandler resumeHandler, ServerProperties serverProperties) {
+            VoiceWebSocketHandler voiceWebSocketHandler, ResumeWebSocketHandler resumeWebSocketHandler, ServerProperties serverProperties) {
         return new SimpleUrlHandlerMapping(Map.of(
-                serverProperties.voice().path(), voiceHandler,
-                serverProperties.voice().resumePath(), resumeHandler
+                serverProperties.voice().path(), voiceWebSocketHandler,
+                serverProperties.voice().resumePath(), resumeWebSocketHandler
         ), 1);
     }
 
