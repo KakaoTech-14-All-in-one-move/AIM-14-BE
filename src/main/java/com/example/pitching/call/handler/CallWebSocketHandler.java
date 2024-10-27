@@ -87,7 +87,7 @@ public class CallWebSocketHandler implements WebSocketHandler {
 
     private Flux<String> handle(String receivedMessage, String userId) {
         ReqOp reqOp = convertService.readReqOpFromMessage(receivedMessage);
-        log.info("REQ : {}", reqOp);
+        log.info("[{}] Send Message : {}", userId, receivedMessage);
         return switch (reqOp) {
             case ReqOp.INIT -> sendHello(receivedMessage, userId);
             case ReqOp.HEARTBEAT -> sendHeartbeatAck();
