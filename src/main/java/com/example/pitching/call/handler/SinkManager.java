@@ -72,26 +72,6 @@ public class SinkManager {
         }
     }
 
-    private void registerVoiceStream(String userId) {
-        var streamOffsetForVoice = StreamOffset.create(userId + ":voice", ReadOffset.latest());
-        Disposable subscription = streamReceiver.receive(streamOffsetForVoice)
-                .subscribe(record -> {
-                    String seq = record.getId().getValue();
-                    log.info("Subscribe Voice from Redis: {}", seq);
-                    String message = record.getValue().get("message");
-                    addSeqBeforeEmit(userId, seq, message, voiceSinkMap);
-                });
-        voiceStream.put(userId, subscription);
-        log.info("Register Voice Stream: {}", userId);
-    }
-
-    private void addSeqBeforeEmit(String userId, String seq, String message,
-                                  Map<String, Sinks.Many<String>> sinkMap) {
-        Response response = convertService.createResFromJson(message).setSeq(seq);
-        Sinks.Many<String> voiceSink = sinkMap.get(userId);
-        voiceSink.tryEmitNext(convertService.eventToJson(response));
-    }
-
     public void addMissedVoiceMessageToStream(String userId, String lastRecordId) {
         Range<String> range = Range.rightOpen(lastRecordId, "+");
         streamOperations.range(userId + ":voice", range)
@@ -120,6 +100,26 @@ public class SinkManager {
                 .doOnNext(userDetails -> log.info("UserDetails: {}", userDetails))
                 .map(UserDetails::getUsername)
                 .cache();
+    }
+
+    private void registerVoiceStream(String userId) {
+        var streamOffsetForVoice = StreamOffset.create(userId + ":voice", ReadOffset.latest());
+        Disposable subscription = streamReceiver.receive(streamOffsetForVoice)
+                .subscribe(record -> {
+                    String seq = record.getId().getValue();
+                    log.info("Subscribe Voice from Redis: {}", seq);
+                    String message = record.getValue().get("message");
+                    addSeqBeforeEmit(userId, seq, message, voiceSinkMap);
+                });
+        voiceStream.put(userId, subscription);
+        log.info("Register Voice Stream: {}", userId);
+    }
+
+    private void addSeqBeforeEmit(String userId, String seq, String message,
+                                  Map<String, Sinks.Many<String>> sinkMap) {
+        Response response = convertService.createResFromJson(message).setSeq(seq);
+        Sinks.Many<String> voiceSink = sinkMap.get(userId);
+        voiceSink.tryEmitNext(convertService.eventToJson(response));
     }
 
     private Flux<String> initSinkMap(String userId, Map<String, Sinks.Many<String>> sinkMap) {
