@@ -1,3 +1,7 @@
 WEBSOCKET ws://localhost:8080/ws/v1/voice
 Authorization: Basic dXNlcjpwdw==
-### {"op":1}
+###
+{
+  "op": 0,
+  "serverId": "sample"
+}

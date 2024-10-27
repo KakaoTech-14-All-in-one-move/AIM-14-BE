@@ -12,6 +12,5 @@ server:
   call:
     protocol: ws
     host: localhost
-    voice-path: /ws/v1/voice
-    video-path: /ws/v1/video
+    websocket-path: /ws/v1/voice
     heartbeat-interval: 45s

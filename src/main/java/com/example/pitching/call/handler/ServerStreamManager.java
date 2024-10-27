@@ -7,6 +7,8 @@ import com.example.pitching.call.operation.res.Response;
 import io.lettuce.core.XAddArgs;
 import io.lettuce.core.api.reactive.RedisReactiveCommands;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Range;
 import org.springframework.data.redis.connection.ReactiveRedisConnectionFactory;
 import org.springframework.data.redis.connection.stream.MapRecord;
@@ -29,11 +31,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
-public class SinkManager {
-    public static final Map<String, Sinks.Many<String>> voiceSinkMap = new ConcurrentHashMap<>();
-    public static final Map<String, Sinks.Many<String>> videoSinkMap = new ConcurrentHashMap<>();
-    private final Map<String, Disposable> voiceStream = new ConcurrentHashMap<>();
-    private final Map<String, Disposable> videoStream = new ConcurrentHashMap<>();
+public class ServerStreamManager {
+    public static final Map<String, Sinks.Many<String>> serverSinkMap = new ConcurrentHashMap<>();
+    private final Map<String, Disposable> serverStream = new ConcurrentHashMap<>();
     private final ReactiveStreamOperations<String, Object, Object> streamOperations;
     private final StreamReceiver<String, MapRecord<String, String, String>> streamReceiver;
     private final ConvertService convertService;
@@ -41,12 +41,12 @@ public class SinkManager {
     private final RedisReactiveCommands<String, String> redisCommands;
     private final RedisConfig.RedisProperties redisProperties;
 
-    public SinkManager(ConvertService convertService,
-                       ServerProperties serverProperties,
-                       ReactiveStringRedisTemplate redisTemplate,
-                       ReactiveRedisConnectionFactory redisConnectionFactory,
-                       RedisReactiveCommands<String, String> redisCommands,
-                       RedisConfig.RedisProperties redisProperties) {
+    public ServerStreamManager(ConvertService convertService,
+                               ServerProperties serverProperties,
+                               ReactiveStringRedisTemplate redisTemplate,
+                               ReactiveRedisConnectionFactory redisConnectionFactory,
+                               RedisReactiveCommands<String, String> redisCommands,
+                               RedisConfig.RedisProperties redisProperties) {
         this.convertService = convertService;
         this.serverProperties = serverProperties;
         this.streamOperations = redisTemplate.opsForStream();
@@ -60,26 +60,56 @@ public class SinkManager {
         streamReceiver = StreamReceiver.create(redisConnectionFactory, options);
     }
 
-    public Flux<String> registerVoice(String userId) {
-        return initSinkMap(userId, voiceSinkMap);
+    @EventListener(ApplicationReadyEvent.class)
+    public void initialize() {
+        // 모든 serverId를 조회하여 해당 serverId에 대한 Sink 생성 후 Stream 구독 (반복문)
+        String serverId = "sample";
+        registerServerStream(serverId);
     }
 
-    public void unregisterVoiceStream(String userId) {
-        var subscription = voiceStream.get(userId);
+    public void registerServerStream(String serverId) {
+        Sinks.Many<String> sink = Sinks.many().multicast().onBackpressureBuffer();
+        serverSinkMap.put(serverId, sink);
+        var streamOffsetForVoice = StreamOffset.create(getServerStreamRedisKey(serverId), ReadOffset.latest());
+        Disposable subscription = streamReceiver.receive(streamOffsetForVoice)
+                .subscribe(record -> {
+                    String seq = record.getId().getValue();
+                    String message = record.getValue().get("message");
+                    addSeqBeforeEmit(serverId, seq, message);
+                });
+        serverStream.put(serverId, subscription);
+        log.info("Register Server Stream: {}", serverId);
+    }
+
+    public void unregisterServerStream(String serverId) {
+        var subscription = serverStream.get(serverId);
         if (subscription != null) {
             subscription.dispose();
-            log.info("Unregister Voice Stream: {}", userId);
+            log.info("Unregister Server Stream: {}", serverId);
         }
     }
 
-    public void addMissedVoiceMessageToStream(String userId, String lastRecordId) {
+    public Flux<String> getMessageFromServerSink(String serverId) {
+        return serverSinkMap.get(serverId).asFlux();
+    }
+
+    private String getServerStreamRedisKey(String serverId) {
+        return String.format("server:%s:events", serverId);
+    }
+
+
+    public Flux<String> registerVoice(String userId) {
+        return initSinkMap(userId, serverSinkMap);
+    }
+
+    public void addMissedServerMessageToStream(String userId, String lastRecordId) {
         Range<String> range = Range.rightOpen(lastRecordId, "+");
         streamOperations.range(userId + ":voice", range)
                 .skip(1)
                 .subscribe(record -> {
                     String seq = record.getId().getValue();
                     String message = record.getValue().get("message").toString();
-                    addSeqBeforeEmit(userId, seq, message, voiceSinkMap);
+                    addSeqBeforeEmit(userId, seq, message);
                 });
     }
 
@@ -90,9 +120,6 @@ public class SinkManager {
                 .subscribe(record -> log.info("Publish Voice to Redis: {}", record));
     }
 
-    public Flux<String> registerVideo(String userId) {
-        return initSinkMap(userId, videoSinkMap);
-    }
 
     public Mono<String> getUserIdFromContext() {
         return ReactiveSecurityContextHolder.getContext()
@@ -109,21 +136,22 @@ public class SinkManager {
                     String seq = record.getId().getValue();
                     log.info("Subscribe Voice from Redis: {}", seq);
                     String message = record.getValue().get("message");
-                    addSeqBeforeEmit(userId, seq, message, voiceSinkMap);
+//                    addSeqBeforeEmit(userId, seq, message, serverSinkMap);
                 });
-        voiceStream.put(userId, subscription);
+        serverStream.put(userId, subscription);
         log.info("Register Voice Stream: {}", userId);
     }
 
-    private void addSeqBeforeEmit(String userId, String seq, String message,
-                                  Map<String, Sinks.Many<String>> sinkMap) {
+    private void addSeqBeforeEmit(String serverId, String seq, String message) {
         Response response = convertService.createResFromJson(message).setSeq(seq);
-        Sinks.Many<String> voiceSink = sinkMap.get(userId);
-        voiceSink.tryEmitNext(convertService.eventToJson(response));
+        Sinks.Many<String> serverSink = serverSinkMap.get(serverId);
+        String jsonMessage = convertService.eventToJson(response);
+        serverSink.tryEmitNext(jsonMessage);
+        log.info("JsonMessage emitted: {}", jsonMessage);
     }
 
     private Flux<String> initSinkMap(String userId, Map<String, Sinks.Many<String>> sinkMap) {
-        Sinks.Many<String> sink = Sinks.many().unicast().onBackpressureBuffer();
+        Sinks.Many<String> sink = Sinks.many().multicast().onBackpressureBuffer();
         sinkMap.put(userId, sink);
         registerVoiceStream(userId);
         sendHello(sink);

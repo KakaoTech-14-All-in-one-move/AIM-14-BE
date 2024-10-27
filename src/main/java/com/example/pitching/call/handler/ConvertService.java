@@ -5,7 +5,6 @@ import com.example.pitching.call.operation.code.ReqOp;
 import com.example.pitching.call.operation.code.ResOp;
 import com.example.pitching.call.operation.res.HeartbeatAck;
 import com.example.pitching.call.operation.res.Response;
-import com.example.pitching.call.operation.res.Resumed;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -37,7 +36,6 @@ public class ConvertService {
             ResOp resOp = ResOp.from(objectMapper.readTree(jsonMessage).get("op").asInt());
             return switch (resOp) {
                 case HEARTBEAT_ACK -> jsonToEvent(jsonMessage, HeartbeatAck.class);
-                case RESUMED -> jsonToEvent(jsonMessage, Resumed.class);
                 default -> throw new RuntimeException("Unsupported operation: " + resOp);
             };
         } catch (JsonProcessingException e) {

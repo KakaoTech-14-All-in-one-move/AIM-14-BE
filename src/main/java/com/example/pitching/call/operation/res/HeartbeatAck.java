@@ -3,15 +3,14 @@ package com.example.pitching.call.operation.res;
 import com.example.pitching.call.operation.code.ResOp;
 
 public record HeartbeatAck(
-        ResOp op,
-        String seq
+        ResOp op
 ) implements Response {
-    public static HeartbeatAck of(String seq) {
-        return new HeartbeatAck(ResOp.HEARTBEAT_ACK, seq);
+    public static HeartbeatAck of() {
+        return new HeartbeatAck(ResOp.HEARTBEAT_ACK);
     }
 
     @Override
     public Response setSeq(String seq) {
-        return HeartbeatAck.of(seq);
+        return null;
     }
 }
