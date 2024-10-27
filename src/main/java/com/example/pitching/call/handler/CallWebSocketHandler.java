@@ -3,8 +3,10 @@ package com.example.pitching.call.handler;
 import com.example.pitching.call.dto.properties.ServerProperties;
 import com.example.pitching.call.operation.code.ReqOp;
 import com.example.pitching.call.operation.req.Init;
+import com.example.pitching.call.operation.req.Server;
 import com.example.pitching.call.operation.res.HeartbeatAck;
 import com.example.pitching.call.operation.res.Hello;
+import com.example.pitching.call.operation.res.ServerAck;
 import io.micrometer.common.lang.NonNullApi;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -65,7 +67,7 @@ public class CallWebSocketHandler implements WebSocketHandler {
                                         .doOnNext(message -> log.info("[{}] Reply Message : {}", userId, message))
                                         .map(session::textMessage)
                                         .doFinally(signalType -> {
-                                            log.info("WebSocket connection closed with signal: {}", signalType);
+                                            log.info("[{}] Disconnected: {}", userId, signalType);
                                             userSinkMap.remove(userId);
                                         })
                         )
@@ -91,15 +93,15 @@ public class CallWebSocketHandler implements WebSocketHandler {
         return switch (reqOp) {
             case ReqOp.INIT -> sendHello(receivedMessage, userId);
             case ReqOp.HEARTBEAT -> sendHeartbeatAck();
-//            default -> Flux.empty();
+            case ReqOp.SERVER -> changeServer(receivedMessage, userId);
         };
     }
 
     private Flux<String> sendHello(String receivedMessage, String userId) {
         String serverId = convertService.jsonToEvent(receivedMessage, Init.class).serverId();
-        if (!StringUtils.hasText(serverId)) return Flux.error(new IllegalArgumentException("Invalid serverId"));
+        if (isValidServerId(serverId)) return Flux.error(new IllegalArgumentException("Invalid serverId"));
         subscribeServerSink(serverId, userId, userSinkMap.get(userId));
-        // Hello 에 서버의 현재 상태 데이터 추가 (재연결 시 현재 상태 동기화를 하기 때문에 Resume 필요 X)
+        // TODO: Hello 에 서버의 현재 상태 데이터 추가 (재연결 시 현재 상태 동기화를 하기 때문에 Resume 필요 X)
         String helloMessage = convertService.eventToJson(Hello.of(serverProperties.getHeartbeatInterval()));
         return Flux.just(helloMessage);
     }
@@ -107,6 +109,19 @@ public class CallWebSocketHandler implements WebSocketHandler {
     private Flux<String> sendHeartbeatAck() {
         String ackMessage = convertService.eventToJson(HeartbeatAck.of());
         return Flux.just(ackMessage);
+    }
+
+    private Flux<String> changeServer(String receivedMessage, String userId) {
+        String serverId = convertService.jsonToEvent(receivedMessage, Server.class).serverId();
+        if (isValidServerId(serverId)) return Flux.error(new IllegalArgumentException("Invalid serverId"));
+        subscribeServerSink(serverId, userId, userSinkMap.get(userId));
+        // TODO: Server 에 서버의 현재 상태 데이터 추가 (재연결 시 현재 상태 동기화를 하기 때문에 Resume 필요 X)
+        String serverAckMessage = convertService.eventToJson(ServerAck.of(null));
+        return Flux.just(serverAckMessage);
+    }
+
+    private static boolean isValidServerId(String serverId) {
+        return !StringUtils.hasText(serverId); // TODO: Server list에 포함되어 있는지 검사
     }
 
     private Mono<Void> initializeUserSink(String userId) {

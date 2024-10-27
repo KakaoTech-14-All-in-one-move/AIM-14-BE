@@ -8,6 +8,7 @@ public enum ReqOp {
 
     INIT(0, "Send serverId to activate"),
     HEARTBEAT(1, "Fired periodically by the client to keep the connection alive."),
+    SERVER(2, "Send serverId when user changed server.")
     ;
 
     @JsonValue

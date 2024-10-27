@@ -8,6 +8,7 @@ public enum ResOp {
     HELLO(0, "Sent immediately after connecting, contains the heartbeat_interval to use."),
     HEARTBEAT(1, "Fired periodically by the client to keep the connection alive."),
     HEARTBEAT_ACK(2, "Sent in response to receiving a heartbeat to acknowledge that it has been received."),
+    SERVER_ACK(3, "Send current state of the server."),
     ERROR(4, "Sent error message with cause"),
     ;
 

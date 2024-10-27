@@ -62,7 +62,7 @@ public class ServerStreamManager {
 
     @EventListener(ApplicationReadyEvent.class)
     public void initialize() {
-        // 모든 serverId를 조회하여 해당 serverId에 대한 Sink 생성 후 Stream 구독 (반복문)
+        // TODO: 모든 serverId를 조회하여 해당 serverId에 대한 Sink 생성 후 Stream 구독 (반복문)
         String serverId = "sample";
         registerServerStream(serverId);
     }
