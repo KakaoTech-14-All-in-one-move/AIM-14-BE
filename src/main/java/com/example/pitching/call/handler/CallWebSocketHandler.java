@@ -10,6 +10,8 @@ import com.example.pitching.call.operation.res.ServerAck;
 import io.micrometer.common.lang.NonNullApi;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.context.ReactiveSecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.socket.WebSocketHandler;
@@ -33,6 +35,8 @@ public class CallWebSocketHandler implements WebSocketHandler {
     public static final Map<String, Sinks.Many<String>> userSinkMap = new ConcurrentHashMap<>();
     public static final Map<String, Disposable> userSubscription = new ConcurrentHashMap<>();
     private static final String INITIAL_SEQ = null;
+    private static final int VOICE_CHANNEL = 1;
+    private static final int VIDEO_CHANNEL = 2;
     private final ServerStreamManager serverStreamManager;
     private final ConvertService convertService;
     private final ServerProperties serverProperties;
@@ -44,13 +48,11 @@ public class CallWebSocketHandler implements WebSocketHandler {
 
     @Override
     public Mono<Void> handle(WebSocketSession session) {
-        return serverStreamManager.getUserIdFromContext()
+        return getUserIdFromContext()
                 .flatMap(userId ->
                         initializeUserSink(userId)
-                                .then(Mono.when(
-                                        replyMessages(session, Mono.just(userId)),
-                                        sendMessages(session, Mono.just(userId))
-                                ))
+                                .then(replyMessages(session, Mono.just(userId))
+                                        .and(sendMessages(session, Mono.just(userId))))
                 );
     }
 
@@ -79,7 +81,6 @@ public class CallWebSocketHandler implements WebSocketHandler {
                 cachedUserIdMono
                         .flatMapMany(userId ->
                                 getMessageFromUserSink(userId)
-                                        .onBackpressureBuffer()
                                         .doOnNext(message -> log.info("[{}] Server Message : {}", userId, message))
                                         .doOnError(error -> log.error("Error occurs in handling Server Message()", error))
                                         .map(session::textMessage)
@@ -94,6 +95,10 @@ public class CallWebSocketHandler implements WebSocketHandler {
             case ReqOp.INIT -> sendHello(receivedMessage, userId);
             case ReqOp.HEARTBEAT -> sendHeartbeatAck();
             case ReqOp.SERVER -> changeServer(receivedMessage, userId);
+            case ReqOp.ENTER_VOICE -> enterChannel(VOICE_CHANNEL, receivedMessage, userId);
+            case ReqOp.ENTER_VIDEO -> enterChannel(VIDEO_CHANNEL, receivedMessage, userId);
+            case ReqOp.LEAVE_VOICE -> Flux.empty();
+            case ReqOp.LEAVE_VIDEO -> Flux.empty();
         };
     }
 
@@ -120,6 +125,13 @@ public class CallWebSocketHandler implements WebSocketHandler {
         return Flux.just(serverAckMessage);
     }
 
+    private Flux<String> enterChannel(int channel, String receivedMessage, String userId) {
+        // State Update
+        // 해당 Server Stream 에 이벤트 추가 (ServerId는 클라이언트에서 전송)
+        // ENTER_SUCCESS 메세지 응답
+        return Flux.empty();
+    }
+
     private static boolean isValidServerId(String serverId) {
         return !StringUtils.hasText(serverId); // TODO: Server list에 포함되어 있는지 검사
     }
@@ -143,5 +155,13 @@ public class CallWebSocketHandler implements WebSocketHandler {
 
     private Flux<String> getMessageFromUserSink(String userId) {
         return userSinkMap.get(userId).asFlux();
+    }
+
+    private Mono<String> getUserIdFromContext() {
+        return ReactiveSecurityContextHolder.getContext()
+                .map(context -> (UserDetails) context.getAuthentication().getPrincipal())
+                .doOnNext(userDetails -> log.info("UserDetails: {}", userDetails))
+                .map(UserDetails::getUsername)
+                .cache();
     }
 }

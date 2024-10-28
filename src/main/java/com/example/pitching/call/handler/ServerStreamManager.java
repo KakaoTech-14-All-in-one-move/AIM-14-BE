@@ -120,15 +120,6 @@ public class ServerStreamManager {
                 .subscribe(record -> log.info("Publish Voice to Redis: {}", record));
     }
 
-
-    public Mono<String> getUserIdFromContext() {
-        return ReactiveSecurityContextHolder.getContext()
-                .map(context -> (UserDetails) context.getAuthentication().getPrincipal())
-                .doOnNext(userDetails -> log.info("UserDetails: {}", userDetails))
-                .map(UserDetails::getUsername)
-                .cache();
-    }
-
     private void registerVoiceStream(String userId) {
         var streamOffsetForVoice = StreamOffset.create(userId + ":voice", ReadOffset.latest());
         Disposable subscription = streamReceiver.receive(streamOffsetForVoice)
