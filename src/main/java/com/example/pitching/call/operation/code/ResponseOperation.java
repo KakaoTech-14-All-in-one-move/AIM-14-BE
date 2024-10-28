@@ -9,9 +9,7 @@ public enum ResponseOperation implements Operation {
     HEARTBEAT(1, "Fired periodically by the client to keep the connection alive."),
     HEARTBEAT_ACK(2, "Sent in response to receiving a heartbeat to acknowledge that it has been received."),
     SERVER_ACK(3, "Send current state of the server."),
-    ENTER_SUCCESS(4, "Enter voice/video channel successful"),
-    LEAVE_SUCCESS(5, "Leave voice/video channel successful"),
-    ;
+    CHANNEL_ACK(4, "Success to enter voice/video channel.");
 
     @JsonValue
     private final int code;
