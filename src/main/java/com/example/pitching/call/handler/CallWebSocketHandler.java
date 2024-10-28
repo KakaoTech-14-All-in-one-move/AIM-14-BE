@@ -5,9 +5,9 @@ import com.example.pitching.call.dto.properties.ServerProperties;
 import com.example.pitching.call.operation.Event;
 import com.example.pitching.call.operation.code.RequestOperation;
 import com.example.pitching.call.operation.code.ResponseOperation;
+import com.example.pitching.call.operation.request.StateRequest;
 import com.example.pitching.call.operation.response.IntervalData;
-import com.example.pitching.call.operation.response.UserData;
-import com.example.pitching.call.operation.response.VoiceStateData;
+import com.example.pitching.call.operation.response.StateResponse;
 import io.micrometer.common.lang.NonNullApi;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,7 +41,7 @@ public class CallWebSocketHandler implements WebSocketHandler {
     private final ServerProperties serverProperties;
 
     private static boolean isValidServerId(String serverId) {
-        return !StringUtils.hasText(serverId); // TODO: Server list에 포함되어 있는지 검사
+        return !StringUtils.hasText(serverId); // TODO: Server list에 포함되어 있는지 검사 (DB)
     }
 
     @Override
@@ -92,7 +92,7 @@ public class CallWebSocketHandler implements WebSocketHandler {
         );
     }
 
-    private Mono<String> handleMessages(String receivedMessage, String userId) {
+    private Flux<String> handleMessages(String receivedMessage, String userId) {
         RequestOperation requestOperation = convertService.readRequestOperationFromMessage(receivedMessage);
         log.info("[{}] Send Message : {}", userId, receivedMessage);
         return switch (requestOperation) {
@@ -100,48 +100,52 @@ public class CallWebSocketHandler implements WebSocketHandler {
             case RequestOperation.HEARTBEAT -> sendHeartbeatAck();
             case RequestOperation.ENTER_SERVER -> enterServer(receivedMessage, userId);
             case RequestOperation.ENTER_CHANNEL -> enterChannel(receivedMessage, userId);
-            case RequestOperation.LEAVE_CHANNEL -> Mono.empty();
+            case RequestOperation.LEAVE_CHANNEL -> Flux.empty();
         };
     }
 
-    private Mono<String> sendHello() {
+    private Flux<String> sendHello() {
         Event hello = Event.of(ResponseOperation.HELLO,
                 IntervalData.of(serverProperties.getHeartbeatInterval()),
                 null);
-        return Mono.just(convertService.convertEventToJson(hello));
+        return Flux.just(convertService.convertEventToJson(hello));
     }
 
-    private Mono<String> sendHeartbeatAck() {
+    private Flux<String> sendHeartbeatAck() {
         Event heartbeatAck = Event.of(ResponseOperation.HEARTBEAT_ACK, null, null);
-        return Mono.just(convertService.convertEventToJson(heartbeatAck));
+        return Flux.just(convertService.convertEventToJson(heartbeatAck));
     }
 
     // 무조건 기존 서버 입장
     // TODO: 새 서버를 만들거나 새 서버에 초대된 경우 HTTP를 사용해서 Server 참여 인원에 추가 (DB)
-    private Mono<String> enterServer(String serverId, String userId) {
-        if (isValidServerId(serverId)) return Mono.error(new IllegalArgumentException("Invalid serverId"));
+    private Flux<String> enterServer(String serverId, String userId) {
+        if (isValidServerId(serverId)) return Flux.error(new IllegalArgumentException("Invalid serverId"));
         subscribeServerSink(serverId, userId);
-        // 1. Redis에서 해당 서버의 call 중인 유저(State) 모두 조회
-        // 2. DB에서 해당 유저의 기타 정보 조회
-        // 3. 종합해서 VoiceStateData 생성
-        VoiceStateData voiceStateData = VoiceStateData.of(null, null);
-        Event serverAck = Event.of(ResponseOperation.SERVER_ACK, voiceStateData, null);
-        return Mono.just(convertService.convertEventToJson(serverAck));
+        // Redis에서 해당 서버의 call 중인 유저(State) 모두 조회
+        return voiceStateManager.getAllVoiceState(serverId)
+                .map(mapEntry -> StateResponse.from(mapEntry.getValue()))
+                .flatMap(stateResponse -> {
+                    Event serverAck = Event.of(ResponseOperation.SERVER_ACK, stateResponse, null);
+                    return Mono.just(convertService.convertEventToJson(serverAck));
+                });
     }
 
-    private Mono<String> enterChannel(String receivedMessage, String userId) {
-        VoiceStateData voiceStateData = convertService.readDataFromMessage(receivedMessage, VoiceStateData.class);
+    private Flux<String> enterChannel(String receivedMessage, String userId) {
+        StateRequest stateRequest = convertService.readDataFromMessage(receivedMessage, StateRequest.class);
+        // TODO: 1. userId로 username 조회 (DB)
+        String username = "username";
 
-        // 1. Redis(call)에 유저(State) 등록
-        return voiceStateManager.enterChannel(userId, voiceStateData.serverId(), VoiceState.from(voiceStateData))
-                .flatMap(result -> {
-                    if (!result) return Mono.error(new IllegalStateException("Already entered channel"));
-                    Event channelAck = Event.of(ResponseOperation.ENTER_CHANNEL_ACK, UserData.of(userId, voiceStateData.username()), null);
+        // 2. Redis(call)에 유저(State) 등록
+        VoiceState voiceState = VoiceState.from(stateRequest, userId, username);
+        return voiceStateManager.addVoiceState(userId, stateRequest.serverId(), voiceState)
+                .flatMapMany(result -> {
+                    if (!result) return Flux.error(new IllegalStateException("Already entered channel"));
+                    Event channelAck = Event.of(ResponseOperation.ENTER_CHANNEL_ACK, StateResponse.from(voiceState), null);
                     String jsonChannelAck = convertService.convertEventToJson(channelAck);
                     // 2. 해당 Server Stream 에 이벤트 추가
-                    serverStreamManager.addVoiceMessageToStream(voiceStateData.serverId(), jsonChannelAck);
+                    serverStreamManager.addVoiceMessageToStream(stateRequest.serverId(), jsonChannelAck);
                     // 3. CHANNEL_ACK 메세지 응답
-                    return Mono.just(jsonChannelAck);
+                    return Flux.just(jsonChannelAck);
                 });
     }
 

@@ -4,29 +4,25 @@ import com.example.pitching.call.dto.ChannelType;
 import com.example.pitching.call.dto.VoiceState;
 import com.example.pitching.call.operation.Data;
 
-public record VoiceStateData(
+public record StateResponse(
         String userId,
         String username,
         String serverId,
         String channelId,
         ChannelType channelType,
-        String ip,
-        Integer port,
         boolean isMuted,
         boolean isDeafened,
         boolean isSpeaking,
         boolean isCameraOn,
         boolean isScreenSharing
 ) implements Data {
-    public static VoiceStateData of(VoiceState voiceState, String username) {
-        return new VoiceStateData(
+    public static StateResponse from(VoiceState voiceState) {
+        return new StateResponse(
                 voiceState.getUserId(),
-                username,
+                voiceState.getUsername(),
                 voiceState.getServerId(),
                 voiceState.getChannelId(),
                 voiceState.getChannelType(),
-                voiceState.getIp(),
-                voiceState.getPort(),
                 voiceState.isMuted(),
                 voiceState.isDeafened(),
                 voiceState.isSpeaking(),

@@ -1,6 +1,6 @@
 package com.example.pitching.call.dto;
 
-import com.example.pitching.call.operation.response.VoiceStateData;
+import com.example.pitching.call.operation.request.StateRequest;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -8,6 +8,7 @@ import lombok.Getter;
 @AllArgsConstructor
 public class VoiceState {
     private String userId;
+    private String username;
     private String serverId;
     private String channelId;
     private ChannelType channelType;
@@ -19,39 +20,26 @@ public class VoiceState {
     private boolean isCameraOn;
     private boolean isScreenSharing;
 
-    public static VoiceState of(String userId, String serverId) {
+    public static VoiceState from(StateRequest stateRequest, String userId, String username) {
         return new VoiceState(
                 userId,
-                serverId,
+                username,
+                stateRequest.serverId(),
+                stateRequest.channelId(),
+                stateRequest.channelType(),
                 null,
                 null,
-                null,
-                null,
-                false,
-                false,
-                false,
-                false,
-                false);
-    }
-
-    public static VoiceState from(VoiceStateData voiceStateData) {
-        return new VoiceState(
-                voiceStateData.userId(),
-                voiceStateData.serverId(),
-                voiceStateData.channelId(),
-                voiceStateData.channelType(),
-                voiceStateData.ip(),
-                voiceStateData.port(),
-                voiceStateData.isMuted(),
-                voiceStateData.isDeafened(),
-                voiceStateData.isSpeaking(),
-                voiceStateData.isCameraOn(),
-                voiceStateData.isScreenSharing());
+                stateRequest.isMuted(),
+                stateRequest.isDeafened(),
+                stateRequest.isSpeaking(),
+                stateRequest.isCameraOn(),
+                stateRequest.isScreenSharing());
     }
 
     public VoiceState updateUdpAddress(String ip, Integer port) {
         return new VoiceState(
                 this.userId,
+                this.username,
                 this.serverId,
                 this.channelId,
                 this.channelType,
