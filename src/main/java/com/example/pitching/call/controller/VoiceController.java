@@ -17,6 +17,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class VoiceController {
 
+    // TODO: 메서드가 늘어나면 GlobalExceptionHandler로 분리할 예정
+    // TODO: 프론트에서 요청할 필요가 없다고 느껴지면 삭제할 수도 있음
     private final static List<String> channels = List.of("voice", "video");
     private final ServerProperties serverProperties;
 
