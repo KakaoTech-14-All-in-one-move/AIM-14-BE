@@ -6,7 +6,7 @@ import com.example.pitching.call.operation.response.data.ServerData;
 public record ServerAck(
         ResponseOp op,
         ServerData data
-) implements Response{
+) implements Response {
     public static ServerAck of(ServerData data) {
         return new ServerAck(ResponseOp.SERVER_ACK, data);
     }

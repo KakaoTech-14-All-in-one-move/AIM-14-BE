@@ -68,7 +68,7 @@ class CallControllerTest {
     void when_requests_voice_url_with_authentication_then_returns_voice_connect_url() {
         // given
         String channel = "voice";
-        String connectUrl = serverProperties.getUrl(channel);
+        String connectUrl = serverProperties.getUrl();
 
         // when & then
         client.get()
@@ -88,7 +88,7 @@ class CallControllerTest {
     void when_requests_video_url_with_authentication_then_returns_video_connect_url() {
         // given
         String channel = "video";
-        String connectUrl = serverProperties.getUrl(channel);
+        String connectUrl = serverProperties.getUrl();
 
         // when & then
         client.get()

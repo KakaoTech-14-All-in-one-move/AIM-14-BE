@@ -41,6 +41,10 @@ public class CallWebSocketHandler implements WebSocketHandler {
     private final ConvertService convertService;
     private final ServerProperties serverProperties;
 
+    private static boolean isValidServerId(String serverId) {
+        return !StringUtils.hasText(serverId); // TODO: Server list에 포함되어 있는지 검사
+    }
+
     @Override
     public List<String> getSubProtocols() {
         return WebSocketHandler.super.getSubProtocols();
@@ -130,10 +134,6 @@ public class CallWebSocketHandler implements WebSocketHandler {
         // 해당 Server Stream 에 이벤트 추가 (ServerId는 클라이언트에서 전송)
         // ENTER_SUCCESS 메세지 응답
         return Flux.empty();
-    }
-
-    private static boolean isValidServerId(String serverId) {
-        return !StringUtils.hasText(serverId); // TODO: Server list에 포함되어 있는지 검사
     }
 
     private Mono<Void> initializeUserSink(String userId) {
