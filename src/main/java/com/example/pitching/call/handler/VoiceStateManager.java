@@ -14,19 +14,11 @@ public class VoiceStateManager {
         hashOperations = redisTemplate.opsForHash();
     }
 
-    public Mono<Boolean> enterServer(String userId, String serverId) {
-        return hashOperations.putIfAbsent(getVoiceStateRedisKey(serverId), userId, VoiceState.of(userId, serverId));
-    }
-
-    public Mono<Boolean> updateVoiceState(String userId, VoiceState voiceState) {
-        return hashOperations.put(getVoiceStateRedisKey(voiceState.getServerId()), userId, null);
-    }
-
-    private String getVoiceStateRedisKey(String serverId, String channelId) {
-        return String.format("server:%s:channel:%s:users", serverId, channelId);
+    public Mono<Boolean> enterChannel(String userId, String serverId, VoiceState voiceState) {
+        return hashOperations.putIfAbsent(getVoiceStateRedisKey(serverId), userId, voiceState);
     }
 
     private String getVoiceStateRedisKey(String serverId) {
-        return String.format("server:%s:channel", serverId);
+        return String.format("server:%s:call", serverId);
     }
 }

@@ -7,7 +7,6 @@ import io.lettuce.core.api.reactive.RedisReactiveCommands;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
-import org.springframework.data.domain.Range;
 import org.springframework.data.redis.connection.ReactiveRedisConnectionFactory;
 import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.connection.stream.ReadOffset;
@@ -84,43 +83,19 @@ public class ServerStreamManager {
         }
     }
 
+    public void addVoiceMessageToStream(String serverId, String message) {
+        XAddArgs xAddArgs = new XAddArgs().maxlen(redisProperties.maxlen()).approximateTrimming(true);
+        redisCommands
+                .xadd(getServerStreamRedisKey(serverId), xAddArgs, Map.of("message", message))
+                .subscribe(record -> log.info("Publish Voice to Redis: {}", record));
+    }
+
     public Flux<String> getMessageFromServerSink(String serverId) {
         return serverSinkMap.get(serverId).asFlux();
     }
 
     private String getServerStreamRedisKey(String serverId) {
         return String.format("server:%s:events", serverId);
-    }
-
-    public void addMissedServerMessageToStream(String userId, String lastRecordId) {
-        Range<String> range = Range.rightOpen(lastRecordId, "+");
-        streamOperations.range(userId + ":voice", range)
-                .skip(1)
-                .subscribe(record -> {
-                    String seq = record.getId().getValue();
-                    String message = record.getValue().get("message").toString();
-                    addSeqBeforeEmit(userId, seq, message);
-                });
-    }
-
-    public void addVoiceMessageToStream(String userId, String message) {
-        XAddArgs xAddArgs = new XAddArgs().maxlen(redisProperties.maxlen()).approximateTrimming(true);
-        redisCommands
-                .xadd(userId + ":voice", xAddArgs, Map.of("message", message))
-                .subscribe(record -> log.info("Publish Voice to Redis: {}", record));
-    }
-
-    private void registerVoiceStream(String userId) {
-        var streamOffsetForVoice = StreamOffset.create(userId + ":voice", ReadOffset.latest());
-        Disposable subscription = streamReceiver.receive(streamOffsetForVoice)
-                .subscribe(record -> {
-                    String seq = record.getId().getValue();
-                    log.info("Subscribe Voice from Redis: {}", seq);
-                    String message = record.getValue().get("message");
-//                    addSeqBeforeEmit(userId, seq, message, serverSinkMap);
-                });
-        serverStream.put(userId, subscription);
-        log.info("Register Voice Stream: {}", userId);
     }
 
     private void addSeqBeforeEmit(String serverId, String seq, String message) {

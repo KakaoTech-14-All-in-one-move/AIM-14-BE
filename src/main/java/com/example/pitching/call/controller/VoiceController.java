@@ -23,9 +23,4 @@ public class VoiceController {
     public Mono<UrlResponse> getConnectUrl() {
         return Mono.just(UrlResponse.of(serverProperties.getUrl()));
     }
-
-    @GetMapping("/state")       // Test
-    public Mono<Boolean> addState(String userId, String serverId) {
-        return voiceStateManager.enterServer(userId, serverId);
-    }
 }

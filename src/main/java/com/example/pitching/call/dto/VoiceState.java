@@ -1,5 +1,6 @@
 package com.example.pitching.call.dto;
 
+import com.example.pitching.call.operation.response.VoiceStateData;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -33,4 +34,33 @@ public class VoiceState {
                 false);
     }
 
+    public static VoiceState from(VoiceStateData voiceStateData) {
+        return new VoiceState(
+                voiceStateData.userId(),
+                voiceStateData.serverId(),
+                voiceStateData.channelId(),
+                voiceStateData.channelType(),
+                voiceStateData.ip(),
+                voiceStateData.port(),
+                voiceStateData.isMuted(),
+                voiceStateData.isDeafened(),
+                voiceStateData.isSpeaking(),
+                voiceStateData.isCameraOn(),
+                voiceStateData.isScreenSharing());
+    }
+
+    public VoiceState updateUdpAddress(String ip, Integer port) {
+        return new VoiceState(
+                this.userId,
+                this.serverId,
+                this.channelId,
+                this.channelType,
+                ip,
+                port,
+                this.isMuted,
+                this.isDeafened,
+                this.isSpeaking,
+                this.isCameraOn,
+                this.isScreenSharing);
+    }
 }
