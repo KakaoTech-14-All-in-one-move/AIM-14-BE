@@ -32,11 +32,11 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 public class CallWebSocketHandler implements WebSocketHandler {
 
-    public static final Map<String, Sinks.Many<String>> userSinkMap = new ConcurrentHashMap<>();
-    public static final Map<String, Disposable> userSubscription = new ConcurrentHashMap<>();
-    private static final String INITIAL_SEQ = null;
-    private static final int VOICE_CHANNEL = 1;
-    private static final int VIDEO_CHANNEL = 2;
+    private final Map<String, Sinks.Many<String>> userSinkMap = new ConcurrentHashMap<>();
+    private final Map<String, Disposable> userSubscription = new ConcurrentHashMap<>();
+    private final String INITIAL_SEQUENCE = null;
+    private final int VOICE_CHANNEL = 1;
+    private final int VIDEO_CHANNEL = 2;
     private final ServerStreamManager serverStreamManager;
     private final ConvertService convertService;
     private final ServerProperties serverProperties;
@@ -68,13 +68,14 @@ public class CallWebSocketHandler implements WebSocketHandler {
                                 session.receive()
                                         .timeout(serverProperties.getTimeout())
                                         .map(WebSocketMessage::getPayloadAsText)
-                                        .flatMap(jsonMessage -> handle(jsonMessage, userId)
+                                        .flatMap(jsonMessage -> handleMessages(jsonMessage, userId)
                                                 .doOnError(error -> log.error("Error occurs in handling Reply Message()", error)))
                                         .doOnNext(message -> log.info("[{}] Reply Message : {}", userId, message))
                                         .map(session::textMessage)
                                         .doFinally(signalType -> {
                                             log.info("[{}] Disconnected: {}", userId, signalType);
                                             userSinkMap.remove(userId);
+                                            disposeSubscription(userId);
                                         })
                         )
         );
@@ -92,7 +93,7 @@ public class CallWebSocketHandler implements WebSocketHandler {
         );
     }
 
-    private Flux<String> handle(String receivedMessage, String userId) {
+    private Flux<String> handleMessages(String receivedMessage, String userId) {
         RequestOp requestOp = convertService.readReqOpFromMessage(receivedMessage);
         log.info("[{}] Send Message : {}", userId, receivedMessage);
         return switch (requestOp) {
@@ -107,25 +108,25 @@ public class CallWebSocketHandler implements WebSocketHandler {
     }
 
     private Flux<String> sendHello(String receivedMessage, String userId) {
-        String serverId = convertService.jsonToEvent(receivedMessage, Init.class).serverId();
+        String serverId = convertService.convertJsonToEvent(receivedMessage, Init.class).serverId();
         if (isValidServerId(serverId)) return Flux.error(new IllegalArgumentException("Invalid serverId"));
         subscribeServerSink(serverId, userId, userSinkMap.get(userId));
         // TODO: Hello 에 서버의 현재 상태 데이터 추가 (재연결 시 현재 상태 동기화를 하기 때문에 Resume 필요 X)
-        String helloMessage = convertService.eventToJson(Hello.of(serverProperties.getHeartbeatInterval()));
+        String helloMessage = convertService.convertEventToJson(Hello.of(serverProperties.getHeartbeatInterval()));
         return Flux.just(helloMessage);
     }
 
     private Flux<String> sendHeartbeatAck() {
-        String ackMessage = convertService.eventToJson(HeartbeatAck.of());
+        String ackMessage = convertService.convertEventToJson(HeartbeatAck.of());
         return Flux.just(ackMessage);
     }
 
     private Flux<String> changeServer(String receivedMessage, String userId) {
-        String serverId = convertService.jsonToEvent(receivedMessage, Server.class).serverId();
+        String serverId = convertService.convertJsonToEvent(receivedMessage, Server.class).serverId();
         if (isValidServerId(serverId)) return Flux.error(new IllegalArgumentException("Invalid serverId"));
         subscribeServerSink(serverId, userId, userSinkMap.get(userId));
         // TODO: Server 에 서버의 현재 상태 데이터 추가 (재연결 시 현재 상태 동기화를 하기 때문에 Resume 필요 X)
-        String serverAckMessage = convertService.eventToJson(ServerAck.of(null));
+        String serverAckMessage = convertService.convertEventToJson(ServerAck.of(null));
         return Flux.just(serverAckMessage);
     }
 
@@ -144,13 +145,17 @@ public class CallWebSocketHandler implements WebSocketHandler {
     }
 
     private void subscribeServerSink(String serverId, String userId, Sinks.Many<String> sink) {
-        if (userSubscription.containsKey(userId)) {
-            userSubscription.remove(userId).dispose();
-        }
+        disposeSubscription(userId);
         Disposable disposable = serverStreamManager.getMessageFromServerSink(serverId)
                 .doOnNext(sink::tryEmitNext)
                 .subscribe();
         userSubscription.put(userId, disposable);
+    }
+
+    private void disposeSubscription(String userId) {
+        if (userSubscription.containsKey(userId)) {
+            userSubscription.remove(userId).dispose();
+        }
     }
 
     private Flux<String> getMessageFromUserSink(String userId) {

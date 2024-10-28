@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 public class ConvertService {
     private final ObjectMapper objectMapper;
 
-    public String eventToJson(Operation event) {
+    public String convertEventToJson(Operation event) {
         try {
             return objectMapper.writeValueAsString(event);
         } catch (JsonProcessingException e) {
@@ -35,7 +35,7 @@ public class ConvertService {
         try {
             ResponseOp responseOp = ResponseOp.from(objectMapper.readTree(jsonMessage).get("op").asInt());
             return switch (responseOp) {
-                case HEARTBEAT_ACK -> jsonToEvent(jsonMessage, HeartbeatAck.class);
+                case HEARTBEAT_ACK -> convertJsonToEvent(jsonMessage, HeartbeatAck.class);
                 default -> throw new RuntimeException("Unsupported operation: " + responseOp);
             };
         } catch (JsonProcessingException e) {
@@ -43,7 +43,7 @@ public class ConvertService {
         }
     }
 
-    public <T extends Operation> T jsonToEvent(String jsonMessage, Class<T> eventClass) {
+    public <T extends Operation> T convertJsonToEvent(String jsonMessage, Class<T> eventClass) {
         try {
             return objectMapper.readValue(jsonMessage, eventClass);
         } catch (JsonProcessingException e) {

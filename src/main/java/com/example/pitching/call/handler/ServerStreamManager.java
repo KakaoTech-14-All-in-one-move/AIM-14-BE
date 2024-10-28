@@ -29,7 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @Component
 public class ServerStreamManager {
-    public static final Map<String, Sinks.Many<String>> serverSinkMap = new ConcurrentHashMap<>();
+    private final Map<String, Sinks.Many<String>> serverSinkMap = new ConcurrentHashMap<>();
     private final Map<String, Disposable> serverStream = new ConcurrentHashMap<>();
     private final ReactiveStreamOperations<String, Object, Object> streamOperations;
     private final StreamReceiver<String, MapRecord<String, String, String>> streamReceiver;
@@ -133,7 +133,7 @@ public class ServerStreamManager {
     private void addSeqBeforeEmit(String serverId, String seq, String message) {
         Response response = convertService.createResFromJson(message).setSeq(seq);
         Sinks.Many<String> serverSink = serverSinkMap.get(serverId);
-        String jsonMessage = convertService.eventToJson(response);
+        String jsonMessage = convertService.convertEventToJson(response);
         serverSink.tryEmitNext(jsonMessage);
         log.info("JsonMessage emitted: {}", jsonMessage);
     }
@@ -147,7 +147,7 @@ public class ServerStreamManager {
     }
 
     private void sendHello(Sinks.Many<String> sink) {
-        String jsonHelloEvent = convertService.eventToJson(Hello.of(serverProperties.getHeartbeatInterval()));
+        String jsonHelloEvent = convertService.convertEventToJson(Hello.of(serverProperties.getHeartbeatInterval()));
         sink.tryEmitNext(jsonHelloEvent);
     }
 }
