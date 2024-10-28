@@ -2,8 +2,6 @@ package com.example.pitching.call.handler;
 
 import com.example.pitching.call.config.RedisConfig;
 import com.example.pitching.call.dto.properties.ServerProperties;
-import com.example.pitching.call.operation.response.Hello;
-import com.example.pitching.call.operation.response.Response;
 import io.lettuce.core.XAddArgs;
 import io.lettuce.core.api.reactive.RedisReactiveCommands;
 import lombok.extern.slf4j.Slf4j;
@@ -94,11 +92,6 @@ public class ServerStreamManager {
         return String.format("server:%s:events", serverId);
     }
 
-
-    public Flux<String> registerVoice(String userId) {
-        return initSinkMap(userId, serverSinkMap);
-    }
-
     public void addMissedServerMessageToStream(String userId, String lastRecordId) {
         Range<String> range = Range.rightOpen(lastRecordId, "+");
         streamOperations.range(userId + ":voice", range)
@@ -131,23 +124,10 @@ public class ServerStreamManager {
     }
 
     private void addSeqBeforeEmit(String serverId, String seq, String message) {
-        Response response = convertService.createResFromJson(message).setSeq(seq);
-        Sinks.Many<String> serverSink = serverSinkMap.get(serverId);
-        String jsonMessage = convertService.convertEventToJson(response);
-        serverSink.tryEmitNext(jsonMessage);
-        log.info("JsonMessage emitted: {}", jsonMessage);
-    }
-
-    private Flux<String> initSinkMap(String userId, Map<String, Sinks.Many<String>> sinkMap) {
-        Sinks.Many<String> sink = Sinks.many().multicast().onBackpressureBuffer();
-        sinkMap.put(userId, sink);
-        registerVoiceStream(userId);
-        sendHello(sink);
-        return sink.asFlux();
-    }
-
-    private void sendHello(Sinks.Many<String> sink) {
-        String jsonHelloEvent = convertService.convertEventToJson(Hello.of(serverProperties.getHeartbeatInterval()));
-        sink.tryEmitNext(jsonHelloEvent);
+//        Response response = convertService.createResFromJson(message).setSeq(seq);
+//        Sinks.Many<String> serverSink = serverSinkMap.get(serverId);
+//        String jsonMessage = convertService.convertEventToJson(response);
+//        serverSink.tryEmitNext(jsonMessage);
+//        log.info("JsonMessage emitted: {}", jsonMessage);
     }
 }

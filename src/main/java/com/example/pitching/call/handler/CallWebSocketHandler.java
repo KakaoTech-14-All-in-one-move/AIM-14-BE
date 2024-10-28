@@ -1,12 +1,12 @@
 package com.example.pitching.call.handler;
 
 import com.example.pitching.call.dto.properties.ServerProperties;
-import com.example.pitching.call.operation.code.RequestOp;
-import com.example.pitching.call.operation.request.Init;
-import com.example.pitching.call.operation.request.Server;
-import com.example.pitching.call.operation.response.HeartbeatAck;
-import com.example.pitching.call.operation.response.Hello;
-import com.example.pitching.call.operation.response.ServerAck;
+import com.example.pitching.call.operation.Event;
+import com.example.pitching.call.operation.code.RequestOperation;
+import com.example.pitching.call.operation.code.ResponseOperation;
+import com.example.pitching.call.operation.request.HelloData;
+import com.example.pitching.call.operation.request.InitData;
+import com.example.pitching.call.operation.request.ServerData;
 import io.micrometer.common.lang.NonNullApi;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,9 +34,6 @@ public class CallWebSocketHandler implements WebSocketHandler {
 
     private final Map<String, Sinks.Many<String>> userSinkMap = new ConcurrentHashMap<>();
     private final Map<String, Disposable> userSubscription = new ConcurrentHashMap<>();
-    private final String INITIAL_SEQUENCE = null;
-    private final int VOICE_CHANNEL = 1;
-    private final int VIDEO_CHANNEL = 2;
     private final ServerStreamManager serverStreamManager;
     private final ConvertService convertService;
     private final ServerProperties serverProperties;
@@ -94,43 +91,43 @@ public class CallWebSocketHandler implements WebSocketHandler {
     }
 
     private Flux<String> handleMessages(String receivedMessage, String userId) {
-        RequestOp requestOp = convertService.readReqOpFromMessage(receivedMessage);
+        RequestOperation requestOperation = convertService.readRequestOperationFromMessage(receivedMessage);
         log.info("[{}] Send Message : {}", userId, receivedMessage);
-        return switch (requestOp) {
-            case RequestOp.INIT -> sendHello(receivedMessage, userId);
-            case RequestOp.HEARTBEAT -> sendHeartbeatAck();
-            case RequestOp.SERVER -> changeServer(receivedMessage, userId);
-            case RequestOp.ENTER_VOICE -> enterChannel(VOICE_CHANNEL, receivedMessage, userId);
-            case RequestOp.ENTER_VIDEO -> enterChannel(VIDEO_CHANNEL, receivedMessage, userId);
-            case RequestOp.LEAVE_VOICE -> Flux.empty();
-            case RequestOp.LEAVE_VIDEO -> Flux.empty();
+        return switch (requestOperation) {
+            case RequestOperation.INIT -> sendHello(receivedMessage, userId);
+            case RequestOperation.HEARTBEAT -> sendHeartbeatAck();
+            case RequestOperation.SERVER -> changeServer(receivedMessage, userId);
+            case RequestOperation.ENTER_CHANNEL -> enterChannel(receivedMessage, userId);
+            case RequestOperation.LEAVE_CHANNEL -> Flux.empty();
         };
     }
 
     private Flux<String> sendHello(String receivedMessage, String userId) {
-        String serverId = convertService.convertJsonToEvent(receivedMessage, Init.class).serverId();
+        String serverId = convertService.readDataFromMessage(receivedMessage, InitData.class).serverId();
         if (isValidServerId(serverId)) return Flux.error(new IllegalArgumentException("Invalid serverId"));
         subscribeServerSink(serverId, userId, userSinkMap.get(userId));
         // TODO: Hello 에 서버의 현재 상태 데이터 추가 (재연결 시 현재 상태 동기화를 하기 때문에 Resume 필요 X)
-        String helloMessage = convertService.convertEventToJson(Hello.of(serverProperties.getHeartbeatInterval()));
-        return Flux.just(helloMessage);
+        Event hello = Event.of(ResponseOperation.HELLO,
+                HelloData.of(serverProperties.getHeartbeatInterval()),
+                null);
+        return Flux.just(convertService.convertEventToJson(hello));
     }
 
     private Flux<String> sendHeartbeatAck() {
-        String ackMessage = convertService.convertEventToJson(HeartbeatAck.of());
-        return Flux.just(ackMessage);
+        Event heartbeatAck = Event.of(ResponseOperation.HEARTBEAT_ACK, null, null);
+        return Flux.just(convertService.convertEventToJson(heartbeatAck));
     }
 
     private Flux<String> changeServer(String receivedMessage, String userId) {
-        String serverId = convertService.convertJsonToEvent(receivedMessage, Server.class).serverId();
+        String serverId = convertService.readDataFromMessage(receivedMessage, ServerData.class).serverId();
         if (isValidServerId(serverId)) return Flux.error(new IllegalArgumentException("Invalid serverId"));
         subscribeServerSink(serverId, userId, userSinkMap.get(userId));
         // TODO: Server 에 서버의 현재 상태 데이터 추가 (재연결 시 현재 상태 동기화를 하기 때문에 Resume 필요 X)
-        String serverAckMessage = convertService.convertEventToJson(ServerAck.of(null));
-        return Flux.just(serverAckMessage);
+        Event serverAck = Event.of(ResponseOperation.SERVER_ACK, null, null);
+        return Flux.just(convertService.convertEventToJson(serverAck));
     }
 
-    private Flux<String> enterChannel(int channel, String receivedMessage, String userId) {
+    private Flux<String> enterChannel(String receivedMessage, String userId) {
         // State Update
         // 해당 Server Stream 에 이벤트 추가 (ServerId는 클라이언트에서 전송)
         // ENTER_SUCCESS 메세지 응답
