@@ -2,9 +2,9 @@ package com.example.pitching.voice.handler;
 
 import com.example.pitching.call.dto.properties.ServerProperties;
 import com.example.pitching.call.operation.Operation;
-import com.example.pitching.call.operation.code.ResOp;
-import com.example.pitching.call.operation.req.Heartbeat;
-import com.example.pitching.call.operation.res.Hello;
+import com.example.pitching.call.operation.code.ResponseOp;
+import com.example.pitching.call.operation.request.Heartbeat;
+import com.example.pitching.call.operation.response.Hello;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -88,7 +88,7 @@ class CallWebSocketHandlerTest {
                         .log()
                         .map(json -> jsonToEvent(json, Hello.class))
                         .doOnNext(hello -> {
-                            assertThat(hello.op()).isEqualTo(ResOp.HELLO);
+                            assertThat(hello.op()).isEqualTo(ResponseOp.HELLO);
                             assertThat(hello.data().heartbeatInterval())
                                     .isEqualTo(serverProperties.getHeartbeatInterval());
                         })
@@ -141,10 +141,10 @@ class CallWebSocketHandlerTest {
         }
     }
 
-    private boolean isTargetOperation(String jsonMessage, ResOp op) {
+    private boolean isTargetOperation(String jsonMessage, ResponseOp op) {
         try {
-            ResOp resOp = ResOp.from(objectMapper.readTree(jsonMessage).get("op").asInt());
-            return Objects.equals(op, resOp);
+            ResponseOp responseOp = ResponseOp.from(objectMapper.readTree(jsonMessage).get("op").asInt());
+            return Objects.equals(op, responseOp);
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }

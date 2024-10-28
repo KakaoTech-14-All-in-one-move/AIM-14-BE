@@ -1,4 +1,4 @@
-package com.example.pitching.call.operation.res.data;
+package com.example.pitching.call.operation.response.data;
 
 public record HelloData(
         long heartbeatInterval

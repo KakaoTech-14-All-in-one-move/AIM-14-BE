@@ -2,8 +2,8 @@ package com.example.pitching.call.handler;
 
 import com.example.pitching.call.config.RedisConfig;
 import com.example.pitching.call.dto.properties.ServerProperties;
-import com.example.pitching.call.operation.res.Hello;
-import com.example.pitching.call.operation.res.Response;
+import com.example.pitching.call.operation.response.Hello;
+import com.example.pitching.call.operation.response.Response;
 import io.lettuce.core.XAddArgs;
 import io.lettuce.core.api.reactive.RedisReactiveCommands;
 import lombok.extern.slf4j.Slf4j;
@@ -17,12 +17,9 @@ import org.springframework.data.redis.connection.stream.StreamOffset;
 import org.springframework.data.redis.core.ReactiveStreamOperations;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.data.redis.stream.StreamReceiver;
-import org.springframework.security.core.context.ReactiveSecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 
 import java.time.Duration;

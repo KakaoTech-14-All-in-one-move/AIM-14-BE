@@ -1,12 +1,12 @@
 package com.example.pitching.call.handler;
 
 import com.example.pitching.call.dto.properties.ServerProperties;
-import com.example.pitching.call.operation.code.ReqOp;
-import com.example.pitching.call.operation.req.Init;
-import com.example.pitching.call.operation.req.Server;
-import com.example.pitching.call.operation.res.HeartbeatAck;
-import com.example.pitching.call.operation.res.Hello;
-import com.example.pitching.call.operation.res.ServerAck;
+import com.example.pitching.call.operation.code.RequestOp;
+import com.example.pitching.call.operation.request.Init;
+import com.example.pitching.call.operation.request.Server;
+import com.example.pitching.call.operation.response.HeartbeatAck;
+import com.example.pitching.call.operation.response.Hello;
+import com.example.pitching.call.operation.response.ServerAck;
 import io.micrometer.common.lang.NonNullApi;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -89,16 +89,16 @@ public class CallWebSocketHandler implements WebSocketHandler {
     }
 
     private Flux<String> handle(String receivedMessage, String userId) {
-        ReqOp reqOp = convertService.readReqOpFromMessage(receivedMessage);
+        RequestOp requestOp = convertService.readReqOpFromMessage(receivedMessage);
         log.info("[{}] Send Message : {}", userId, receivedMessage);
-        return switch (reqOp) {
-            case ReqOp.INIT -> sendHello(receivedMessage, userId);
-            case ReqOp.HEARTBEAT -> sendHeartbeatAck();
-            case ReqOp.SERVER -> changeServer(receivedMessage, userId);
-            case ReqOp.ENTER_VOICE -> enterChannel(VOICE_CHANNEL, receivedMessage, userId);
-            case ReqOp.ENTER_VIDEO -> enterChannel(VIDEO_CHANNEL, receivedMessage, userId);
-            case ReqOp.LEAVE_VOICE -> Flux.empty();
-            case ReqOp.LEAVE_VIDEO -> Flux.empty();
+        return switch (requestOp) {
+            case RequestOp.INIT -> sendHello(receivedMessage, userId);
+            case RequestOp.HEARTBEAT -> sendHeartbeatAck();
+            case RequestOp.SERVER -> changeServer(receivedMessage, userId);
+            case RequestOp.ENTER_VOICE -> enterChannel(VOICE_CHANNEL, receivedMessage, userId);
+            case RequestOp.ENTER_VIDEO -> enterChannel(VIDEO_CHANNEL, receivedMessage, userId);
+            case RequestOp.LEAVE_VOICE -> Flux.empty();
+            case RequestOp.LEAVE_VIDEO -> Flux.empty();
         };
     }
 

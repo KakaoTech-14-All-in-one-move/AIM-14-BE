@@ -2,7 +2,7 @@ package com.example.pitching.voice.controller;
 
 import com.example.pitching.call.controller.VoiceController;
 import com.example.pitching.call.dto.properties.ServerProperties;
-import com.example.pitching.call.dto.response.UrlRes;
+import com.example.pitching.call.dto.response.UrlResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -78,8 +78,8 @@ class CallControllerTest {
                 .isOk()
                 .expectHeader()
                 .contentType(MediaType.APPLICATION_JSON)
-                .expectBody(UrlRes.class)
-                .value(urlRes -> assertThat(urlRes.url()).isEqualTo(connectUrl))
+                .expectBody(UrlResponse.class)
+                .value(urlResponse -> assertThat(urlResponse.url()).isEqualTo(connectUrl))
                 .value(System.out::println);
     }
 
@@ -98,8 +98,8 @@ class CallControllerTest {
                 .isOk()
                 .expectHeader()
                 .contentType(MediaType.APPLICATION_JSON)
-                .expectBody(UrlRes.class)
-                .value(urlRes -> assertThat(urlRes.url()).isEqualTo(connectUrl))
+                .expectBody(UrlResponse.class)
+                .value(urlResponse -> assertThat(urlResponse.url()).isEqualTo(connectUrl))
                 .value(System.out::println);
     }
 }

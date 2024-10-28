@@ -1,4 +1,4 @@
-package com.example.pitching.call.operation.res;
+package com.example.pitching.call.operation.response;
 
 import com.example.pitching.call.operation.Operation;
 

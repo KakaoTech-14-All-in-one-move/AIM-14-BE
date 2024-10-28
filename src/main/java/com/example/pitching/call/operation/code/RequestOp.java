@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import lombok.Getter;
 
 @Getter
-public enum ReqOp {
+public enum RequestOp {
 
     INIT(0, "Send serverId to activate"),
     HEARTBEAT(1, "Fired periodically by the client to keep the connection alive."),
@@ -19,13 +19,13 @@ public enum ReqOp {
     private final int code;
     private final String description;
 
-    ReqOp(int code, String description) {
+    RequestOp(int code, String description) {
         this.code = code;
         this.description = description;
     }
 
-    public static ReqOp from(int code) {
-        for (ReqOp type : values()) {
+    public static RequestOp from(int code) {
+        for (RequestOp type : values()) {
             if (type.getCode() == code) {
                 return type;
             }
