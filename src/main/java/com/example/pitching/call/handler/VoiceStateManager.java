@@ -20,6 +20,10 @@ public class VoiceStateManager {
         return hashOperations.putIfAbsent(getVoiceStateRedisKey(serverId), userId, jsonVoiceState);
     }
 
+    public Mono<Long> removeVoiceState(String serverId, String userId) {
+        return hashOperations.remove(getVoiceStateRedisKey(serverId), userId);
+    }
+
     public Flux<Map.Entry<String, String>> getAllVoiceState(String serverId) {
         return hashOperations.entries(getVoiceStateRedisKey(serverId));
     }

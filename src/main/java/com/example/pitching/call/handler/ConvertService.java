@@ -9,6 +9,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Mono;
 
 @Service
 @RequiredArgsConstructor
@@ -23,19 +24,21 @@ public class ConvertService {
         }
     }
 
-    public RequestOperation readRequestOperationFromMessage(String jsonMessage) {
+    public Mono<RequestOperation> readRequestOperationFromMessage(String jsonMessage) {
         try {
-            return RequestOperation.from(objectMapper.readTree(jsonMessage).get("op").asInt());
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
+            RequestOperation requestOperation = RequestOperation.from(objectMapper.readTree(jsonMessage).get("op").asInt());
+            return Mono.just(requestOperation);
+        } catch (Exception e) {
+            return Mono.error(e);
         }
     }
 
-    public ResponseOperation readResponseOperationFromMessage(String jsonMessage) {
+    public Mono<ResponseOperation> readResponseOperationFromMessage(String jsonMessage) {
         try {
-            return ResponseOperation.from(objectMapper.readTree(jsonMessage).get("op").asInt());
+            ResponseOperation responseOperation = ResponseOperation.from(objectMapper.readTree(jsonMessage).get("op").asInt());
+            return Mono.just(responseOperation);
         } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
+            return Mono.error(e);
         }
     }
 
@@ -47,17 +50,26 @@ public class ConvertService {
         }
     }
 
-    public Event convertJsonToEventWithSequence(String sequence, String jsonMessage) {
-        ResponseOperation responseOperation = readResponseOperationFromMessage(jsonMessage);
-        return switch (responseOperation) {
-            case ENTER_CHANNEL_ACK ->
-                    createResponseWithSequence(responseOperation, jsonMessage, StateResponse.class, sequence);
-            default -> null;
-        };
+    public Mono<Event> convertJsonToEventWithSequence(String sequence, String jsonMessage) {
+        return readResponseOperationFromMessage(jsonMessage)
+                .flatMap(responseOperation -> {
+                    if (responseOperation == ResponseOperation.ENTER_CHANNEL_ACK) {
+                        return createResponseWithSequence(responseOperation, jsonMessage, StateResponse.class, sequence);
+                    }
+                    if (responseOperation == ResponseOperation.LEAVE_CHANNEL_ACK) {
+                        return createResponseWithSequence(responseOperation, sequence);
+                    } else {
+                        return Mono.error(new RuntimeException("Unsupported response operation: " + responseOperation));
+                    }
+                });
     }
 
-    private <T extends Data> Event createResponseWithSequence(ResponseOperation responseOperation, String jsonMessage, Class<T> dataClass, String sequence) {
-        return Event.of(responseOperation, readDataFromMessage(jsonMessage, dataClass), sequence);
+    private <T extends Data> Mono<Event> createResponseWithSequence(ResponseOperation responseOperation, String jsonMessage, Class<T> dataClass, String sequence) {
+        return Mono.just(Event.of(responseOperation, readDataFromMessage(jsonMessage, dataClass), sequence));
+    }
+
+    private <T extends Data> Mono<Event> createResponseWithSequence(ResponseOperation responseOperation, String sequence) {
+        return Mono.just(Event.of(responseOperation, null, sequence));
     }
 
     public <T> T convertJsonToData(String jsonMessage, Class<T> dataClass) {

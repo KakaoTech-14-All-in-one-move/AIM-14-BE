@@ -1,11 +1,14 @@
 package com.example.pitching.call.dto;
 
 import com.example.pitching.call.operation.request.StateRequest;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Getter
 @AllArgsConstructor
+@NoArgsConstructor
 public class VoiceState {
     private String userId;
     private String username;
@@ -14,10 +17,15 @@ public class VoiceState {
     private ChannelType channelType;
     private String ip;
     private Integer port;
+    @JsonProperty("muted")
     private boolean isMuted;
+    @JsonProperty("deafened")
     private boolean isDeafened;
+    @JsonProperty("speaking")
     private boolean isSpeaking;
+    @JsonProperty("cameraOn")
     private boolean isCameraOn;
+    @JsonProperty("screenSharing")
     private boolean isScreenSharing;
 
     public static VoiceState from(StateRequest stateRequest, String userId, String username) {

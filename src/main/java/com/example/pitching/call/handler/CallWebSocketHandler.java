@@ -96,15 +96,15 @@ public class CallWebSocketHandler implements WebSocketHandler {
     }
 
     private Flux<String> handleMessages(String receivedMessage, String userId) {
-        RequestOperation requestOperation = convertService.readRequestOperationFromMessage(receivedMessage);
-        log.info("[{}] Send Message : {} -> RequestOperation : {}", userId, receivedMessage, requestOperation);
-        return switch (requestOperation) {
-            case RequestOperation.INIT -> sendHello();
-            case RequestOperation.HEARTBEAT -> sendHeartbeatAck();
-            case RequestOperation.ENTER_SERVER -> enterServer(receivedMessage, userId);
-            case RequestOperation.ENTER_CHANNEL -> enterChannel(receivedMessage, userId);
-            case RequestOperation.LEAVE_CHANNEL -> Flux.empty();
-        };
+        return convertService.readRequestOperationFromMessage(receivedMessage)
+                .doOnSuccess(requestOperation -> log.info("[{}] Send Message : {} -> RequestOperation : {}", userId, receivedMessage, requestOperation))
+                .flatMapMany(requestOperation -> switch (requestOperation) {
+                    case RequestOperation.INIT -> sendHello();
+                    case RequestOperation.HEARTBEAT -> sendHeartbeatAck();
+                    case RequestOperation.ENTER_SERVER -> enterServer(receivedMessage, userId);
+                    case RequestOperation.ENTER_CHANNEL -> enterChannel(receivedMessage, userId);
+                    case RequestOperation.LEAVE_CHANNEL -> leaveChannel(receivedMessage, userId);
+                });
     }
 
     private Flux<String> sendHello() {
@@ -121,6 +121,7 @@ public class CallWebSocketHandler implements WebSocketHandler {
 
     // 무조건 기존 서버 입장
     // TODO: 새 서버를 만들거나 새 서버에 초대된 경우 HTTP를 사용해서 Server 참여 인원에 추가 (DB)
+
     private Flux<String> enterServer(String receivedMessage, String userId) {
         String serverId = convertService.readDataFromMessage(receivedMessage, ServerRequest.class).serverId();
         if (isValidServerId(serverId)) return Flux.error(new IllegalArgumentException("Invalid serverId"));
@@ -152,7 +153,20 @@ public class CallWebSocketHandler implements WebSocketHandler {
                     String jsonChannelAck = convertService.convertObjectToJson(channelAck);
                     // 2. 해당 Server Stream 에 이벤트 추가
                     serverStreamManager.addVoiceMessageToStream(stateRequest.serverId(), jsonChannelAck);
-                    // 3. CHANNEL_ACK 메세지 응답
+                    log.info("[{}] entered the {} channel : id = {}", userId, stateRequest.channelType(), stateRequest.channelId());
+                    return Flux.empty();
+                });
+    }
+
+    private Flux<String> leaveChannel(String receivedMessage, String userId) {
+        StateRequest stateRequest = convertService.readDataFromMessage(receivedMessage, StateRequest.class);
+        return voiceStateManager.removeVoiceState(stateRequest.serverId(), userId)
+                .flatMapMany(result -> {
+                    if (result != 1) return Flux.error(new IllegalStateException("Already leaved channel"));
+                    Event channelAck = Event.of(ResponseOperation.LEAVE_CHANNEL_ACK, null, null);
+                    String jsonChannelAck = convertService.convertObjectToJson(channelAck);
+                    serverStreamManager.addVoiceMessageToStream(stateRequest.serverId(), jsonChannelAck);
+                    log.info("[{}] leaved the {} channel : id = {}", userId, stateRequest.channelType(), stateRequest.channelId());
                     return Flux.empty();
                 });
     }
@@ -161,6 +175,7 @@ public class CallWebSocketHandler implements WebSocketHandler {
         return Mono.fromRunnable(() -> {
             Sinks.Many<String> sink = Sinks.many().unicast().onBackpressureBuffer();
             userSinkMap.put(userId, sink);
+            log.info("Create user sink : {}", userId);
         });
     }
 
@@ -171,7 +186,7 @@ public class CallWebSocketHandler implements WebSocketHandler {
                 .doOnNext(userSink::tryEmitNext)
                 .subscribe();
         userSubscription.put(userId, disposable);
-        log.info("Subscribe Server Sink : {}", serverId);
+        log.info("[{}] subscribes server sink : {}", userId, serverId);
     }
 
     private void disposeSubscription(String userId) {

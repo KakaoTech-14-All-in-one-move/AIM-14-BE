@@ -1,8 +1,6 @@
 package com.example.pitching.call.handler;
 
 import com.example.pitching.call.config.RedisConfig;
-import com.example.pitching.call.dto.properties.ServerProperties;
-import com.example.pitching.call.operation.Event;
 import io.lettuce.core.XAddArgs;
 import io.lettuce.core.api.reactive.RedisReactiveCommands;
 import lombok.extern.slf4j.Slf4j;
@@ -32,18 +30,15 @@ public class ServerStreamManager {
     private final ReactiveStreamOperations<String, Object, Object> streamOperations;
     private final StreamReceiver<String, MapRecord<String, String, String>> streamReceiver;
     private final ConvertService convertService;
-    private final ServerProperties serverProperties;
     private final RedisReactiveCommands<String, String> redisCommands;
     private final RedisConfig.RedisProperties redisProperties;
 
     public ServerStreamManager(ConvertService convertService,
-                               ServerProperties serverProperties,
                                ReactiveStringRedisTemplate redisTemplate,
                                ReactiveRedisConnectionFactory redisConnectionFactory,
                                RedisReactiveCommands<String, String> redisCommands,
                                RedisConfig.RedisProperties redisProperties) {
         this.convertService = convertService;
-        this.serverProperties = serverProperties;
         this.streamOperations = redisTemplate.opsForStream();
         this.redisCommands = redisCommands;
         this.redisProperties = redisProperties;
@@ -58,7 +53,7 @@ public class ServerStreamManager {
     @EventListener(ApplicationReadyEvent.class)
     public void initialize() {
         // TODO: 모든 serverId를 조회하여 해당 serverId에 대한 Sink 생성 후 Stream 구독 (반복문)
-        String serverId = "sample";
+        String serverId = "12345";
         registerServerStream(serverId);
     }
 
@@ -73,14 +68,14 @@ public class ServerStreamManager {
                     addSequenceBeforeEmit(serverId, sequence, message);
                 });
         serverStream.put(serverId, subscription);
-        log.info("Register Server Stream: {}", serverId);
+        log.info("Register server stream: {}", serverId);
     }
 
     public void unregisterServerStream(String serverId) {
         var subscription = serverStream.get(serverId);
         if (subscription != null) {
             subscription.dispose();
-            log.info("Unregister Server Stream: {}", serverId);
+            log.info("Unregister server stream: {}", serverId);
         }
     }
 
@@ -100,9 +95,12 @@ public class ServerStreamManager {
     }
 
     private void addSequenceBeforeEmit(String serverId, String sequence, String jsonMessage) {
-        Event serverEvent = convertService.convertJsonToEventWithSequence(sequence, jsonMessage);
-        Sinks.Many<String> serverSink = serverSinkMap.get(serverId);
-        serverSink.tryEmitNext(convertService.convertObjectToJson(serverEvent));
-        log.info("ServerEvent emitted to ServerSink: {}", jsonMessage);
+        convertService.convertJsonToEventWithSequence(sequence, jsonMessage)
+                .doOnError(throwable -> log.error("Error occurred while converting json to event: ", throwable))
+                .subscribe(serverEvent -> {
+                    Sinks.Many<String> serverSink = serverSinkMap.get(serverId);
+                    serverSink.tryEmitNext(convertService.convertObjectToJson(serverEvent));
+                    log.info("ServerEvent emitted to ServerSink: {}", jsonMessage);
+                });
     }
 }
