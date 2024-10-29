@@ -2,11 +2,14 @@ package com.example.pitching.call.handler;
 
 import com.example.pitching.call.dto.VoiceState;
 import com.example.pitching.call.dto.properties.ServerProperties;
+import com.example.pitching.call.operation.Data;
 import com.example.pitching.call.operation.Event;
 import com.example.pitching.call.operation.code.RequestOperation;
 import com.example.pitching.call.operation.code.ResponseOperation;
+import com.example.pitching.call.operation.request.ServerRequest;
 import com.example.pitching.call.operation.request.StateRequest;
-import com.example.pitching.call.operation.response.IntervalData;
+import com.example.pitching.call.operation.response.EmptyResponse;
+import com.example.pitching.call.operation.response.HelloResponse;
 import com.example.pitching.call.operation.response.StateResponse;
 import io.micrometer.common.lang.NonNullApi;
 import lombok.RequiredArgsConstructor;
@@ -94,7 +97,7 @@ public class CallWebSocketHandler implements WebSocketHandler {
 
     private Flux<String> handleMessages(String receivedMessage, String userId) {
         RequestOperation requestOperation = convertService.readRequestOperationFromMessage(receivedMessage);
-        log.info("[{}] Send Message : {}", userId, receivedMessage);
+        log.info("[{}] Send Message : {} -> RequestOperation : {}", userId, receivedMessage, requestOperation);
         return switch (requestOperation) {
             case RequestOperation.INIT -> sendHello();
             case RequestOperation.HEARTBEAT -> sendHeartbeatAck();
@@ -106,46 +109,51 @@ public class CallWebSocketHandler implements WebSocketHandler {
 
     private Flux<String> sendHello() {
         Event hello = Event.of(ResponseOperation.HELLO,
-                IntervalData.of(serverProperties.getHeartbeatInterval()),
+                HelloResponse.of(serverProperties.getHeartbeatInterval()),
                 null);
-        return Flux.just(convertService.convertEventToJson(hello));
+        return Flux.just(convertService.convertObjectToJson(hello));
     }
 
     private Flux<String> sendHeartbeatAck() {
         Event heartbeatAck = Event.of(ResponseOperation.HEARTBEAT_ACK, null, null);
-        return Flux.just(convertService.convertEventToJson(heartbeatAck));
+        return Flux.just(convertService.convertObjectToJson(heartbeatAck));
     }
 
     // 무조건 기존 서버 입장
     // TODO: 새 서버를 만들거나 새 서버에 초대된 경우 HTTP를 사용해서 Server 참여 인원에 추가 (DB)
-    private Flux<String> enterServer(String serverId, String userId) {
+    private Flux<String> enterServer(String receivedMessage, String userId) {
+        String serverId = convertService.readDataFromMessage(receivedMessage, ServerRequest.class).serverId();
         if (isValidServerId(serverId)) return Flux.error(new IllegalArgumentException("Invalid serverId"));
         subscribeServerSink(serverId, userId);
         // Redis에서 해당 서버의 call 중인 유저(State) 모두 조회
         return voiceStateManager.getAllVoiceState(serverId)
-                .map(mapEntry -> StateResponse.from(mapEntry.getValue()))
-                .flatMap(stateResponse -> {
-                    Event serverAck = Event.of(ResponseOperation.SERVER_ACK, stateResponse, null);
-                    return Mono.just(convertService.convertEventToJson(serverAck));
-                });
+                .map(mapEntry -> StateResponse.from(convertService.convertJsonToData(mapEntry.getValue(), VoiceState.class)))
+                .flatMap(this::createServerAck)
+                .switchIfEmpty(createServerAck(EmptyResponse.of()));
+    }
+
+    private Mono<String> createServerAck(Data response) {
+        Event serverAck = Event.of(ResponseOperation.SERVER_ACK, response, null);
+        return Mono.just(convertService.convertObjectToJson(serverAck));
     }
 
     private Flux<String> enterChannel(String receivedMessage, String userId) {
         StateRequest stateRequest = convertService.readDataFromMessage(receivedMessage, StateRequest.class);
         // TODO: 1. userId로 username 조회 (DB)
-        String username = "username";
+        String username = "name";
 
         // 2. Redis(call)에 유저(State) 등록
         VoiceState voiceState = VoiceState.from(stateRequest, userId, username);
-        return voiceStateManager.addVoiceState(userId, stateRequest.serverId(), voiceState)
+        String jsonVoiceState = convertService.convertObjectToJson(voiceState);
+        return voiceStateManager.addVoiceState(userId, stateRequest.serverId(), jsonVoiceState)
                 .flatMapMany(result -> {
                     if (!result) return Flux.error(new IllegalStateException("Already entered channel"));
                     Event channelAck = Event.of(ResponseOperation.ENTER_CHANNEL_ACK, StateResponse.from(voiceState), null);
-                    String jsonChannelAck = convertService.convertEventToJson(channelAck);
+                    String jsonChannelAck = convertService.convertObjectToJson(channelAck);
                     // 2. 해당 Server Stream 에 이벤트 추가
                     serverStreamManager.addVoiceMessageToStream(stateRequest.serverId(), jsonChannelAck);
                     // 3. CHANNEL_ACK 메세지 응답
-                    return Flux.just(jsonChannelAck);
+                    return Flux.empty();
                 });
     }
 
@@ -158,15 +166,18 @@ public class CallWebSocketHandler implements WebSocketHandler {
 
     private void subscribeServerSink(String serverId, String userId) {
         disposeSubscription(userId);
+        Sinks.Many<String> userSink = userSinkMap.get(userId);
         Disposable disposable = serverStreamManager.getMessageFromServerSink(serverId)
-                .doOnNext(userSinkMap.get(userId)::tryEmitNext)
+                .doOnNext(userSink::tryEmitNext)
                 .subscribe();
         userSubscription.put(userId, disposable);
+        log.info("Subscribe Server Sink : {}", serverId);
     }
 
     private void disposeSubscription(String userId) {
         if (userSubscription.containsKey(userId)) {
             userSubscription.remove(userId).dispose();
+            log.info("Dispose Subscription : {}", userId);
         }
     }
 

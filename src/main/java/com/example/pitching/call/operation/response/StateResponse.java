@@ -30,4 +30,17 @@ public record StateResponse(
                 voiceState.isScreenSharing()
         );
     }
+
+    public static StateResponse emtpy() {
+        return new StateResponse(null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                false,
+                false,
+                false);
+    }
 }

@@ -2,10 +2,10 @@ package com.example.pitching.call.operation.response;
 
 import com.example.pitching.call.operation.Data;
 
-public record IntervalData(
+public record HelloResponse(
         long heartbeatInterval
 ) implements Data {
-    public static IntervalData of(long interval) {
-        return new IntervalData(interval);
+    public static HelloResponse of(long interval) {
+        return new HelloResponse(interval);
     }
 }

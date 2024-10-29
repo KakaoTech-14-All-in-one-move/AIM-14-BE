@@ -6,11 +6,6 @@ import com.example.pitching.call.operation.Data;
 public record StateRequest(
         String serverId,
         String channelId,
-        ChannelType channelType,
-        boolean isMuted,
-        boolean isDeafened,
-        boolean isSpeaking,
-        boolean isCameraOn,
-        boolean isScreenSharing
+        ChannelType channelType
 ) implements Data {
 }

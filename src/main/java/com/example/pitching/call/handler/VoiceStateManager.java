@@ -1,6 +1,5 @@
 package com.example.pitching.call.handler;
 
-import com.example.pitching.call.dto.VoiceState;
 import org.springframework.data.redis.core.ReactiveHashOperations;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -11,17 +10,17 @@ import java.util.Map;
 
 @Component
 public class VoiceStateManager {
-    private final ReactiveHashOperations<String, String, VoiceState> hashOperations;
+    private final ReactiveHashOperations<String, String, String> hashOperations;
 
     public VoiceStateManager(ReactiveStringRedisTemplate redisTemplate) {
         hashOperations = redisTemplate.opsForHash();
     }
 
-    public Mono<Boolean> addVoiceState(String userId, String serverId, VoiceState voiceState) {
-        return hashOperations.putIfAbsent(getVoiceStateRedisKey(serverId), userId, voiceState);
+    public Mono<Boolean> addVoiceState(String userId, String serverId, String jsonVoiceState) {
+        return hashOperations.putIfAbsent(getVoiceStateRedisKey(serverId), userId, jsonVoiceState);
     }
 
-    public Flux<Map.Entry<String, VoiceState>> getAllVoiceState(String serverId) {
+    public Flux<Map.Entry<String, String>> getAllVoiceState(String serverId) {
         return hashOperations.entries(getVoiceStateRedisKey(serverId));
     }
 

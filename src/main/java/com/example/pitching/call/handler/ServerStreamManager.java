@@ -2,6 +2,7 @@ package com.example.pitching.call.handler;
 
 import com.example.pitching.call.config.RedisConfig;
 import com.example.pitching.call.dto.properties.ServerProperties;
+import com.example.pitching.call.operation.Event;
 import io.lettuce.core.XAddArgs;
 import io.lettuce.core.api.reactive.RedisReactiveCommands;
 import lombok.extern.slf4j.Slf4j;
@@ -67,9 +68,9 @@ public class ServerStreamManager {
         var streamOffsetForVoice = StreamOffset.create(getServerStreamRedisKey(serverId), ReadOffset.latest());
         Disposable subscription = streamReceiver.receive(streamOffsetForVoice)
                 .subscribe(record -> {
-                    String seq = record.getId().getValue();
+                    String sequence = record.getId().getValue();
                     String message = record.getValue().get("message");
-                    addSeqBeforeEmit(serverId, seq, message);
+                    addSequenceBeforeEmit(serverId, sequence, message);
                 });
         serverStream.put(serverId, subscription);
         log.info("Register Server Stream: {}", serverId);
@@ -98,11 +99,10 @@ public class ServerStreamManager {
         return String.format("server:%s:events", serverId);
     }
 
-    private void addSeqBeforeEmit(String serverId, String seq, String message) {
-//        Response response = convertService.createResFromJson(message).setSeq(seq);
-//        Sinks.Many<String> serverSink = serverSinkMap.get(serverId);
-//        String jsonMessage = convertService.convertEventToJson(response);
-//        serverSink.tryEmitNext(jsonMessage);
-//        log.info("JsonMessage emitted: {}", jsonMessage);
+    private void addSequenceBeforeEmit(String serverId, String sequence, String jsonMessage) {
+        Event serverEvent = convertService.convertJsonToEventWithSequence(sequence, jsonMessage);
+        Sinks.Many<String> serverSink = serverSinkMap.get(serverId);
+        serverSink.tryEmitNext(convertService.convertObjectToJson(serverEvent));
+        log.info("ServerEvent emitted to ServerSink: {}", jsonMessage);
     }
 }

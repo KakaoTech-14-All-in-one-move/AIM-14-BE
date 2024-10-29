@@ -29,11 +29,11 @@ public class VoiceState {
                 stateRequest.channelType(),
                 null,
                 null,
-                stateRequest.isMuted(),
-                stateRequest.isDeafened(),
-                stateRequest.isSpeaking(),
-                stateRequest.isCameraOn(),
-                stateRequest.isScreenSharing());
+                false,
+                false,
+                false,
+                false,
+                false);
     }
 
     public VoiceState updateUdpAddress(String ip, Integer port) {
