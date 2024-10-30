@@ -31,4 +31,9 @@ public class AuthController {
     public Mono<ExistsEmailResponse> existsEmail(@RequestParam String email) {
         return authService.existsEmail(email);
     }
+
+    @PostMapping("/signup")
+    public Mono<Void> signup(@RequestBody SignupRequest request) {
+        return authService.signup(request);
+    }
 }

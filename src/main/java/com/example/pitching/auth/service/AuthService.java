@@ -2,15 +2,14 @@ package com.example.pitching.auth.service;
 
 import com.example.pitching.auth.domain.TokenStatus;
 import com.example.pitching.auth.domain.User;
-import com.example.pitching.auth.dto.ExistsEmailResponse;
-import com.example.pitching.auth.dto.LoginResponse;
-import com.example.pitching.auth.dto.TokenInfo;
-import com.example.pitching.auth.dto.UserInfo;
+import com.example.pitching.auth.dto.*;
+import com.example.pitching.auth.exception.DuplicateEmailException;
 import com.example.pitching.auth.exception.InvalidCredentialsException;
 import com.example.pitching.auth.exception.InvalidTokenException;
 import com.example.pitching.auth.exception.TokenExpiredException;
 import com.example.pitching.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.userdetails.MapReactiveUserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -86,9 +85,23 @@ public class AuthService {
     }
 
     public Mono<ExistsEmailResponse> existsEmail(String email) {
-        return userRepository.findByEmail(email)
-                .map(user -> new ExistsEmailResponse(true))  // 유저가 존재할 경우
-                .switchIfEmpty(Mono.just(new ExistsEmailResponse(false)));  // 유저가 없을 경우
+        return userRepository.existsByEmail(email)
+                .map(exists -> new ExistsEmailResponse(exists));
     }
 
+    public Mono<Void> signup(SignupRequest request) {
+        return userRepository.existsByEmail(request.email())
+                .flatMap(exists -> {
+                    if (exists) {
+                        return Mono.error(new DuplicateEmailException("이미 존재하는 이메일입니다."));
+                    }
+
+                    return userRepository.insertUser(
+                            request.email(),
+                            request.username(),
+                            passwordEncoder.encode(request.password()),
+                            "USER"
+                    );
+                });
+    }
 }
