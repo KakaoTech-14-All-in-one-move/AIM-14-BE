@@ -46,6 +46,21 @@ spring:
 jwt:
   secret: ${JWT_SECRET_KEY}
   access-token:
-    expiration: 3600000  # 1??
+    expiration: 10000 #3600000  # 1??
   refresh-token:
-    expiration: 604800000  # 7?
+    expiration: 30000 #604800000  # 7?
+---
+# local
+server:
+  port: ${LOCAL_PORT:8080}
+spring:
+  r2dbc:
+    url: ${LOCAL_POSTGRESQL_URL}
+    username: ${LOCAL_POSTGRESQL_USERNAME}
+    password: ${LOCAL_POSTGRESQL_PASSWORD}
+#  liquibase:
+#    enabled: true # 선택: Liquibase를 사용해 자동 마이그레이션 관리 시
+logging:
+  level:
+    org.springframework.r2dbc: DEBUG # R2DBC 관련 로깅 활성화 (문제 파악에 유용
+---
