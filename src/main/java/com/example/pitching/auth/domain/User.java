@@ -2,6 +2,7 @@ package com.example.pitching.auth.domain;
 
 import lombok.*;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.Table;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -19,6 +20,8 @@ public class User implements UserDetails {
     @Id
     private String email;
     private String username;
+    @Column("profile_image")  // 명시적으로 컬럼명 지정
+    private String profileImage;
     private String password;
     private String role;
 
@@ -31,16 +34,10 @@ public class User implements UserDetails {
     public String getPassword() {
         return password;
     }
-/*
-    @Override
-    public String getUsername() {
-        return username;
-    }*/
 
     @Override
     public String getUsername() {
-        // email을 username으로 사용
-        return this.email;
+        return username;
     }
 
     @Override
