@@ -40,7 +40,7 @@ dependencies {
 	// https://mvnrepository.com/artifact/io.projectreactor/reactor-test
 	testImplementation 'io.projectreactor:reactor-test:3.6.10'
 	// https://mvnrepository.com/artifact/org.postgresql/r2dbc-postgresql
-	// implementation 'org.postgresql:r2dbc-postgresql:1.0.5.RELEASE'
+	implementation 'org.postgresql:r2dbc-postgresql:1.0.5.RELEASE'
 
 	// JWT 관련 의존성
 	implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
