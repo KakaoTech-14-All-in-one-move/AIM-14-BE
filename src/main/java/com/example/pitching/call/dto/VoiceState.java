@@ -1,6 +1,7 @@
 package com.example.pitching.call.dto;
 
 import com.example.pitching.call.operation.request.ChannelRequest;
+import com.example.pitching.call.operation.request.StateRequest;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -44,6 +45,22 @@ public class VoiceState {
                 false);
     }
 
+    public static VoiceState from(StateRequest stateRequest) {
+        return new VoiceState(
+                null,
+                null,
+                stateRequest.serverId(),
+                stateRequest.channelId(),
+                null,
+                null,
+                null,
+                stateRequest.isMuted(),
+                stateRequest.isDeafened(),
+                stateRequest.isSpeaking(),
+                stateRequest.isCameraOn(),
+                stateRequest.isScreenSharing());
+    }
+
     public VoiceState updateUdpAddress(String ip, Integer port) {
         return new VoiceState(
                 this.userId,
@@ -74,5 +91,21 @@ public class VoiceState {
                 this.isSpeaking,
                 this.isCameraOn,
                 this.isScreenSharing);
+    }
+
+    public VoiceState updateState(StateRequest stateRequest) {
+        return new VoiceState(
+                this.userId,
+                this.username,
+                this.serverId,
+                this.channelId,
+                this.channelType,
+                this.ip,
+                this.port,
+                stateRequest.isMuted(),
+                stateRequest.isDeafened(),
+                stateRequest.isSpeaking(),
+                stateRequest.isCameraOn(),
+                stateRequest.isScreenSharing());
     }
 }

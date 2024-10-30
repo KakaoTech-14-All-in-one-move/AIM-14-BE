@@ -12,8 +12,9 @@ import com.example.pitching.call.operation.code.RequestOperation;
 import com.example.pitching.call.operation.code.ResponseOperation;
 import com.example.pitching.call.operation.request.ChannelRequest;
 import com.example.pitching.call.operation.request.ServerRequest;
-import com.example.pitching.call.operation.response.ChannelEnterResponse;
+import com.example.pitching.call.operation.request.StateRequest;
 import com.example.pitching.call.operation.response.ChannelLeaveResponse;
+import com.example.pitching.call.operation.response.ChannelResponse;
 import com.example.pitching.call.operation.response.EmptyResponse;
 import com.example.pitching.call.operation.response.HelloResponse;
 import com.example.pitching.call.service.ActiveUserManager;
@@ -52,6 +53,7 @@ public class ReplyHandler {
                     case RequestOperation.ENTER_SERVER -> enterServer(receivedMessage, userId);
                     case RequestOperation.ENTER_CHANNEL -> enterChannel(receivedMessage, userId);
                     case RequestOperation.LEAVE_CHANNEL -> leaveChannel(receivedMessage, userId);
+                    case RequestOperation.UPDATE_STATE -> updateState(receivedMessage, userId);
                 });
     }
 
@@ -123,7 +125,7 @@ public class ReplyHandler {
 
     private Flux<String> createServerAck(String serverId) {
         return voiceStateManager.getAllVoiceState(serverId)
-                .map(mapEntry -> ChannelEnterResponse.from(convertService.convertJsonToData(mapEntry.getValue(), VoiceState.class)))
+                .map(mapEntry -> ChannelResponse.from(convertService.convertJsonToData(mapEntry.getValue(), VoiceState.class)))
                 .flatMap(this::createServerAckEvent)
                 .switchIfEmpty(createServerAckEvent(EmptyResponse.of()));
     }
@@ -148,21 +150,27 @@ public class ReplyHandler {
                 .flatMap(isValid -> isValid ?
                         Mono.empty() : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, channelRequest.channelId())))
                 .then(activeUserManager.isCorrectAccess(userId, channelRequest.serverId()))
-                .then(saveAndGetVoiceState(userId, channelRequest, jsonVoiceState))
-                .flatMapMany(voiceState -> putChannelEnterToStream(userId, voiceState, channelRequest));
+                .then(updateChannelAndGetVoiceState(userId, channelRequest, jsonVoiceState))
+                .flatMapMany(voiceState -> putChannelEnterToStream(userId, voiceState));
     }
 
-    private Mono<VoiceState> saveAndGetVoiceState(String userId, ChannelRequest channelRequest, String jsonVoiceState) {
+    private Mono<VoiceState> updateChannelAndGetVoiceState(String userId, ChannelRequest channelRequest, String jsonVoiceState) {
         return voiceStateManager.addIfAbsentOrChangeChannel(channelRequest, userId, jsonVoiceState)
                 .then(voiceStateManager.getVoiceState(channelRequest.serverId(), userId))
                 .flatMap(convertService::convertJsonToVoiceState);
     }
 
-    private Mono<String> putChannelEnterToStream(String userId, VoiceState voiceState, ChannelRequest channelRequest) {
-        Event channelAck = Event.of(ResponseOperation.ENTER_CHANNEL_ACK, ChannelEnterResponse.from(voiceState), null);
+    private Mono<VoiceState> updateStateAndGetVoiceState(String userId, StateRequest stateRequest) {
+        return voiceStateManager.updateState(stateRequest, userId)
+                .then(voiceStateManager.getVoiceState(stateRequest.serverId(), userId))
+                .flatMap(convertService::convertJsonToVoiceState);
+    }
+
+    private Mono<String> putChannelEnterToStream(String userId, VoiceState voiceState) {
+        Event channelAck = Event.of(ResponseOperation.ENTER_CHANNEL_ACK, ChannelResponse.from(voiceState), null);
         String jsonChannelAck = convertService.convertObjectToJson(channelAck);
-        return serverStreamManager.addVoiceMessageToStream(channelRequest.serverId(), jsonChannelAck)
-                .doOnSuccess(record -> log.info("[{}] entered the {} channel : id = {}", userId, channelRequest.channelType(), channelRequest.channelId()))
+        return serverStreamManager.addVoiceMessageToStream(voiceState.getServerId(), jsonChannelAck)
+                .doOnSuccess(record -> log.info("[{}] entered the {} channel : id = {}", userId, voiceState.getChannelType(), voiceState.getChannelId()))
                 .then(Mono.empty());
     }
 
@@ -192,6 +200,25 @@ public class ReplyHandler {
         String jsonChannelAck = convertService.convertObjectToJson(channelAck);
         return serverStreamManager.addVoiceMessageToStream(channelRequest.serverId(), jsonChannelAck)
                 .doOnSuccess(record -> log.info("[{}] leaved the {} channel : id = {}", userId, channelRequest.channelType(), channelRequest.channelId()))
+                .then(Mono.empty());
+    }
+
+    private Flux<String> updateState(String receivedMessage, String userId) {
+        StateRequest stateRequest = convertService.readDataFromMessage(receivedMessage, StateRequest.class);
+
+        return isValidChannelId(stateRequest.serverId(), stateRequest.channelId())
+                .flatMap(isValid -> isValid ?
+                        Mono.empty() : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, stateRequest.channelId())))
+                .then(activeUserManager.isCorrectAccess(userId, stateRequest.serverId()))
+                .then(updateStateAndGetVoiceState(userId, stateRequest))
+                .flatMapMany(voiceState -> putUpdateStateToStream(userId, voiceState, stateRequest));
+    }
+
+    private Mono<String> putUpdateStateToStream(String userId, VoiceState voiceState, StateRequest stateRequest) {
+        Event stateAck = Event.of(ResponseOperation.UPDATE_STATE_ACK, ChannelResponse.from(voiceState), null);
+        String jsonStateAck = convertService.convertObjectToJson(stateAck);
+        return serverStreamManager.addVoiceMessageToStream(voiceState.getServerId(), jsonStateAck)
+                .doOnSuccess(record -> log.info("[{}] updated the state : id = {}", userId, stateRequest))
                 .then(Mono.empty());
     }
 }

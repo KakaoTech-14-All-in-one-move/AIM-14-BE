@@ -13,6 +13,7 @@ public enum RequestOperation implements Operation {
     ENTER_SERVER(2, "Send serverId when user changed server."),
     ENTER_CHANNEL(3, "Enter the voice/video channel."),
     LEAVE_CHANNEL(4, "Leave the voice/video channel."),
+    UPDATE_STATE(5, "Change the voice/video channel state"),
     ;
 
     @JsonValue

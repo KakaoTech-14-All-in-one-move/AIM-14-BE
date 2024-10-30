@@ -42,7 +42,7 @@ public class ActiveUserManager {
     public Mono<String> isCorrectAccess(String userId, String serverId) {
         return valueOperations.get(getActiveUserRedisKey(userId))
                 .filter(currentServerId -> Objects.equals(currentServerId, serverId))
-                .switchIfEmpty(Mono.error(new WrongAccessException(ErrorCode.WRONG_ACCESS_INACTIVE_SERVER, userId)));
+                .switchIfEmpty(Mono.error(new WrongAccessException(ErrorCode.WRONG_ACCESS_INACTIVE_SERVER, serverId)));
     }
 
     public Mono<Boolean> isActiveUser(String userId) {
