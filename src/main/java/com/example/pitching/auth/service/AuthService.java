@@ -2,7 +2,10 @@ package com.example.pitching.auth.service;
 
 import com.example.pitching.auth.domain.TokenStatus;
 import com.example.pitching.auth.domain.User;
+import com.example.pitching.auth.dto.ExistsEmailResponse;
+import com.example.pitching.auth.dto.LoginResponse;
 import com.example.pitching.auth.dto.TokenInfo;
+import com.example.pitching.auth.dto.UserInfo;
 import com.example.pitching.auth.exception.InvalidCredentialsException;
 import com.example.pitching.auth.exception.InvalidTokenException;
 import com.example.pitching.auth.exception.TokenExpiredException;
@@ -18,17 +21,28 @@ import reactor.core.publisher.Mono;
 @Service
 @RequiredArgsConstructor
 public class AuthService {
-    private final MapReactiveUserDetailsService userDetailsService; // userRepository 대신 사용
-    //private final UserRepository userRepository;
+    private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
-    public Mono<TokenInfo> authenticate(String email, String password) {
-        return userDetailsService.findByUsername(email)
-                .filter(user -> passwordEncoder.matches(password, user.getPassword()))
-                .map(user -> user.getUsername())
-                .map(jwtTokenProvider::createTokenInfo)
-                .switchIfEmpty(Mono.error(new InvalidCredentialsException("Invalid credentials")));
+    public Mono<LoginResponse> authenticate(String email, String password) {
+        return userRepository.findByEmail(email)
+                .cast(User.class)
+                .filter(user -> {
+                    boolean matches = passwordEncoder.matches(password, user.getPassword());
+                    System.out.println("Password matches: " + matches);
+                    return matches;
+                })
+                .map(user -> new LoginResponse(
+                        jwtTokenProvider.createTokenInfo(user.getUsername()),
+                        new UserInfo(
+                                user.getEmail(),
+                                user.getUsername(),
+                                user.getProfileImage()
+                        )
+                ))
+                .switchIfEmpty(Mono.error(new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Invalid credentials")));
     }
 
     public Mono<TokenInfo> refreshToken(String refreshToken) {
@@ -71,38 +85,10 @@ public class AuthService {
         });
     }
 
-}
-
-/*
-package com.example.pitching.auth.service;
-
-import com.example.pitching.auth.domain.User;
-import com.example.pitching.auth.dto.TokenInfo;
-import com.example.pitching.auth.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
-import reactor.core.publisher.Mono;
-
-@Service
-@RequiredArgsConstructor
-public class AuthService {
-
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final JwtTokenProvider jwtTokenProvider;
-
-    public Mono<TokenInfo> authenticate(String username, String password) {
-        return userRepository.findByUsername(username)
-                .cast(User.class)
-                .filter(user -> passwordEncoder.matches(password, user.getPassword()))
-                .map(User::getUsername)
-                .map(jwtTokenProvider::createTokenInfo)
-                .switchIfEmpty(Mono.error(new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Invalid credentials")));
+    public Mono<ExistsEmailResponse> existsEmail(String email) {
+        return userRepository.findByEmail(email)
+                .map(user -> new ExistsEmailResponse(true))  // 유저가 존재할 경우
+                .switchIfEmpty(Mono.just(new ExistsEmailResponse(false)));  // 유저가 없을 경우
     }
-}
 
-*/
+}
