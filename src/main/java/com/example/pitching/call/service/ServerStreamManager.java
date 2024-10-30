@@ -5,6 +5,7 @@ import io.lettuce.core.XAddArgs;
 import io.lettuce.core.api.reactive.RedisReactiveCommands;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.connection.ReactiveRedisConnectionFactory;
 import org.springframework.data.redis.connection.stream.MapRecord;
@@ -58,6 +59,18 @@ public class ServerStreamManager {
         registerServerStream(serverId);
     }
 
+    @EventListener(ContextClosedEvent.class)
+    public void onShutdown() {
+        log.info("Shutting down Reactive Redis connection...");
+        serverStream.forEach((serverId, disposable) -> {
+            if (disposable != null && !disposable.isDisposed()) {
+                disposable.dispose();
+                log.info("Unregister server stream: {}", serverId);
+            }
+        });
+        log.info("Shutting down Reactive Redis connection... Done");
+    }
+
     public void registerServerStream(String serverId) {
         Sinks.Many<String> sink = Sinks.many().multicast().onBackpressureBuffer();
         serverSinkMap.put(serverId, sink);
@@ -70,14 +83,6 @@ public class ServerStreamManager {
                 });
         serverStream.put(serverId, subscription);
         log.info("Register server stream: {}", serverId);
-    }
-
-    public void unregisterServerStream(String serverId) {
-        var subscription = serverStream.get(serverId);
-        if (subscription != null) {
-            subscription.dispose();
-            log.info("Unregister server stream: {}", serverId);
-        }
     }
 
     public Mono<String> addVoiceMessageToStream(String serverId, String message) {
