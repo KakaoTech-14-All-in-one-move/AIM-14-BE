@@ -45,7 +45,7 @@ public class WebfluxSecurityConfig {
                 .httpBasic(httpBasic -> httpBasic.disable())
                 .formLogin(formLogin -> formLogin.disable())
                 .authorizeExchange(exchanges -> exchanges
-                        .pathMatchers("/auth/**", "/oauth2/**").permitAll()
+                        .pathMatchers("/api/v1/auth/**", "/oauth2/**").permitAll()
                         .pathMatchers("/api/**").authenticated()
                         .anyExchange().authenticated()
                 )
