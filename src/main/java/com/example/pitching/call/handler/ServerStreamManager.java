@@ -16,6 +16,7 @@ import org.springframework.data.redis.stream.StreamReceiver;
 import org.springframework.stereotype.Component;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 
 import java.time.Duration;
@@ -79,11 +80,10 @@ public class ServerStreamManager {
         }
     }
 
-    public void addVoiceMessageToStream(String serverId, String message) {
+    public Mono<String> addVoiceMessageToStream(String serverId, String message) {
         XAddArgs xAddArgs = new XAddArgs().maxlen(redisProperties.maxlen()).approximateTrimming(true);
-        redisCommands
-                .xadd(getServerStreamRedisKey(serverId), xAddArgs, Map.of("message", message))
-                .subscribe(record -> log.info("Publish Voice to Redis: {}", record));
+        return redisCommands
+                .xadd(getServerStreamRedisKey(serverId), xAddArgs, Map.of("message", message));
     }
 
     public Flux<String> getMessageFromServerSink(String serverId) {

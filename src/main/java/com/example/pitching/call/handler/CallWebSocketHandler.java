@@ -3,10 +3,7 @@ package com.example.pitching.call.handler;
 import com.example.pitching.call.dto.Subscription;
 import com.example.pitching.call.dto.VoiceState;
 import com.example.pitching.call.dto.properties.ServerProperties;
-import com.example.pitching.call.exception.CommonException;
-import com.example.pitching.call.exception.DuplicateOperationException;
-import com.example.pitching.call.exception.ErrorCode;
-import com.example.pitching.call.exception.InvalidValueException;
+import com.example.pitching.call.exception.*;
 import com.example.pitching.call.operation.Data;
 import com.example.pitching.call.operation.Event;
 import com.example.pitching.call.operation.code.RequestOperation;
@@ -20,7 +17,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.socket.WebSocketHandler;
 import org.springframework.web.reactive.socket.WebSocketMessage;
 import org.springframework.web.reactive.socket.WebSocketSession;
@@ -42,14 +38,11 @@ public class CallWebSocketHandler implements WebSocketHandler {
 
     private final Map<String, Sinks.Many<String>> userSinkMap = new ConcurrentHashMap<>();
     private final Map<String, Subscription> userSubscription = new ConcurrentHashMap<>();
+    private final ServerProperties serverProperties;
+    private final ConvertService convertService;
     private final ServerStreamManager serverStreamManager;
     private final VoiceStateManager voiceStateManager;
-    private final ConvertService convertService;
-    private final ServerProperties serverProperties;
-
-    private static boolean isValidServerId(String serverId) {
-        return StringUtils.hasText(serverId) && Objects.equals("12345", serverId); // TODO: Server list에 포함되어 있는지 검사 (DB)
-    }
+    private final ActiveUserManager activeUserManager;
 
     @Override
     public List<String> getSubProtocols() {
@@ -88,8 +81,9 @@ public class CallWebSocketHandler implements WebSocketHandler {
     }
 
     private Flux<String> handleErrors(String userId, Throwable e) {
-        log.error("[{}] : ", userId, e);
         if (!(e instanceof CommonException)) return Flux.error(e);
+        CommonException ex = (CommonException) e;
+        log.error("[{}] : {} -> {}", userId, ex.getErrorCode().name(), ex.getValue());
         Event errorEvent = Event.error(ErrorResponse.from((CommonException) e));
         return Flux.just(convertService.convertObjectToJson(errorEvent));
     }
@@ -134,14 +128,25 @@ public class CallWebSocketHandler implements WebSocketHandler {
     // TODO: 새 서버를 만들거나 새 서버에 초대된 경우 HTTP를 사용해서 Server 참여 인원에 추가 (DB)
     private Flux<String> enterServer(String receivedMessage, String userId) {
         String serverId = convertService.readDataFromMessage(receivedMessage, ServerRequest.class).serverId();
-        if (!isValidServerId(serverId))
-            return Flux.error(new InvalidValueException(ErrorCode.INVALID_SERVER_ID, serverId));
-        subscribeServerSink(serverId, userId);
-        // Redis에서 해당 서버의 call 중인 유저(State) 모두 조회
-        return voiceStateManager.getAllVoiceState(serverId)
-                .map(mapEntry -> ChannelEnterResponse.from(convertService.convertJsonToData(mapEntry.getValue(), VoiceState.class)))
-                .flatMap(this::createServerAck)
-                .switchIfEmpty(createServerAck(EmptyResponse.of()));
+        return isValidServerId(serverId)
+                .flatMapMany(isValidServer -> {
+                    if (!isValidServer)
+                        return Flux.error(new InvalidValueException(ErrorCode.INVALID_SERVER_ID, serverId));
+                    return activeUserManager.enterServer(serverId, userId)
+                            .flatMapMany(result -> {
+                                subscribeServerSink(serverId, userId);
+                                return voiceStateManager.getAllVoiceState(serverId)
+                                        .map(mapEntry -> ChannelEnterResponse.from(convertService.convertJsonToData(mapEntry.getValue(), VoiceState.class)))
+                                        .flatMap(this::createServerAck)
+                                        .switchIfEmpty(createServerAck(EmptyResponse.of()));
+                            });
+                });
+
+    }
+
+    // TODO: Server list에 포함되어 있는지 검사 (DB)
+    private Mono<Boolean> isValidServerId(String serverId) {
+        return Mono.just(true);
     }
 
     private Mono<String> createServerAck(Data response) {
@@ -156,29 +161,52 @@ public class CallWebSocketHandler implements WebSocketHandler {
 
         VoiceState voiceState = VoiceState.from(channelRequest, userId, username);
         String jsonVoiceState = convertService.convertObjectToJson(voiceState);
-        return voiceStateManager.addVoiceState(userId, channelRequest.serverId(), jsonVoiceState)
-                .flatMapMany(result -> {
-                    if (!result)
-                        return Flux.error(new DuplicateOperationException(ErrorCode.DUPLICATED_CHANNEL_ENTRY, channelRequest.channelId()));
-                    Event channelAck = Event.of(ResponseOperation.ENTER_CHANNEL_ACK, ChannelEnterResponse.from(voiceState), null);
-                    String jsonChannelAck = convertService.convertObjectToJson(channelAck);
-                    serverStreamManager.addVoiceMessageToStream(channelRequest.serverId(), jsonChannelAck);
-                    log.info("[{}] entered the {} channel : id = {}", userId, channelRequest.channelType(), channelRequest.channelId());
-                    return Flux.empty();
+        return isValidChannelId(channelRequest.channelId())
+                .flatMapMany(isValidChannel -> {
+                    if (!isValidChannel)
+                        return Flux.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, channelRequest.channelId()));
+                    return activeUserManager.isActiveUser(channelRequest.serverId(), userId)
+                            .flatMapMany(isActiveUser -> {
+                                if (!isActiveUser)
+                                    return Flux.error(new ForbiddenAccessException(ErrorCode.FORBIDDEN_ACCESS_NOT_ACTIVE_SERVER, channelRequest.serverId()));
+                                return voiceStateManager.addVoiceState(userId, channelRequest.serverId(), jsonVoiceState)
+                                        .flatMap(result -> {
+                                            if (!result)
+                                                return Mono.error(new DuplicateOperationException(ErrorCode.DUPLICATE_CHANNEL_ENTRY, channelRequest.channelId()));
+                                            Event channelAck = Event.of(ResponseOperation.ENTER_CHANNEL_ACK, ChannelEnterResponse.from(voiceState), null);
+                                            String jsonChannelAck = convertService.convertObjectToJson(channelAck);
+                                            return serverStreamManager.addVoiceMessageToStream(channelRequest.serverId(), jsonChannelAck);
+                                        })
+                                        .doOnSuccess(record -> log.info("[{}] entered the {} channel : id = {}", userId, channelRequest.channelType(), channelRequest.channelId()));
+                            });
                 });
+    }
+
+    // TODO: Channel list에 포함되어 있는지 검사 (DB)
+    private Mono<Boolean> isValidChannelId(String channelId) {
+        return Mono.just(true);
     }
 
     private Flux<String> leaveChannel(String receivedMessage, String userId) {
         ChannelRequest channelRequest = convertService.readDataFromMessage(receivedMessage, ChannelRequest.class);
-        return voiceStateManager.removeVoiceState(channelRequest.serverId(), userId)
-                .flatMapMany(result -> {
-                    if (result != 1)
-                        return Flux.error(new DuplicateOperationException(ErrorCode.DUPLICATED_CHANNEL_EXIT, channelRequest.channelId()));
-                    Event channelAck = Event.of(ResponseOperation.LEAVE_CHANNEL_ACK, ChannelLeaveResponse.from(channelRequest, userId), null);
-                    String jsonChannelAck = convertService.convertObjectToJson(channelAck);
-                    serverStreamManager.addVoiceMessageToStream(channelRequest.serverId(), jsonChannelAck);
-                    log.info("[{}] leaved the {} channel : id = {}", userId, channelRequest.channelType(), channelRequest.channelId());
-                    return Flux.empty();
+        return isValidChannelId(channelRequest.channelId())
+                .flatMapMany(isValidChannel -> {
+                    if (!isValidChannel)
+                        return Flux.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, channelRequest.channelId()));
+                    return activeUserManager.isActiveUser(channelRequest.serverId(), userId)
+                            .flatMapMany(isActiveUser -> {
+                                if (!isActiveUser)
+                                    return Flux.error(new ForbiddenAccessException(ErrorCode.FORBIDDEN_ACCESS_NOT_ACTIVE_SERVER, channelRequest.serverId()));
+                                return voiceStateManager.removeVoiceState(channelRequest.serverId(), userId)
+                                        .flatMap(result -> {
+                                            if (result != 1)
+                                                return Mono.error(new DuplicateOperationException(ErrorCode.DUPLICATE_CHANNEL_EXIT, channelRequest.channelId()));
+                                            Event channelAck = Event.of(ResponseOperation.LEAVE_CHANNEL_ACK, ChannelLeaveResponse.from(channelRequest, userId), null);
+                                            String jsonChannelAck = convertService.convertObjectToJson(channelAck);
+                                            return serverStreamManager.addVoiceMessageToStream(channelRequest.serverId(), jsonChannelAck);
+                                        })
+                                        .doOnSuccess(record -> log.info("[{}] leaved the {} channel : id = {}", userId, channelRequest.channelType(), channelRequest.channelId()));
+                            });
                 });
     }
 
@@ -191,8 +219,6 @@ public class CallWebSocketHandler implements WebSocketHandler {
     }
 
     private void subscribeServerSink(String serverId, String userId) {
-        if (isASameServer(serverId, userId))
-            throw new DuplicateOperationException(ErrorCode.DUPLICATED_SERVER_DESTINATION, serverId);
         disposeSubscription(userId);
         Sinks.Many<String> userSink = userSinkMap.get(userId);
         Disposable disposable = serverStreamManager.getMessageFromServerSink(serverId)
