@@ -59,4 +59,20 @@ public class VoiceState {
                 this.isCameraOn,
                 this.isScreenSharing);
     }
+
+    public VoiceState changeChannelId(String channelId, ChannelType channelType) {
+        return new VoiceState(
+                this.userId,
+                this.username,
+                this.serverId,
+                channelId,
+                channelType,
+                this.ip,
+                this.port,
+                this.isMuted,
+                this.isDeafened,
+                this.isSpeaking,
+                this.isCameraOn,
+                this.isScreenSharing);
+    }
 }

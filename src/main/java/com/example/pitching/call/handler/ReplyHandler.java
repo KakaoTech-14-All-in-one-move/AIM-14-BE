@@ -143,20 +143,19 @@ public class ReplyHandler {
         // TODO: userId로 username + Image Url 조회 (DB)
         String username = "name";
 
-        VoiceState voiceState = VoiceState.from(channelRequest, userId, username);
-        String jsonVoiceState = convertService.convertObjectToJson(voiceState);
+        String jsonVoiceState = convertService.convertObjectToJson(VoiceState.from(channelRequest, userId, username));
         return isValidChannelId(channelRequest.serverId(), channelRequest.channelId())
                 .flatMap(isValid -> isValid ?
                         Mono.empty() : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, channelRequest.channelId())))
                 .then(activeUserManager.isCorrectAccess(userId, channelRequest.serverId()))
-                .then(saveVoiceStateIfAbsent(userId, channelRequest, jsonVoiceState))
-                .thenMany(putChannelEnterToStream(userId, voiceState, channelRequest));
+                .then(saveAndGetVoiceState(userId, channelRequest, jsonVoiceState))
+                .flatMapMany(voiceState -> putChannelEnterToStream(userId, voiceState, channelRequest));
     }
 
-    private Mono<Boolean> saveVoiceStateIfAbsent(String userId, ChannelRequest channelRequest, String jsonVoiceState) {
-        return voiceStateManager.addVoiceState(userId, channelRequest.serverId(), jsonVoiceState)
-                .filter(Boolean.TRUE::equals)
-                .switchIfEmpty(Mono.error(new DuplicateOperationException(ErrorCode.DUPLICATE_CHANNEL_ENTRY, channelRequest.channelId())));
+    private Mono<VoiceState> saveAndGetVoiceState(String userId, ChannelRequest channelRequest, String jsonVoiceState) {
+        return voiceStateManager.addIfAbsentOrChangeChannel(channelRequest, userId, jsonVoiceState)
+                .then(voiceStateManager.getVoiceState(channelRequest.serverId(), userId))
+                .flatMap(convertService::convertJsonToVoiceState);
     }
 
     private Mono<String> putChannelEnterToStream(String userId, VoiceState voiceState, ChannelRequest channelRequest) {

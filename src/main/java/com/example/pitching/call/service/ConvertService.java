@@ -1,11 +1,13 @@
 package com.example.pitching.call.service;
 
+import com.example.pitching.call.dto.VoiceState;
 import com.example.pitching.call.operation.Data;
 import com.example.pitching.call.operation.Event;
 import com.example.pitching.call.operation.code.RequestOperation;
 import com.example.pitching.call.operation.code.ResponseOperation;
 import com.example.pitching.call.operation.response.ChannelEnterResponse;
 import com.example.pitching.call.operation.response.ChannelLeaveResponse;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -47,6 +49,14 @@ public class ConvertService {
             return objectMapper.readValue(objectMapper.readTree(jsonMessage).get("data").toString(), dataClass);
         } catch (Exception e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    public Mono<VoiceState> convertJsonToVoiceState(String jsonMessage) {
+        try {
+            return Mono.just(objectMapper.readValue(jsonMessage, VoiceState.class));
+        } catch (Exception e) {
+            return Mono.error(e);
         }
     }
 
