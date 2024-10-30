@@ -142,19 +142,23 @@ public class ReplyHandler {
         String jsonVoiceState = convertService.convertObjectToJson(voiceState);
         return isValidChannelId(channelRequest.serverId(), channelRequest.channelId())
                 .filter(Boolean.TRUE::equals)
-                .thenMany(activeUserManager.isCorrectAccess(userId, channelRequest.serverId())
-                        .then(voiceStateManager.addVoiceState(userId, channelRequest.serverId(), jsonVoiceState)
-                                .filter(Boolean.TRUE::equals)
-                                .flatMap(ignored -> {
-                                    Event channelAck = Event.of(ResponseOperation.ENTER_CHANNEL_ACK, ChannelEnterResponse.from(voiceState), null);
-                                    String jsonChannelAck = convertService.convertObjectToJson(channelAck);
-                                    return serverStreamManager.addVoiceMessageToStream(channelRequest.serverId(), jsonChannelAck);
-                                })
-                                .doOnSuccess(record -> log.info("[{}] entered the {} channel : id = {}", userId, channelRequest.channelType(), channelRequest.channelId()))
-                        )
-                        .switchIfEmpty(Mono.error(new DuplicateOperationException(ErrorCode.DUPLICATE_CHANNEL_ENTRY, channelRequest.channelId())))
-                )
+                .then(activeUserManager.isCorrectAccess(userId, channelRequest.serverId()))
+                .then(saveVoiceStateIfAbsent(userId, channelRequest, jsonVoiceState))
+                .thenMany(putChannelEnterToStream(userId, voiceState, channelRequest))
                 .switchIfEmpty(Flux.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, channelRequest.channelId())));
+    }
+
+    private Mono<Boolean> saveVoiceStateIfAbsent(String userId, ChannelRequest channelRequest, String jsonVoiceState) {
+        return voiceStateManager.addVoiceState(userId, channelRequest.serverId(), jsonVoiceState)
+                .filter(Boolean.TRUE::equals)
+                .switchIfEmpty(Mono.error(new DuplicateOperationException(ErrorCode.DUPLICATE_CHANNEL_ENTRY, channelRequest.channelId())));
+    }
+
+    private Mono<String> putChannelEnterToStream(String userId, VoiceState voiceState, ChannelRequest channelRequest) {
+        Event channelAck = Event.of(ResponseOperation.ENTER_CHANNEL_ACK, ChannelEnterResponse.from(voiceState), null);
+        String jsonChannelAck = convertService.convertObjectToJson(channelAck);
+        return serverStreamManager.addVoiceMessageToStream(channelRequest.serverId(), jsonChannelAck)
+                .doOnSuccess(record -> log.info("[{}] entered the {} channel : id = {}", userId, channelRequest.channelType(), channelRequest.channelId()));
     }
 
     // TODO: Channel list에 포함되어 있는지 검사 (DB)
@@ -166,18 +170,22 @@ public class ReplyHandler {
         ChannelRequest channelRequest = convertService.readDataFromMessage(receivedMessage, ChannelRequest.class);
         return isValidChannelId(channelRequest.serverId(), channelRequest.channelId())
                 .filter(Boolean.TRUE::equals)
-                .thenMany(activeUserManager.isCorrectAccess(userId, channelRequest.serverId())
-                        .then(voiceStateManager.removeVoiceState(channelRequest.serverId(), userId)
-                                .filter(result -> result == 1)
-                                .flatMap(ignored -> {
-                                    Event channelAck = Event.of(ResponseOperation.LEAVE_CHANNEL_ACK, ChannelLeaveResponse.from(channelRequest, userId), null);
-                                    String jsonChannelAck = convertService.convertObjectToJson(channelAck);
-                                    return serverStreamManager.addVoiceMessageToStream(channelRequest.serverId(), jsonChannelAck);
-                                })
-                                .doOnSuccess(record -> log.info("[{}] leaved the {} channel : id = {}", userId, channelRequest.channelType(), channelRequest.channelId()))
-                        )
-                        .switchIfEmpty(Mono.error(new DuplicateOperationException(ErrorCode.DUPLICATE_CHANNEL_ENTRY, channelRequest.channelId())))
-                )
+                .then(activeUserManager.isCorrectAccess(userId, channelRequest.serverId()))
+                .then(deleteVoiceStateIfPresent(userId, channelRequest))
+                .thenMany(putChannelLeaveToStream(userId, channelRequest))
                 .switchIfEmpty(Flux.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, channelRequest.channelId())));
+    }
+
+    private Mono<Long> deleteVoiceStateIfPresent(String userId, ChannelRequest channelRequest) {
+        return voiceStateManager.removeVoiceState(channelRequest.serverId(), userId)
+                .filter(result -> result == 1)
+                .switchIfEmpty(Mono.error(new DuplicateOperationException(ErrorCode.DUPLICATE_CHANNEL_ENTRY, channelRequest.channelId())));
+    }
+
+    private Mono<String> putChannelLeaveToStream(String userId, ChannelRequest channelRequest) {
+        Event channelAck = Event.of(ResponseOperation.LEAVE_CHANNEL_ACK, ChannelLeaveResponse.from(channelRequest, userId), null);
+        String jsonChannelAck = convertService.convertObjectToJson(channelAck);
+        return serverStreamManager.addVoiceMessageToStream(channelRequest.serverId(), jsonChannelAck)
+                .doOnSuccess(record -> log.info("[{}] leaved the {} channel : id = {}", userId, channelRequest.channelType(), channelRequest.channelId()));
     }
 }
