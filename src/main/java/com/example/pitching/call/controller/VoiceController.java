@@ -2,7 +2,7 @@ package com.example.pitching.call.controller;
 
 import com.example.pitching.call.dto.properties.ServerProperties;
 import com.example.pitching.call.dto.response.UrlResponse;
-import com.example.pitching.call.handler.VoiceStateManager;
+import com.example.pitching.call.service.VoiceStateManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
