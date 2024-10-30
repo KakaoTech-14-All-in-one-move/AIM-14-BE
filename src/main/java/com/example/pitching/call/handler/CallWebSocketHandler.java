@@ -59,6 +59,7 @@ public class CallWebSocketHandler implements WebSocketHandler {
                                             log.info("[{}] Disconnected: {}", userId, signalType);
                                             replyHandler.removeUserSink(userId);
                                             replyHandler.disposeSubscription(userId);
+                                            replyHandler.removeActiveUserFromServer(userId);
                                         })
                         )
         );
@@ -78,7 +79,7 @@ public class CallWebSocketHandler implements WebSocketHandler {
 
     private Flux<String> handleErrors(String userId, Throwable e) {
         if (!(e instanceof CommonException ex)) return Flux.error(e);
-        log.error("[{}] : {} -> {}", userId, ex.getErrorCode().name(), ex.getValue());
+        log.error("[{}] : {} -> ", userId, ex.getErrorCode().name(), ex);
         Event errorEvent = Event.error(ErrorResponse.from((CommonException) e));
         return Flux.just(convertService.convertObjectToJson(errorEvent));
     }

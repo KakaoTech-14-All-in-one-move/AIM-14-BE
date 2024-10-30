@@ -19,10 +19,18 @@ public class ActiveUserManager {
     }
 
     // 서버 입장
-    public Mono<String> addActiveUser(String userId, String serverId) {
-        return valueOperations.getAndSet(getActiveUserRedisKey(userId), serverId)
-                .filter(pastServerId -> !Objects.equals(pastServerId, serverId))
-                .switchIfEmpty(Mono.error(new DuplicateOperationException(ErrorCode.DUPLICATE_SERVER_DESTINATION, serverId)));
+    public Mono<Boolean> addActiveUser(String userId, String serverId) {
+        return isActiveUser(userId)
+                .flatMap(isActive -> {
+                    if (!isActive) return valueOperations.setIfAbsent(getActiveUserRedisKey(userId), serverId);
+                    return valueOperations.getAndSet(getActiveUserRedisKey(userId), serverId)
+                            .flatMap(pastServerId -> validateServerDestination(serverId, pastServerId));
+                });
+    }
+
+    private Mono<Boolean> validateServerDestination(String serverId, String pastServerId) {
+        if (!Objects.equals(pastServerId, serverId)) return Mono.just(true);
+        return Mono.error(new DuplicateOperationException(ErrorCode.DUPLICATE_SERVER_DESTINATION, serverId));
     }
 
     // 로그아웃
@@ -35,6 +43,10 @@ public class ActiveUserManager {
         return valueOperations.get(getActiveUserRedisKey(userId))
                 .filter(currentServerId -> Objects.equals(currentServerId, serverId))
                 .switchIfEmpty(Mono.error(new WrongAccessException(ErrorCode.WRONG_ACCESS_INACTIVE_SERVER, userId)));
+    }
+
+    public Mono<Boolean> isActiveUser(String userId) {
+        return valueOperations.get(getActiveUserRedisKey(userId)).hasElement();
     }
 
     private String getActiveUserRedisKey(String userId) {
