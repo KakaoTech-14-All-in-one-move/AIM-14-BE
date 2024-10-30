@@ -4,7 +4,7 @@ import com.example.pitching.call.dto.ChannelType;
 import com.example.pitching.call.dto.VoiceState;
 import com.example.pitching.call.operation.Data;
 
-public record StateResponse(
+public record ChannelEnterResponse(
         String userId,
         String username,
         String serverId,
@@ -16,8 +16,8 @@ public record StateResponse(
         boolean isCameraOn,
         boolean isScreenSharing
 ) implements Data {
-    public static StateResponse from(VoiceState voiceState) {
-        return new StateResponse(
+    public static ChannelEnterResponse from(VoiceState voiceState) {
+        return new ChannelEnterResponse(
                 voiceState.getUserId(),
                 voiceState.getUsername(),
                 voiceState.getServerId(),
@@ -31,8 +31,8 @@ public record StateResponse(
         );
     }
 
-    public static StateResponse emtpy() {
-        return new StateResponse(null,
+    public static ChannelEnterResponse emtpy() {
+        return new ChannelEnterResponse(null,
                 null,
                 null,
                 null,

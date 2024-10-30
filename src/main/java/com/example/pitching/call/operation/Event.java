@@ -1,6 +1,7 @@
 package com.example.pitching.call.operation;
 
 import com.example.pitching.call.operation.code.Operation;
+import com.example.pitching.call.operation.code.ResponseOperation;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -12,5 +13,9 @@ public record Event(
 ) {
     public static Event of(Operation operation, Data data, String sequence) {
         return new Event(operation, data, sequence);
+    }
+
+    public static Event error(Data data) {
+        return Event.of(ResponseOperation.ERROR, data, null);
     }
 }

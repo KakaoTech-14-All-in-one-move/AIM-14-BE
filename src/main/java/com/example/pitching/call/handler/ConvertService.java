@@ -4,8 +4,8 @@ import com.example.pitching.call.operation.Data;
 import com.example.pitching.call.operation.Event;
 import com.example.pitching.call.operation.code.RequestOperation;
 import com.example.pitching.call.operation.code.ResponseOperation;
-import com.example.pitching.call.operation.response.StateResponse;
-import com.fasterxml.jackson.core.JsonProcessingException;
+import com.example.pitching.call.operation.response.ChannelEnterResponse;
+import com.example.pitching.call.operation.response.ChannelLeaveResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,7 +19,7 @@ public class ConvertService {
     public String convertObjectToJson(Object object) {
         try {
             return objectMapper.writeValueAsString(object);
-        } catch (JsonProcessingException e) {
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
@@ -37,7 +37,7 @@ public class ConvertService {
         try {
             ResponseOperation responseOperation = ResponseOperation.from(objectMapper.readTree(jsonMessage).get("op").asInt());
             return Mono.just(responseOperation);
-        } catch (JsonProcessingException e) {
+        } catch (Exception e) {
             return Mono.error(e);
         }
     }
@@ -45,7 +45,7 @@ public class ConvertService {
     public <T extends Data> T readDataFromMessage(String jsonMessage, Class<T> dataClass) {
         try {
             return objectMapper.readValue(objectMapper.readTree(jsonMessage).get("data").toString(), dataClass);
-        } catch (JsonProcessingException e) {
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
@@ -54,10 +54,10 @@ public class ConvertService {
         return readResponseOperationFromMessage(jsonMessage)
                 .flatMap(responseOperation -> {
                     if (responseOperation == ResponseOperation.ENTER_CHANNEL_ACK) {
-                        return createResponseWithSequence(responseOperation, jsonMessage, StateResponse.class, sequence);
+                        return createResponseWithSequence(responseOperation, jsonMessage, ChannelEnterResponse.class, sequence);
                     }
                     if (responseOperation == ResponseOperation.LEAVE_CHANNEL_ACK) {
-                        return createResponseWithSequence(responseOperation, sequence);
+                        return createResponseWithSequence(responseOperation, jsonMessage, ChannelLeaveResponse.class, sequence);
                     } else {
                         return Mono.error(new RuntimeException("Unsupported response operation: " + responseOperation));
                     }
@@ -68,14 +68,10 @@ public class ConvertService {
         return Mono.just(Event.of(responseOperation, readDataFromMessage(jsonMessage, dataClass), sequence));
     }
 
-    private <T extends Data> Mono<Event> createResponseWithSequence(ResponseOperation responseOperation, String sequence) {
-        return Mono.just(Event.of(responseOperation, null, sequence));
-    }
-
     public <T> T convertJsonToData(String jsonMessage, Class<T> dataClass) {
         try {
             return objectMapper.readValue(jsonMessage, dataClass);
-        } catch (JsonProcessingException e) {
+        } catch (Exception e) {
             throw new RuntimeException("Failed to deserialize JSON to " + dataClass.getSimpleName(), e);
         }
     }

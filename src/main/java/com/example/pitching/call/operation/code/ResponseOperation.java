@@ -5,6 +5,7 @@ import lombok.Getter;
 
 @Getter
 public enum ResponseOperation implements Operation {
+    ERROR(-1, "Send message when error occurs."),
     HELLO(0, "Sent immediately after connecting, contains the heartbeat_interval to use."),
     HEARTBEAT(1, "Fired periodically by the client to keep the connection alive."),
     HEARTBEAT_ACK(2, "Sent in response to receiving a heartbeat to acknowledge that it has been received."),
@@ -27,6 +28,6 @@ public enum ResponseOperation implements Operation {
                 return type;
             }
         }
-        throw new IllegalArgumentException("Invalid code: " + code);
+        throw new RuntimeException("Invalid ResponseOperation code: " + code);
     }
 }

@@ -1,5 +1,7 @@
 package com.example.pitching.call.operation.code;
 
+import com.example.pitching.call.exception.ErrorCode;
+import com.example.pitching.call.exception.InvalidValueException;
 import com.fasterxml.jackson.annotation.JsonValue;
 import lombok.Getter;
 
@@ -28,6 +30,6 @@ public enum RequestOperation implements Operation {
                 return type;
             }
         }
-        throw new IllegalArgumentException("Invalid code: " + code);
+        throw new InvalidValueException(ErrorCode.INVALID_REQUEST_OPERATION, String.valueOf(code));
     }
 }

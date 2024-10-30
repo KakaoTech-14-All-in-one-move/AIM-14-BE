@@ -1,6 +1,6 @@
 package com.example.pitching.call.dto;
 
-import com.example.pitching.call.operation.request.StateRequest;
+import com.example.pitching.call.operation.request.ChannelRequest;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -28,13 +28,13 @@ public class VoiceState {
     @JsonProperty("screenSharing")
     private boolean isScreenSharing;
 
-    public static VoiceState from(StateRequest stateRequest, String userId, String username) {
+    public static VoiceState from(ChannelRequest channelRequest, String userId, String username) {
         return new VoiceState(
                 userId,
                 username,
-                stateRequest.serverId(),
-                stateRequest.channelId(),
-                stateRequest.channelType(),
+                channelRequest.serverId(),
+                channelRequest.channelId(),
+                channelRequest.channelType(),
                 null,
                 null,
                 false,
