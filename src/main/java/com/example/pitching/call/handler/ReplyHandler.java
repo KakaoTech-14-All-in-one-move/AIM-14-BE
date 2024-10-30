@@ -106,17 +106,21 @@ public class ReplyHandler {
         String serverId = convertService.readDataFromMessage(receivedMessage, ServerRequest.class).serverId();
         return isValidServerId(serverId)
                 .filter(Boolean.TRUE::equals)
-                .thenMany(activeUserManager.activateUser(userId, serverId)
-                        .flatMapMany(result -> {
-                            subscribeServerSink(serverId, userId);
-                            return voiceStateManager.getAllVoiceState(serverId)
-                                    .map(mapEntry -> ChannelEnterResponse.from(convertService.convertJsonToData(mapEntry.getValue(), VoiceState.class)))
-                                    .flatMap(this::createServerAck)
-                                    .switchIfEmpty(createServerAck(EmptyResponse.of()));
-                        })
-                )
+                .then(addActiveUser(userId, serverId))
+                .thenMany(createServerAck(serverId))
                 .switchIfEmpty(Flux.error(new InvalidValueException(ErrorCode.INVALID_SERVER_ID, serverId)));
+    }
 
+    private Mono<String> addActiveUser(String userId, String serverId) {
+        return activeUserManager.addActiveUser(userId, serverId)
+                .doOnSuccess(ignored -> subscribeServerSink(serverId, userId));
+    }
+
+    private Flux<String> createServerAck(String serverId) {
+        return voiceStateManager.getAllVoiceState(serverId)
+                .map(mapEntry -> ChannelEnterResponse.from(convertService.convertJsonToData(mapEntry.getValue(), VoiceState.class)))
+                .flatMap(this::createServerAckEvent)
+                .switchIfEmpty(createServerAckEvent(EmptyResponse.of()));
     }
 
     // TODO: Server list에 포함되어 있는지 검사 (DB)
@@ -124,9 +128,9 @@ public class ReplyHandler {
         return Mono.just(true);
     }
 
-    private Mono<String> createServerAck(Data response) {
+    private Flux<String> createServerAckEvent(Data response) {
         Event serverAck = Event.of(ResponseOperation.SERVER_ACK, response, null);
-        return Mono.just(convertService.convertObjectToJson(serverAck));
+        return Flux.just(convertService.convertObjectToJson(serverAck));
     }
 
     private Flux<String> enterChannel(String receivedMessage, String userId) {

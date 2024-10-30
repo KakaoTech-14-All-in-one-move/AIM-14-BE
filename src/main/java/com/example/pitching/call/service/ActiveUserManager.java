@@ -19,14 +19,14 @@ public class ActiveUserManager {
     }
 
     // 서버 입장
-    public Mono<String> activateUser(String userId, String serverId) {
+    public Mono<String> addActiveUser(String userId, String serverId) {
         return valueOperations.getAndSet(getActiveUserRedisKey(userId), serverId)
                 .filter(pastServerId -> !Objects.equals(pastServerId, serverId))
                 .switchIfEmpty(Mono.error(new DuplicateOperationException(ErrorCode.DUPLICATE_SERVER_DESTINATION, serverId)));
     }
 
     // 로그아웃
-    public Mono<Boolean> inactivateUser(String userId) {
+    public Mono<Boolean> removeActiveUser(String userId) {
         return valueOperations.delete(getActiveUserRedisKey(userId));
     }
 
