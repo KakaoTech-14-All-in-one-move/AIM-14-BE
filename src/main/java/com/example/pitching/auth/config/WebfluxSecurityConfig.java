@@ -1,5 +1,7 @@
 package com.example.pitching.auth.config;
 
+import com.example.pitching.auth.oauth2.handler.OAuth2FailureHandler;
+import com.example.pitching.auth.oauth2.handler.OAuth2SuccessHandler;
 import com.example.pitching.auth.service.JwtAuthenticationEntryPoint;
 import com.example.pitching.auth.service.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +38,8 @@ public class WebfluxSecurityConfig {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+    private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final OAuth2FailureHandler oAuth2FailureHandler;
 
     @Bean
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
@@ -45,46 +49,19 @@ public class WebfluxSecurityConfig {
                 .httpBasic(httpBasic -> httpBasic.disable())
                 .formLogin(formLogin -> formLogin.disable())
                 .authorizeExchange(exchanges -> exchanges
-                        .pathMatchers("/api/v1/auth/**", "/oauth2/**").permitAll()
+                        .pathMatchers("/api/v1/auth/**", "/oauth2/**", "/login/oauth2/code/**").permitAll()
                         .pathMatchers("/api/**").authenticated()
                         .anyExchange().authenticated()
+                )
+                .oauth2Login(oauth2 -> oauth2
+                        .authenticationSuccessHandler(oAuth2SuccessHandler)
+                        .authenticationFailureHandler(oAuth2FailureHandler)
                 )
                 .exceptionHandling(exceptionHandling ->
                         exceptionHandling.authenticationEntryPoint(jwtAuthenticationEntryPoint)
                 )
                 .addFilterAt(jwtAuthenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
                 .build();
-    }
-
-    @Bean
-    public ReactiveAuthenticationManager authenticationManager() {
-        return authentication -> {
-            if (authentication.getCredentials() != null) {
-                String username = authentication.getName();
-                String password = authentication.getCredentials().toString();
-
-                return userDetailsService().findByUsername(username)
-                        .filter(userDetails ->
-                                passwordEncoder().matches(password, userDetails.getPassword()))
-                        .map(userDetails -> new UsernamePasswordAuthenticationToken(
-                                userDetails.getUsername(),
-                                null,
-                                userDetails.getAuthorities()
-                        ));
-            }
-            return Mono.empty();
-        };
-    }
-
-    // 테스트용 임시 사용자 설정
-    @Bean
-    public MapReactiveUserDetailsService userDetailsService() {
-        UserDetails user = User.builder()
-                .username("user@test.com")
-                .password(passwordEncoder().encode("password"))
-                .roles("USER")
-                .build();
-        return new MapReactiveUserDetailsService(user);
     }
 
     @Bean
@@ -95,6 +72,7 @@ public class WebfluxSecurityConfig {
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
+        configuration.setExposedHeaders(Arrays.asList("Location")); // Location 헤더 노출
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
