@@ -71,7 +71,7 @@ public class ReplyHandler {
 
     public void disposeSubscription(String userId) {
         if (userSubscription.containsKey(userId)) {
-            userSubscription.remove(userId).dispose();
+            userSubscription.remove(userId).disposable().dispose();
             log.info("Dispose Subscription : {}", userId);
         }
     }
