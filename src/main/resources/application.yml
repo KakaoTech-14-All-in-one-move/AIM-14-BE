@@ -28,9 +28,11 @@ spring:
             client-secret: ${KAKAO_CLIENT_SECRET}
             redirect-uri: "{baseUrl}/login/oauth2/code/kakao"
             authorization-grant-type: authorization_code
+            client-authentication-method: client_secret_post  # POST 방식으로 변경
             scope:
-              - profile_nickname
+              - profile
               - account_email
+            client-name: Kakao
         provider:
           naver:
             authorization-uri: https://nid.naver.com/oauth2.0/authorize
