@@ -25,6 +25,18 @@ public class VoiceStateManager {
         this.convertService = convertService;
     }
 
+    public Mono<String> getVoiceState(String serverId, String userId) {
+        return hashOperations.get(getVoiceStateRedisKey(serverId), userId);
+    }
+
+    public Mono<Long> removeVoiceState(String serverId, String userId) {
+        return hashOperations.remove(getVoiceStateRedisKey(serverId), userId);
+    }
+
+    public Flux<Map.Entry<String, String>> getAllVoiceState(String serverId) {
+        return hashOperations.entries(getVoiceStateRedisKey(serverId));
+    }
+
     public Mono<Boolean> addIfAbsentOrChangeChannel(ChannelRequest channelRequest, String userId, String jsonVoiceState) {
         return existsVoiceState(channelRequest.serverId(), userId)
                 .flatMap(exist -> {
@@ -33,17 +45,17 @@ public class VoiceStateManager {
                 });
     }
 
-    private Mono<Boolean> changeChannelAndSave(ChannelRequest channelRequest, String userId) {
-        return getVoiceState(channelRequest.serverId(), userId)
-                .flatMap(convertService::convertJsonToVoiceState)
-                .flatMap(oldVoiceState -> changeChannelId(channelRequest, userId, oldVoiceState));
-    }
-
     public Mono<Boolean> updateState(StateRequest stateRequest, String userId) {
         return existsVoiceState(stateRequest.serverId(), userId)
                 .filter(Boolean.TRUE::equals)
                 .then(updateAndGetVoiceState(stateRequest, userId))
                 .switchIfEmpty(Mono.error(new WrongAccessException(ErrorCode.WRONG_ACCESS_INACTIVE_CHANNEL, stateRequest.channelId())));
+    }
+
+    private Mono<Boolean> changeChannelAndSave(ChannelRequest channelRequest, String userId) {
+        return getVoiceState(channelRequest.serverId(), userId)
+                .flatMap(convertService::convertJsonToVoiceState)
+                .flatMap(oldVoiceState -> changeChannelId(channelRequest, userId, oldVoiceState));
     }
 
     private Mono<Boolean> updateAndGetVoiceState(StateRequest stateRequest, String userId) {
@@ -61,18 +73,6 @@ public class VoiceStateManager {
             return Mono.error(new DuplicateOperationException(ErrorCode.DUPLICATE_CHANNEL_ENTRY, channelRequest.channelId()));
         VoiceState newVoiceState = oldVoiceState.changeChannelId(channelRequest.channelId(), channelRequest.channelType());
         return addVoiceState(userId, channelRequest.serverId(), convertService.convertObjectToJson(newVoiceState));
-    }
-
-    public Mono<String> getVoiceState(String serverId, String userId) {
-        return hashOperations.get(getVoiceStateRedisKey(serverId), userId);
-    }
-
-    public Mono<Long> removeVoiceState(String serverId, String userId) {
-        return hashOperations.remove(getVoiceStateRedisKey(serverId), userId);
-    }
-
-    public Flux<Map.Entry<String, String>> getAllVoiceState(String serverId) {
-        return hashOperations.entries(getVoiceStateRedisKey(serverId));
     }
 
     private Mono<Boolean> addVoiceState(String userId, String serverId, String jsonVoiceState) {

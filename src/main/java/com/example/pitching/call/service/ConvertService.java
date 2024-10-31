@@ -25,29 +25,11 @@ public class ConvertService {
         }
     }
 
-    public Mono<RequestOperation> readRequestOperationFromMessage(String jsonMessage) {
+    public <T> T convertJsonToData(String jsonMessage, Class<T> dataClass) {
         try {
-            RequestOperation requestOperation = RequestOperation.from(objectMapper.readTree(jsonMessage).get("op").asInt());
-            return Mono.just(requestOperation);
+            return objectMapper.readValue(jsonMessage, dataClass);
         } catch (Exception e) {
-            return Mono.error(e);
-        }
-    }
-
-    public Mono<ResponseOperation> readResponseOperationFromMessage(String jsonMessage) {
-        try {
-            ResponseOperation responseOperation = ResponseOperation.from(objectMapper.readTree(jsonMessage).get("op").asInt());
-            return Mono.just(responseOperation);
-        } catch (Exception e) {
-            return Mono.error(e);
-        }
-    }
-
-    public <T extends Data> T readDataFromMessage(String jsonMessage, Class<T> dataClass) {
-        try {
-            return objectMapper.readValue(objectMapper.readTree(jsonMessage).get("data").toString(), dataClass);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to deserialize JSON to " + dataClass.getSimpleName(), e);
         }
     }
 
@@ -76,15 +58,33 @@ public class ConvertService {
                 });
     }
 
-    private <T extends Data> Mono<Event> createResponseWithSequence(ResponseOperation responseOperation, String jsonMessage, Class<T> dataClass, String sequence) {
-        return Mono.just(Event.of(responseOperation, readDataFromMessage(jsonMessage, dataClass), sequence));
+    public Mono<RequestOperation> readRequestOperationFromMessage(String jsonMessage) {
+        try {
+            RequestOperation requestOperation = RequestOperation.from(objectMapper.readTree(jsonMessage).get("op").asInt());
+            return Mono.just(requestOperation);
+        } catch (Exception e) {
+            return Mono.error(e);
+        }
     }
 
-    public <T> T convertJsonToData(String jsonMessage, Class<T> dataClass) {
+    public <T extends Data> T readDataFromMessage(String jsonMessage, Class<T> dataClass) {
         try {
-            return objectMapper.readValue(jsonMessage, dataClass);
+            return objectMapper.readValue(objectMapper.readTree(jsonMessage).get("data").toString(), dataClass);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to deserialize JSON to " + dataClass.getSimpleName(), e);
+            throw new RuntimeException(e);
         }
+    }
+
+    private Mono<ResponseOperation> readResponseOperationFromMessage(String jsonMessage) {
+        try {
+            ResponseOperation responseOperation = ResponseOperation.from(objectMapper.readTree(jsonMessage).get("op").asInt());
+            return Mono.just(responseOperation);
+        } catch (Exception e) {
+            return Mono.error(e);
+        }
+    }
+
+    private <T extends Data> Mono<Event> createResponseWithSequence(ResponseOperation responseOperation, String jsonMessage, Class<T> dataClass, String sequence) {
+        return Mono.just(Event.of(responseOperation, readDataFromMessage(jsonMessage, dataClass), sequence));
     }
 }

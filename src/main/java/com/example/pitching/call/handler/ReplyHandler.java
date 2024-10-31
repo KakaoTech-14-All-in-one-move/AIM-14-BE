@@ -44,6 +44,18 @@ public class ReplyHandler {
     private final VoiceStateManager voiceStateManager;
     private final ActiveUserManager activeUserManager;
 
+    public Mono<Void> initializeUserSink(String userId) {
+        return Mono.fromRunnable(() -> {
+            Sinks.Many<String> sink = Sinks.many().unicast().onBackpressureBuffer();
+            userSinkMap.put(userId, sink);
+            log.info("Create user sink : {}", userId);
+        });
+    }
+
+    public Flux<String> getMessageFromUserSink(String userId) {
+        return userSinkMap.get(userId).asFlux();
+    }
+
     public Flux<String> handleMessages(String receivedMessage, String userId) {
         return convertService.readRequestOperationFromMessage(receivedMessage)
                 .doOnSuccess(requestOperation -> log.info("[{}] Send Message : {} -> RequestOperation : {}", userId, receivedMessage, requestOperation))
@@ -55,16 +67,6 @@ public class ReplyHandler {
                     case RequestOperation.LEAVE_CHANNEL -> leaveChannel(receivedMessage, userId);
                     case RequestOperation.UPDATE_STATE -> updateState(receivedMessage, userId);
                 });
-    }
-
-    public void subscribeServerSink(String serverId, String userId) {
-        disposeSubscription(userId);
-        Sinks.Many<String> userSink = userSinkMap.get(userId);
-        Disposable disposable = serverStreamManager.getMessageFromServerSink(serverId)
-                .doOnNext(userSink::tryEmitNext)
-                .subscribe();
-        userSubscription.put(userId, Subscription.of(serverId, disposable));
-        log.info("[{}] subscribes server sink : {}", userId, serverId);
     }
 
     public void disposeSubscription(String userId) {
@@ -82,18 +84,10 @@ public class ReplyHandler {
         activeUserManager.removeActiveUser(userId).subscribe();
     }
 
-    public Mono<Void> initializeUserSink(String userId) {
-        return Mono.fromRunnable(() -> {
-            Sinks.Many<String> sink = Sinks.many().unicast().onBackpressureBuffer();
-            userSinkMap.put(userId, sink);
-            log.info("Create user sink : {}", userId);
-        });
-    }
-
-    public Flux<String> getMessageFromUserSink(String userId) {
-        return userSinkMap.get(userId).asFlux();
-    }
-
+    /**
+     * @return jsonMessage
+     * 클라이언트가 처음 연결하면 Heartbeat_interval 을 담아서 응답
+     */
     private Flux<String> sendHello() {
         Event hello = Event.of(ResponseOperation.HELLO,
                 HelloResponse.of(serverProperties.getHeartbeatInterval()),
@@ -101,13 +95,24 @@ public class ReplyHandler {
         return Flux.just(convertService.convertObjectToJson(hello));
     }
 
+    /**
+     * @return jsonMessage
+     * 클라이언트가 Heartbeat 를 보내면 Heartbeat_ack 를 응답
+     */
     private Flux<String> sendHeartbeatAck() {
         Event heartbeatAck = Event.of(ResponseOperation.HEARTBEAT_ACK, null, null);
         return Flux.just(convertService.convertObjectToJson(heartbeatAck));
     }
 
-    // 무조건 기존 서버 입장
-    // TODO: 새 서버를 만들거나 새 서버에 초대된 경우 HTTP를 사용해서 Server 참여 인원에 추가 (DB)
+
+    /**
+     * @param receivedMessage
+     * @param userId
+     * @return jsonMessage
+     * @apiNote 무조건 기존 서버 입장
+     * 새로운 서버를 만들거나 새로운 서버에 초대된 경우 HTTP 를 사용하여 Server 참여 인원에 추가 (DB)
+     * TODO: Server list에 포함되어 있는지 검사 (DB)
+     */
     private Flux<String> enterServer(String receivedMessage, String userId) {
         String serverId = convertService.readDataFromMessage(receivedMessage, ServerRequest.class).serverId();
         return isValidServerId(serverId)
@@ -117,10 +122,24 @@ public class ReplyHandler {
                 .switchIfEmpty(Flux.error(new InvalidValueException(ErrorCode.INVALID_SERVER_ID, serverId)));
     }
 
+    private Mono<Boolean> isValidServerId(String serverId) {
+        return Mono.just(true);
+    }
+
     private Mono<Boolean> addActiveUser(String userId, String serverId) {
         return activeUserManager.addActiveUser(userId, serverId)
                 .filter(Boolean.TRUE::equals)
                 .doOnSuccess(ignored -> subscribeServerSink(serverId, userId));
+    }
+
+    private void subscribeServerSink(String serverId, String userId) {
+        disposeSubscription(userId);
+        Sinks.Many<String> userSink = userSinkMap.get(userId);
+        Disposable disposable = serverStreamManager.getMessageFromServerSink(serverId)
+                .doOnNext(userSink::tryEmitNext)
+                .subscribe();
+        userSubscription.put(userId, Subscription.of(serverId, disposable));
+        log.info("[{}] subscribes server sink : {}", userId, serverId);
     }
 
     private Flux<String> createServerAck(String serverId) {
@@ -130,16 +149,19 @@ public class ReplyHandler {
                 .switchIfEmpty(createServerAckEvent(EmptyResponse.of()));
     }
 
-    // TODO: Server list에 포함되어 있는지 검사 (DB)
-    private Mono<Boolean> isValidServerId(String serverId) {
-        return Mono.just(true);
-    }
-
     private Flux<String> createServerAckEvent(Data response) {
         Event serverAck = Event.of(ResponseOperation.SERVER_ACK, response, null);
         return Flux.just(convertService.convertObjectToJson(serverAck));
     }
 
+    /**
+     * @param receivedMessage
+     * @param userId
+     * @return empty
+     * @apiNote 음성/영상 채널 입장 (채팅 제외)
+     * 직접 소켓에 응답하지 않고 server_event 로 등록
+     * TODO: Channel list에 포함되어 있는지 검사 (DB)
+     */
     private Flux<String> enterChannel(String receivedMessage, String userId) {
         ChannelRequest channelRequest = convertService.readDataFromMessage(receivedMessage, ChannelRequest.class);
         // TODO: userId로 username + Image Url 조회 (DB)
@@ -160,12 +182,6 @@ public class ReplyHandler {
                 .flatMap(convertService::convertJsonToVoiceState);
     }
 
-    private Mono<VoiceState> updateStateAndGetVoiceState(String userId, StateRequest stateRequest) {
-        return voiceStateManager.updateState(stateRequest, userId)
-                .then(voiceStateManager.getVoiceState(stateRequest.serverId(), userId))
-                .flatMap(convertService::convertJsonToVoiceState);
-    }
-
     private Mono<String> putChannelEnterToStream(String userId, VoiceState voiceState) {
         Event channelAck = Event.of(ResponseOperation.ENTER_CHANNEL_ACK, ChannelResponse.from(voiceState), null);
         String jsonChannelAck = convertService.convertObjectToJson(channelAck);
@@ -174,11 +190,13 @@ public class ReplyHandler {
                 .then(Mono.empty());
     }
 
-    // TODO: Channel list에 포함되어 있는지 검사 (DB)
-    private Mono<Boolean> isValidChannelId(String ServerId, String channelId) {
-        return Mono.just(true);
-    }
-
+    /**
+     * @param receivedMessage
+     * @param userId
+     * @return empty
+     * @apiNote 음성/영상 채널 나가기 (채팅 제외)
+     * 직접 소켓에 응답하지 않고 server_event 로 등록
+     */
     private Flux<String> leaveChannel(String receivedMessage, String userId) {
         ChannelRequest channelRequest = convertService.readDataFromMessage(receivedMessage, ChannelRequest.class);
         return isValidChannelId(channelRequest.serverId(), channelRequest.channelId())
@@ -187,6 +205,10 @@ public class ReplyHandler {
                 .then(activeUserManager.isCorrectAccess(userId, channelRequest.serverId()))
                 .then(deleteVoiceStateIfPresent(userId, channelRequest))
                 .thenMany(putChannelLeaveToStream(userId, channelRequest));
+    }
+
+    private Mono<Boolean> isValidChannelId(String ServerId, String channelId) {
+        return Mono.just(true);
     }
 
     private Mono<Long> deleteVoiceStateIfPresent(String userId, ChannelRequest channelRequest) {
@@ -203,6 +225,13 @@ public class ReplyHandler {
                 .then(Mono.empty());
     }
 
+    /**
+     * @param receivedMessage
+     * @param userId
+     * @return empty
+     * @apiNote 음성/영상 채널의 상태(옵션) 변경 (채팅 제외)
+     * 직접 소켓에 응답하지 않고 server_event 로 등록
+     */
     private Flux<String> updateState(String receivedMessage, String userId) {
         StateRequest stateRequest = convertService.readDataFromMessage(receivedMessage, StateRequest.class);
 
@@ -212,6 +241,12 @@ public class ReplyHandler {
                 .then(activeUserManager.isCorrectAccess(userId, stateRequest.serverId()))
                 .then(updateStateAndGetVoiceState(userId, stateRequest))
                 .flatMapMany(voiceState -> putUpdateStateToStream(userId, voiceState, stateRequest));
+    }
+
+    private Mono<VoiceState> updateStateAndGetVoiceState(String userId, StateRequest stateRequest) {
+        return voiceStateManager.updateState(stateRequest, userId)
+                .then(voiceStateManager.getVoiceState(stateRequest.serverId(), userId))
+                .flatMap(convertService::convertJsonToVoiceState);
     }
 
     private Mono<String> putUpdateStateToStream(String userId, VoiceState voiceState, StateRequest stateRequest) {

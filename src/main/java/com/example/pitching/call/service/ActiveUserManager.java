@@ -28,11 +28,6 @@ public class ActiveUserManager {
                 });
     }
 
-    private Mono<Boolean> validateServerDestination(String serverId, String pastServerId) {
-        if (!Objects.equals(pastServerId, serverId)) return Mono.just(true);
-        return Mono.error(new DuplicateOperationException(ErrorCode.DUPLICATE_SERVER_DESTINATION, serverId));
-    }
-
     // 로그아웃
     public Mono<Boolean> removeActiveUser(String userId) {
         return valueOperations.delete(getActiveUserRedisKey(userId));
@@ -45,7 +40,12 @@ public class ActiveUserManager {
                 .switchIfEmpty(Mono.error(new WrongAccessException(ErrorCode.WRONG_ACCESS_INACTIVE_SERVER, serverId)));
     }
 
-    public Mono<Boolean> isActiveUser(String userId) {
+    private Mono<Boolean> validateServerDestination(String serverId, String pastServerId) {
+        if (!Objects.equals(pastServerId, serverId)) return Mono.just(true);
+        return Mono.error(new DuplicateOperationException(ErrorCode.DUPLICATE_SERVER_DESTINATION, serverId));
+    }
+
+    private Mono<Boolean> isActiveUser(String userId) {
         return valueOperations.get(getActiveUserRedisKey(userId)).hasElement();
     }
 
