@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(100) PRIMARY KEY,
     username VARCHAR(50) NOT NULL,
     profile_image BYTEA,
-    password VARCHAR(100) NOT NULL,
+    password VARCHAR(100),
     role VARCHAR(20) NOT NULL
 );
 
