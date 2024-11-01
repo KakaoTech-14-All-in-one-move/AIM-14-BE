@@ -53,8 +53,19 @@ jwt:
     expiration: 604800000  # 7 day
 ---
 # local
+redis:
+  host: localhost
+  port: 6379
+  maxlen: 500
+  
 server:
   port: ${LOCAL_PORT:8080}
+  call:
+    protocol: ws
+    host: localhost
+    websocket-path: /ws/v1/voice
+    heartbeat-interval: 45s
+    
 spring:
   r2dbc:
     url: ${LOCAL_POSTGRESQL_URL}
