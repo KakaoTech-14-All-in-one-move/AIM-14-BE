@@ -13,7 +13,6 @@ import reactor.core.publisher.Mono;
 public class AuthController {
 
     private final AuthService authService;
-    private final JwtTokenProvider jwtTokenProvider;
 
     @PostMapping("/login")
     public Mono<LoginResponse> login(@RequestBody LoginRequest request) {
