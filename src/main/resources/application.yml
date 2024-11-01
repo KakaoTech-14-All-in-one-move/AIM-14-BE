@@ -3,8 +3,8 @@ spring:
     name: pitching
   sql:
     init:
-      mode: always        # ?????? ??? ?? schema.sql ??
-      schema-locations: classpath:schema.sql  # schema.sql ?? ?? ??
+      mode: always        # Execute schema.sql every time the application starts
+      schema-locations: classpath:schema.sql  # Specify the location of schema.sql file
   security:
     oauth2:
       client:
@@ -48,9 +48,9 @@ spring:
 jwt:
   secret: ${JWT_SECRET_KEY}
   access-token:
-    expiration: 10000 #3600000  # 1??
+    expiration: 3600000  # 1 hour
   refresh-token:
-    expiration: 30000 #604800000  # 7?
+    expiration: 604800000  # 7 day
 ---
 # local
 server:
