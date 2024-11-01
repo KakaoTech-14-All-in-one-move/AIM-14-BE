@@ -14,7 +14,7 @@ public class OAuth2FailureHandler implements ServerAuthenticationFailureHandler 
     @Override
     public Mono<Void> onAuthenticationFailure(WebFilterExchange webFilterExchange, AuthenticationException exception) {
         ServerWebExchange exchange = webFilterExchange.getExchange();
-        String redirectUrl = "http://localhost:5173/oauth2/redirect?error=" + exception.getMessage();
+        String redirectUrl = "http://localhost:5173/";
         return Mono.fromRunnable(() -> exchange.getResponse()
                 .getHeaders()
                 .setLocation(URI.create(redirectUrl)));
