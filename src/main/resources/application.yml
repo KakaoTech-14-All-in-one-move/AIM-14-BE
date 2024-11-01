@@ -60,6 +60,9 @@ spring:
     url: ${LOCAL_POSTGRESQL_URL}
     username: ${LOCAL_POSTGRESQL_USERNAME}
     password: ${LOCAL_POSTGRESQL_PASSWORD}
+#  TODO: 필요시
+#  초기 단계에서는 현재처럼 schema.sql 사용
+#  프로젝트가 커지고 복잡해지면 Liquibase 도입 검토
 #  liquibase:
 #    enabled: true # 선택: Liquibase를 사용해 자동 마이그레이션 관리 시
 logging:
