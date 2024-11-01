@@ -14,7 +14,7 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 
 @Configuration
 @EnableWebFluxSecurity
-public class SecurityConfig {
+public class SecurityConfig { // TODO: Security가 완성되기 전까지 사용될 임시 설정
 
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {

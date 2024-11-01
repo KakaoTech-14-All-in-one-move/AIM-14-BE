@@ -69,7 +69,7 @@ public class VoiceStateManager {
     }
 
     private Mono<Boolean> changeChannelId(ChannelRequest channelRequest, String userId, VoiceState oldVoiceState) {
-        if (Objects.equals(oldVoiceState.getChannelId(), channelRequest.channelId()))
+        if (Objects.equals(oldVoiceState.channelId(), channelRequest.channelId()))
             return Mono.error(new DuplicateOperationException(ErrorCode.DUPLICATE_CHANNEL_ENTRY, channelRequest.channelId()));
         VoiceState newVoiceState = oldVoiceState.changeChannelId(channelRequest.channelId(), channelRequest.channelType());
         return addVoiceState(userId, channelRequest.serverId(), convertService.convertObjectToJson(newVoiceState));

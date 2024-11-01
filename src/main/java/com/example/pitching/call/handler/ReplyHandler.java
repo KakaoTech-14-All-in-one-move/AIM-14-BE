@@ -122,6 +122,7 @@ public class ReplyHandler {
                 .switchIfEmpty(Flux.error(new InvalidValueException(ErrorCode.INVALID_SERVER_ID, serverId)));
     }
 
+    // TODO: DB 연결되면 로직 추가
     private Mono<Boolean> isValidServerId(String serverId) {
         return Mono.just(true);
     }
@@ -185,8 +186,8 @@ public class ReplyHandler {
     private Mono<String> putChannelEnterToStream(String userId, VoiceState voiceState) {
         Event channelAck = Event.of(ResponseOperation.ENTER_CHANNEL_ACK, ChannelResponse.from(voiceState), null);
         String jsonChannelAck = convertService.convertObjectToJson(channelAck);
-        return serverStreamManager.addVoiceMessageToStream(voiceState.getServerId(), jsonChannelAck)
-                .doOnSuccess(record -> log.info("[{}] entered the {} channel : id = {}", userId, voiceState.getChannelType(), voiceState.getChannelId()))
+        return serverStreamManager.addVoiceMessageToStream(voiceState.serverId(), jsonChannelAck)
+                .doOnSuccess(record -> log.info("[{}] entered the {} channel : id = {}", userId, voiceState.channelId(), voiceState.channelId()))
                 .then(Mono.empty());
     }
 
@@ -207,6 +208,7 @@ public class ReplyHandler {
                 .thenMany(putChannelLeaveToStream(userId, channelRequest));
     }
 
+    // TODO: DB 연결되면 로직 추가
     private Mono<Boolean> isValidChannelId(String ServerId, String channelId) {
         return Mono.just(true);
     }
@@ -252,7 +254,7 @@ public class ReplyHandler {
     private Mono<String> putUpdateStateToStream(String userId, VoiceState voiceState, StateRequest stateRequest) {
         Event stateAck = Event.of(ResponseOperation.UPDATE_STATE_ACK, ChannelResponse.from(voiceState), null);
         String jsonStateAck = convertService.convertObjectToJson(stateAck);
-        return serverStreamManager.addVoiceMessageToStream(voiceState.getServerId(), jsonStateAck)
+        return serverStreamManager.addVoiceMessageToStream(voiceState.serverId(), jsonStateAck)
                 .doOnSuccess(record -> log.info("[{}] updated the state : id = {}", userId, stateRequest))
                 .then(Mono.empty());
     }

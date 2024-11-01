@@ -3,32 +3,31 @@ package com.example.pitching.call.dto;
 import com.example.pitching.call.operation.request.ChannelRequest;
 import com.example.pitching.call.operation.request.StateRequest;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
 
-@Getter
-@AllArgsConstructor
-@NoArgsConstructor
-public class VoiceState {
-    private String userId;
-    private String username;
-    private String serverId;
-    private String channelId;
-    private ChannelType channelType;
-    private String ip;
-    private Integer port;
-    @JsonProperty("muted")
-    private boolean isMuted;
-    @JsonProperty("deafened")
-    private boolean isDeafened;
-    @JsonProperty("speaking")
-    private boolean isSpeaking;
-    @JsonProperty("cameraOn")
-    private boolean isCameraOn;
-    @JsonProperty("screenSharing")
-    private boolean isScreenSharing;
-
+public record VoiceState(
+        @JsonProperty("user_id")
+        String userId,
+        @JsonProperty("username")
+        String username,
+        @JsonProperty("server_id")
+        String serverId,
+        @JsonProperty("channel_id")
+        String channelId,
+        @JsonProperty("channel_type")
+        ChannelType channelType,
+        String ip,
+        Integer port,
+        @JsonProperty("muted")
+        boolean isMuted,
+        @JsonProperty("deafened")
+        boolean isDeafened,
+        @JsonProperty("speaking")
+        boolean isSpeaking,
+        @JsonProperty("camera_on")
+        boolean isCameraOn,
+        @JsonProperty("screen_sharing")
+        boolean isScreenSharing
+) {
     public static VoiceState from(ChannelRequest channelRequest, String userId, String username) {
         return new VoiceState(
                 userId,
