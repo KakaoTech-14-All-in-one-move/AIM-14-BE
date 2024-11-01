@@ -72,8 +72,6 @@ public class AuthService {
                     return jwtTokenProvider.extractUsername(refreshToken);
                 case EXPIRED:
                     throw new TokenExpiredException("Refresh token has expired");
-                case BLACKLISTED:
-                    throw new InvalidTokenException("Refresh token has been revoked");
                 case INVALID:
                 default:
                     throw new InvalidTokenException("Invalid refresh token");
