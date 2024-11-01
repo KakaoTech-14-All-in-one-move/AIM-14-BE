@@ -84,14 +84,14 @@ public class OAuth2SuccessHandler implements ServerAuthenticationSuccessHandler 
         Map<String, Object> attributes = oAuth2User.getAttributes();
 
         return switch (provider) {
-            case "google" -> (String) attributes.get("email");
+            case "google" -> (String) "google@" + attributes.get("email");
             case "kakao" -> {
                 Map<String, Object> kakaoAccount = (Map<String, Object>) attributes.get("kakao_account");
-                yield (String) kakaoAccount.get("email");
+                yield (String) "kakao@" + kakaoAccount.get("email");
             }
             case "naver" -> {
                 Map<String, Object> response = (Map<String, Object>) attributes.get("response");
-                yield (String) response.get("email");
+                yield (String) "naver@" + response.get("email");
             }
             default -> throw new IllegalArgumentException("Unsupported provider: " + provider);
         };
