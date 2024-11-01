@@ -52,8 +52,6 @@ dependencies {
 
 	// .env file load
 	implementation 'me.paulschwarz:spring-dotenv:4.0.0'
-
-	implementation 'org.springframework.security:spring-security-core'
 }
 
 tasks.named('test') {
