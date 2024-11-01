@@ -34,7 +34,7 @@ public class OAuth2SuccessHandler implements ServerAuthenticationSuccessHandler 
     public Mono<Void> onAuthenticationSuccess(WebFilterExchange webFilterExchange, Authentication authentication) {
         ServerWebExchange exchange = webFilterExchange.getExchange();
         OAuth2AuthenticationToken oAuth2Token = (OAuth2AuthenticationToken) authentication;
-        var oAuth2User = oAuth2Token.getPrincipal();
+        OAuth2User oAuth2User = oAuth2Token.getPrincipal();
 
         String email = getEmail(oAuth2Token.getAuthorizedClientRegistrationId(), oAuth2User);
         String name = getName(oAuth2Token.getAuthorizedClientRegistrationId(), oAuth2User);
