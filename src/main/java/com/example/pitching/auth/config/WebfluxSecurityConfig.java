@@ -1,6 +1,8 @@
 package com.example.pitching.auth.config;
 
+import com.example.pitching.auth.exception.InvalidCredentialsException;
 import com.example.pitching.auth.exception.InvalidTokenException;
+import com.example.pitching.auth.exception.TokenExpiredException;
 import com.example.pitching.auth.oauth2.handler.OAuth2FailureHandler;
 import com.example.pitching.auth.oauth2.handler.OAuth2SuccessHandler;
 import com.example.pitching.auth.jwt.JwtAuthenticationEntryPoint;
@@ -15,8 +17,10 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.authentication.AuthenticationWebFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -80,27 +84,41 @@ public class WebfluxSecurityConfig {
             String token = authentication.getCredentials().toString();
             return Mono.just(token)
                     .map(jwtTokenProvider::validateAndGetEmail)
-                    .map(username -> new UsernamePasswordAuthenticationToken(
+                    .<Authentication>map(username -> new UsernamePasswordAuthenticationToken(
                             username,
                             null,
                             Collections.emptyList()
-                    ));
+                    ))
+                    .onErrorMap(TokenExpiredException.class,
+                            e -> new TokenExpiredException("Token has expired"))
+                    .onErrorMap(JwtException.class,
+                            e -> new InvalidTokenException("Invalid token"))
+                    .onErrorMap(Exception.class,
+                            e -> new InvalidCredentialsException("Authentication failed: " + e.getMessage()));
         };
 
         AuthenticationWebFilter filter = new AuthenticationWebFilter(authenticationManager);
 
-        filter.setServerAuthenticationConverter(exchange ->
-                Mono.justOrEmpty(exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION))
-                        .switchIfEmpty(Mono.error(
-                                new AuthenticationCredentialsNotFoundException("Missing Authorization header")
-                        ))
-                        .filter(authHeader -> authHeader.startsWith("Bearer "))
-                        .switchIfEmpty(Mono.error(
-                                new InvalidTokenException("Invalid Authorization header format")
-                        ))
-                        .map(authHeader -> authHeader.substring(7))
-                        .map(token -> new UsernamePasswordAuthenticationToken(token, token))
-        );
+        filter.setServerAuthenticationConverter(exchange -> {
+            String path = exchange.getRequest().getPath().value();
+            // OAuth2 관련 경로 추가
+            if (path.startsWith("/api/v1/auth/") ||
+                    path.startsWith("/oauth2/") ||
+                    path.startsWith("/login/oauth2/")) {
+                return Mono.empty();
+            }
+
+            return Mono.justOrEmpty(exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION))
+                    .switchIfEmpty(Mono.error(
+                            new AuthenticationCredentialsNotFoundException("Missing Authorization header")
+                    ))
+                    .filter(authHeader -> authHeader.startsWith("Bearer "))
+                    .switchIfEmpty(Mono.error(
+                            new InvalidTokenException("Invalid Authorization header format")
+                    ))
+                    .map(authHeader -> authHeader.substring(7))
+                    .map(token -> new UsernamePasswordAuthenticationToken(token, token));
+        });
 
         return filter;
     }
