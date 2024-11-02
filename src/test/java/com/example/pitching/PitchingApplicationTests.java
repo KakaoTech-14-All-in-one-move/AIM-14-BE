@@ -10,15 +10,4 @@ class PitchingApplicationTests {
 	@Test
 	void contextLoads() {
 	}
-
-	@Test
-	void generateAndVerifyPassword() {
-		BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
-		String rawPassword = "password123";
-		String hashedPassword = encoder.encode(rawPassword);
-		System.out.println("New hashed password: " + hashedPassword);
-
-		boolean matches = encoder.matches(rawPassword, hashedPassword);
-		System.out.println("Verification with new hash: " + matches);
-	}
 }
