@@ -66,7 +66,7 @@ public class AuthService {
 
             switch (status) {
                 case VALID:
-                    return jwtTokenProvider.extractUsername(refreshToken);
+                    return jwtTokenProvider.extractEmail(refreshToken);
                 case EXPIRED:
                     throw new TokenExpiredException("Refresh token has expired");
                 case INVALID:
