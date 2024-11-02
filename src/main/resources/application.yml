@@ -64,7 +64,7 @@ server:
     protocol: ws
     host: localhost
     websocket-path: /ws/v1/voice
-    heartbeat-interval: 45s
+    heartbeat-interval: 450s
     
 spring:
   r2dbc:
@@ -78,5 +78,6 @@ spring:
 #    enabled: true # 선택: Liquibase를 사용해 자동 마이그레이션 관리 시
 logging:
   level:
+    reactor.netty.udp: DEBUG
     org.springframework.r2dbc: DEBUG # R2DBC 관련 로깅 활성화 (문제 파악에 유용
 ---
