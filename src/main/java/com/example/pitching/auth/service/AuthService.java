@@ -82,17 +82,13 @@ public class AuthService {
 
     public Mono<Void> signup(SignupRequest request) {
         return userRepository.existsByEmail(request.email())
-                .flatMap(exists -> {
-                    if (exists) {
-                        return Mono.error(new DuplicateEmailException("이미 존재하는 이메일입니다."));
-                    }
-
-                    return userRepository.insertUser(
-                            request.email(),
-                            request.username(),
-                            passwordEncoder.encode(request.password()),
-                            "USER"
-                    );
-                });
+                .filter(exists -> !exists)
+                .switchIfEmpty(Mono.error(new DuplicateEmailException("이미 존재하는 이메일입니다.")))
+                .flatMap(notExists -> userRepository.insertUser(
+                        request.email(),
+                        request.username(),
+                        passwordEncoder.encode(request.password()),
+                        "USER"
+                ));
     }
 }
