@@ -14,6 +14,7 @@ import io.jsonwebtoken.io.Decoders;
 import org.springframework.web.server.ResponseStatusException;
 
 import javax.crypto.SecretKey;
+import java.time.Duration;
 import java.util.Date;
 
 @Component
@@ -23,10 +24,10 @@ public class JwtTokenProvider {
     private String secret;
 
     @Value("${jwt.access-token.expiration}")
-    private Long accessTokenExpiration;
+    private Duration accessTokenExpiration;
 
     @Value("${jwt.refresh-token.expiration}")
-    private Long refreshTokenExpiration;
+    private Duration refreshTokenExpiration;
 
     public TokenInfo createTokenInfo(String username) {
         return new TokenInfo(
@@ -50,9 +51,9 @@ public class JwtTokenProvider {
         return createToken(username, refreshTokenExpiration, "refresh");
     }
 
-    private String createToken(String username, Long expiration, String tokenType) {
+    private String createToken(String username, Duration expiration, String tokenType) {
         Date now = new Date();
-        Date validity = new Date(now.getTime() + expiration);
+        Date validity = new Date(now.getTime() + expiration.toMillis()); // Duration을 밀리초로 변환
 
         return Jwts.builder()
                 .setSubject(username)
