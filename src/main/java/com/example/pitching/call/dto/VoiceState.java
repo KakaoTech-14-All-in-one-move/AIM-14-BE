@@ -15,8 +15,6 @@ public record VoiceState(
         String channelId,
         @JsonProperty("channel_type")
         ChannelType channelType,
-        String ip,
-        Integer port,
         @JsonProperty("muted")
         boolean isMuted,
         @JsonProperty("deafened")
@@ -35,8 +33,6 @@ public record VoiceState(
                 channelRequest.serverId(),
                 channelRequest.channelId(),
                 channelRequest.channelType(),
-                null,
-                null,
                 false,
                 false,
                 false,
@@ -51,29 +47,11 @@ public record VoiceState(
                 stateRequest.serverId(),
                 stateRequest.channelId(),
                 null,
-                null,
-                null,
                 stateRequest.isMuted(),
                 stateRequest.isDeafened(),
                 stateRequest.isSpeaking(),
                 stateRequest.isCameraOn(),
                 stateRequest.isScreenSharing());
-    }
-
-    public VoiceState updateUdpAddress(String ip, Integer port) {
-        return new VoiceState(
-                this.userId,
-                this.username,
-                this.serverId,
-                this.channelId,
-                this.channelType,
-                ip,
-                port,
-                this.isMuted,
-                this.isDeafened,
-                this.isSpeaking,
-                this.isCameraOn,
-                this.isScreenSharing);
     }
 
     public VoiceState changeChannelId(String channelId, ChannelType channelType) {
@@ -83,8 +61,6 @@ public record VoiceState(
                 this.serverId,
                 channelId,
                 channelType,
-                this.ip,
-                this.port,
                 this.isMuted,
                 this.isDeafened,
                 this.isSpeaking,
@@ -99,8 +75,6 @@ public record VoiceState(
                 this.serverId,
                 this.channelId,
                 this.channelType,
-                this.ip,
-                this.port,
                 stateRequest.isMuted(),
                 stateRequest.isDeafened(),
                 stateRequest.isSpeaking(),
