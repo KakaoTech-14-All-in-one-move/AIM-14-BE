@@ -25,7 +25,7 @@ public class AuthController {
     }
 
     @GetMapping("/check")
-    public Mono<ExistsEmailResponse> existsEmail(@RequestParam String email) {
+    public Mono<ExistsEmailResponse> existsEmail(@RequestParam("email") String email) {
         return authService.existsEmail(email);
     }
 
