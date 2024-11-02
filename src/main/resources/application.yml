@@ -13,4 +13,9 @@ server:
     protocol: ws
     host: localhost
     websocket-path: /ws/v1/voice
-    heartbeat-interval: 45s
+    heartbeat-interval: 450s
+
+logging:
+  level:
+    reactor.netty.udp: DEBUG
+
