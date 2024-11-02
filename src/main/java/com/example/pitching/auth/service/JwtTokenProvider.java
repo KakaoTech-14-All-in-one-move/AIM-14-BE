@@ -53,7 +53,7 @@ public class JwtTokenProvider {
 
     private String createToken(String username, Duration expiration, String tokenType) {
         Date now = new Date();
-        Date validity = new Date(now.getTime() + expiration.toMillis()); // Duration을 밀리초로 변환
+        Date validity = new Date(now.getTime() + expiration.toMillis());
 
         return Jwts.builder()
                 .setSubject(username)
