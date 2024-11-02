@@ -2,8 +2,8 @@ package com.example.pitching.auth.config;
 
 import com.example.pitching.auth.oauth2.handler.OAuth2FailureHandler;
 import com.example.pitching.auth.oauth2.handler.OAuth2SuccessHandler;
-import com.example.pitching.auth.service.JwtAuthenticationEntryPoint;
-import com.example.pitching.auth.service.JwtTokenProvider;
+import com.example.pitching.auth.jwt.JwtAuthenticationEntryPoint;
+import com.example.pitching.auth.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,7 +13,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
@@ -75,21 +74,15 @@ public class WebfluxSecurityConfig {
     }
 
     private AuthenticationWebFilter jwtAuthenticationFilter() {
-        ReactiveAuthenticationManager authenticationManager = new ReactiveAuthenticationManager() {
-            @Override
-            public Mono<Authentication> authenticate(Authentication authentication) {
-                String token = authentication.getCredentials().toString();
-                try {
-                    String username = jwtTokenProvider.validateAndGetUsername(token);
-                    return Mono.just(new UsernamePasswordAuthenticationToken(
+        ReactiveAuthenticationManager authenticationManager = authentication -> {
+            String token = authentication.getCredentials().toString();
+            return Mono.just(token)
+                    .map(jwtTokenProvider::validateAndGetEmail)
+                    .map(username -> new UsernamePasswordAuthenticationToken(
                             username,
                             null,
                             Collections.emptyList()
                     ));
-                } catch (Exception e) {
-                    return Mono.error(e);
-                }
-            }
         };
 
         AuthenticationWebFilter filter = new AuthenticationWebFilter(authenticationManager);

@@ -4,7 +4,7 @@ import com.example.pitching.auth.domain.User;
 import com.example.pitching.auth.dto.TokenInfo;
 import com.example.pitching.auth.dto.UserInfo;
 import com.example.pitching.auth.repository.UserRepository;
-import com.example.pitching.auth.service.JwtTokenProvider;
+import com.example.pitching.auth.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;

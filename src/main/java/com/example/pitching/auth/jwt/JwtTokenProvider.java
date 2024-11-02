@@ -1,4 +1,4 @@
-package com.example.pitching.auth.service;
+package com.example.pitching.auth.jwt;
 
 import com.example.pitching.auth.domain.TokenStatus;
 import com.example.pitching.auth.dto.TokenInfo;
@@ -29,34 +29,34 @@ public class JwtTokenProvider {
     @Value("${jwt.refresh-token.expiration}")
     private Duration refreshTokenExpiration;
 
-    public TokenInfo createTokenInfo(String username) {
+    public TokenInfo createTokenInfo(String email) {
         return new TokenInfo(
-                createAccessToken(username),
-                createRefreshToken(username)
+                createAccessToken(email),
+                createRefreshToken(email)
         );
     }
 
-    public TokenInfo recreateAccessToken(String username) {
+    public TokenInfo recreateAccessToken(String email) {
         return new TokenInfo(
-                createAccessToken(username),
+                createAccessToken(email),
                 null
         );
     }
 
-    private String createAccessToken(String username) {
-        return createToken(username, accessTokenExpiration, "access");
+    private String createAccessToken(String email) {
+        return createToken(email, accessTokenExpiration, "access");
     }
 
-    private String createRefreshToken(String username) {
-        return createToken(username, refreshTokenExpiration, "refresh");
+    private String createRefreshToken(String email) {
+        return createToken(email, refreshTokenExpiration, "refresh");
     }
 
-    private String createToken(String username, Duration expiration, String tokenType) {
+    private String createToken(String email, Duration expiration, String tokenType) {
         Date now = new Date();
         Date validity = new Date(now.getTime() + expiration.toMillis());
 
         return Jwts.builder()
-                .setSubject(username)
+                .setSubject(email)
                 .claim("type", tokenType)
                 .setIssuedAt(now)
                 .setExpiration(validity)
@@ -64,7 +64,7 @@ public class JwtTokenProvider {
                 .compact();
     }
 
-    public String validateAndGetUsername(String token) {
+    public String validateAndGetEmail(String token) {
         try {
             return Jwts.parserBuilder()
                     .setSigningKey(getSecretKey())
@@ -108,7 +108,7 @@ public class JwtTokenProvider {
         }
     }
 
-    public String extractUsername(String token) {
+    public String extractEmail(String token) {
         Claims claims = Jwts.parserBuilder()
                 .setSigningKey(getSecretKey())
                 .build()

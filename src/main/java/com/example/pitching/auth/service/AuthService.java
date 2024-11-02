@@ -7,6 +7,7 @@ import com.example.pitching.auth.exception.DuplicateEmailException;
 import com.example.pitching.auth.exception.InvalidTokenException;
 import com.example.pitching.auth.exception.TokenExpiredException;
 import com.example.pitching.auth.repository.UserRepository;
+import com.example.pitching.auth.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,7 +27,7 @@ public class AuthService {
                 .cast(User.class)
                 .filter(user -> passwordEncoder.matches(password, user.getPassword()))
                 .map(user -> new LoginResponse(
-                        jwtTokenProvider.createTokenInfo(user.getUsername()),
+                        jwtTokenProvider.createTokenInfo(user.getEmail()),
                         new UserInfo(
                                 user.getEmail(),
                                 user.getUsername(),
@@ -39,7 +40,7 @@ public class AuthService {
 
     public Mono<TokenInfo> refreshToken(String refreshToken) {
         return validateRefreshToken(refreshToken)
-                .flatMap(username -> Mono.just(jwtTokenProvider.recreateAccessToken(username)))
+                .flatMap(email -> Mono.just(jwtTokenProvider.recreateAccessToken(email)))
                 .onErrorResume(e -> {
                     if (e instanceof TokenExpiredException) {
                         // 재로그인 필요
