@@ -1,5 +1,6 @@
 package com.example.pitching.auth.config;
 
+import com.example.pitching.auth.exception.InvalidTokenException;
 import com.example.pitching.auth.oauth2.handler.OAuth2FailureHandler;
 import com.example.pitching.auth.oauth2.handler.OAuth2SuccessHandler;
 import com.example.pitching.auth.jwt.JwtAuthenticationEntryPoint;
@@ -8,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
@@ -87,17 +89,18 @@ public class WebfluxSecurityConfig {
 
         AuthenticationWebFilter filter = new AuthenticationWebFilter(authenticationManager);
 
-        filter.setServerAuthenticationConverter(exchange -> {
-            String token = exchange.getRequest().getHeaders()
-                    .getFirst(HttpHeaders.AUTHORIZATION);
-
-            if (token != null && token.startsWith("Bearer ")) {
-                token = token.substring(7);
-                return Mono.just(new UsernamePasswordAuthenticationToken(token, token));
-            }
-
-            return Mono.empty();
-        });
+        filter.setServerAuthenticationConverter(exchange ->
+                Mono.justOrEmpty(exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION))
+                        .switchIfEmpty(Mono.error(
+                                new AuthenticationCredentialsNotFoundException("Missing Authorization header")
+                        ))
+                        .filter(authHeader -> authHeader.startsWith("Bearer "))
+                        .switchIfEmpty(Mono.error(
+                                new InvalidTokenException("Invalid Authorization header format")
+                        ))
+                        .map(authHeader -> authHeader.substring(7))
+                        .map(token -> new UsernamePasswordAuthenticationToken(token, token))
+        );
 
         return filter;
     }
