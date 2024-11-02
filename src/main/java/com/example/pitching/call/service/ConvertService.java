@@ -44,13 +44,13 @@ public class ConvertService {
     public Mono<Event> convertJsonToEventWithSequence(String sequence, String jsonMessage) {
         return readResponseOperationFromMessage(jsonMessage)
                 .flatMap(responseOperation -> {
-                    if (responseOperation == ResponseOperation.ENTER_CHANNEL_ACK) {
+                    if (responseOperation == ResponseOperation.ENTER_CHANNEL_EVENT) {
                         return createResponseWithSequence(responseOperation, jsonMessage, ChannelResponse.class, sequence);
                     }
-                    if (responseOperation == ResponseOperation.LEAVE_CHANNEL_ACK) {
+                    if (responseOperation == ResponseOperation.LEAVE_CHANNEL_EVENT) {
                         return createResponseWithSequence(responseOperation, jsonMessage, ChannelLeaveResponse.class, sequence);
                     }
-                    if (responseOperation == ResponseOperation.UPDATE_STATE_ACK) {
+                    if (responseOperation == ResponseOperation.UPDATE_STATE_EVENT) {
                         return createResponseWithSequence(responseOperation, jsonMessage, ChannelResponse.class, sequence);
                     } else {
                         return Mono.error(new RuntimeException("Unsupported response operation: " + responseOperation));

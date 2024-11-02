@@ -62,7 +62,7 @@ public class ReplyHandler {
                 .flatMapMany(requestOperation -> switch (requestOperation) {
                     case RequestOperation.INIT -> sendHello();
                     case RequestOperation.HEARTBEAT -> sendHeartbeatAck();
-                    case RequestOperation.ENTER_SERVER -> enterServer(receivedMessage, userId);
+                    case RequestOperation.SERVER -> enterServer(receivedMessage, userId);
                     case RequestOperation.ENTER_CHANNEL -> enterChannel(receivedMessage, userId);
                     case RequestOperation.LEAVE_CHANNEL -> leaveChannel(receivedMessage, userId);
                     case RequestOperation.UPDATE_STATE -> updateState(receivedMessage, userId);
@@ -89,7 +89,7 @@ public class ReplyHandler {
      * 클라이언트가 처음 연결하면 Heartbeat_interval 을 담아서 응답
      */
     private Flux<String> sendHello() {
-        Event hello = Event.of(ResponseOperation.HELLO,
+        Event hello = Event.of(ResponseOperation.INIT_ACK,
                 HelloResponse.of(serverProperties.getHeartbeatInterval()),
                 null);
         return Flux.just(convertService.convertObjectToJson(hello));
@@ -184,7 +184,7 @@ public class ReplyHandler {
     }
 
     private Mono<String> putChannelEnterToStream(String userId, VoiceState voiceState) {
-        Event channelAck = Event.of(ResponseOperation.ENTER_CHANNEL_ACK, ChannelResponse.from(voiceState), null);
+        Event channelAck = Event.of(ResponseOperation.ENTER_CHANNEL_EVENT, ChannelResponse.from(voiceState), null);
         String jsonChannelAck = convertService.convertObjectToJson(channelAck);
         return serverStreamManager.addVoiceMessageToStream(voiceState.serverId(), jsonChannelAck)
                 .doOnSuccess(record -> log.info("[{}] entered the {} channel : id = {}", userId, voiceState.channelId(), voiceState.channelId()))
@@ -220,7 +220,7 @@ public class ReplyHandler {
     }
 
     private Mono<String> putChannelLeaveToStream(String userId, ChannelRequest channelRequest) {
-        Event channelAck = Event.of(ResponseOperation.LEAVE_CHANNEL_ACK, ChannelLeaveResponse.from(channelRequest, userId), null);
+        Event channelAck = Event.of(ResponseOperation.LEAVE_CHANNEL_EVENT, ChannelLeaveResponse.from(channelRequest, userId), null);
         String jsonChannelAck = convertService.convertObjectToJson(channelAck);
         return serverStreamManager.addVoiceMessageToStream(channelRequest.serverId(), jsonChannelAck)
                 .doOnSuccess(record -> log.info("[{}] leaved the {} channel : id = {}", userId, channelRequest.channelType(), channelRequest.channelId()))
@@ -252,7 +252,7 @@ public class ReplyHandler {
     }
 
     private Mono<String> putUpdateStateToStream(String userId, VoiceState voiceState, StateRequest stateRequest) {
-        Event stateAck = Event.of(ResponseOperation.UPDATE_STATE_ACK, ChannelResponse.from(voiceState), null);
+        Event stateAck = Event.of(ResponseOperation.UPDATE_STATE_EVENT, ChannelResponse.from(voiceState), null);
         String jsonStateAck = convertService.convertObjectToJson(stateAck);
         return serverStreamManager.addVoiceMessageToStream(voiceState.serverId(), jsonStateAck)
                 .doOnSuccess(record -> log.info("[{}] updated the state : id = {}", userId, stateRequest))

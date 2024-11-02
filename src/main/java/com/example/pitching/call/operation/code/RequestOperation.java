@@ -10,7 +10,7 @@ public enum RequestOperation implements Operation {
 
     INIT(0, "Send serverId to activate"),
     HEARTBEAT(1, "Fired periodically by the client to keep the connection alive."),
-    ENTER_SERVER(2, "Send serverId when user changed server."),
+    SERVER(2, "Send serverId when user changed server."),
     ENTER_CHANNEL(3, "Enter the voice/video channel."),
     LEAVE_CHANNEL(4, "Leave the voice/video channel."),
     UPDATE_STATE(5, "Change the voice/video channel state"),
