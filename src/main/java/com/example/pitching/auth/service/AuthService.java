@@ -24,11 +24,7 @@ public class AuthService {
     public Mono<LoginResponse> authenticate(String email, String password) {
         return userRepository.findByEmail(email)
                 .cast(User.class)
-                .filter(user -> {
-                    boolean matches = passwordEncoder.matches(password, user.getPassword());
-                    System.out.println("Password matches: " + matches);
-                    return matches;
-                })
+                .filter(user -> passwordEncoder.matches(password, user.getPassword()))
                 .map(user -> new LoginResponse(
                         jwtTokenProvider.createTokenInfo(user.getUsername()),
                         new UserInfo(
