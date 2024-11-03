@@ -169,12 +169,13 @@ public class ReplyHandler {
                         Mono.empty() : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, channelRequest.channelId())))
                 .then(activeUserManager.isCorrectAccess(userId, channelRequest.serverId()))
                 .then(updateChannelAndGetVoiceState(userId, channelRequest, jsonVoiceState))
-                .doOnSuccess(callUdpClient::initializeChannelSink)
+                .doOnSuccess(callUdpClient::initializeCallSink)
                 .flatMapMany(voiceState -> putChannelEnterToStream(userId, voiceState));
     }
 
     private Mono<VoiceState> updateChannelAndGetVoiceState(String userId, ChannelRequest channelRequest, String jsonVoiceState) {
         return voiceStateManager.addIfAbsentOrChangeChannel(channelRequest, userId, jsonVoiceState)
+                .then(callUdpClient.removeUdpAddressFromRedis(userId))
                 .then(voiceStateManager.getVoiceState(channelRequest.serverId(), userId))
                 .flatMap(convertService::convertJsonToVoiceState);
     }
@@ -183,7 +184,7 @@ public class ReplyHandler {
         Event channelAck = Event.of(ResponseOperation.ENTER_CHANNEL_EVENT, ChannelResponse.from(voiceState), null);
         String jsonChannelAck = convertService.convertObjectToJson(channelAck);
         return serverStreamManager.addVoiceMessageToStream(voiceState.serverId(), jsonChannelAck)
-                .doOnSuccess(record -> log.info("[{}] entered the {} channel : id = {}", userId, voiceState.channelId(), voiceState.channelId()))
+                .doOnSuccess(_ -> log.info("[{}] entered the {} channel : id = {}", userId, voiceState.channelId(), voiceState.channelId()))
                 .then(Mono.empty());
     }
 
@@ -201,6 +202,7 @@ public class ReplyHandler {
                         Mono.empty() : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, channelRequest.channelId())))
                 .then(activeUserManager.isCorrectAccess(userId, channelRequest.serverId()))
                 .then(deleteVoiceStateIfPresent(userId, channelRequest))
+                .then(callUdpClient.removeUdpAddressFromRedis(userId))
                 .thenMany(putChannelLeaveToStream(userId, channelRequest));
     }
 
