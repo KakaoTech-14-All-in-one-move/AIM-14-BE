@@ -125,7 +125,7 @@ public class ReplyHandler {
     private Mono<Boolean> addActiveUser(String userId, String serverId) {
         return activeUserManager.addActiveUser(userId, serverId)
                 .filter(Boolean.TRUE::equals)
-                .doOnSuccess(ignored -> subscribeServerSink(serverId, userId));
+                .doOnSuccess(_ -> subscribeServerSink(serverId, userId));
     }
 
     private void subscribeServerSink(String serverId, String userId) {
