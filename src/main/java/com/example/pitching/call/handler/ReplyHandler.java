@@ -140,7 +140,7 @@ public class ReplyHandler {
 
     private Flux<String> createServerAck(String serverId) {
         return voiceStateManager.getAllVoiceState(serverId)
-                .map(mapEntry -> ChannelResponse.from(convertService.convertJsonToData(mapEntry.getValue(), VoiceState.class)))
+                .map(mapEntry -> ChannelResponse.from(convertService.convertJsonToObject(mapEntry.getValue(), VoiceState.class)))
                 .flatMap(this::createServerAckEvent)
                 .switchIfEmpty(createServerAckEvent(EmptyResponse.of()));
     }

@@ -25,11 +25,11 @@ public class ConvertService {
         }
     }
 
-    public <T> T convertJsonToData(String jsonMessage, Class<T> dataClass) {
+    public <T> T convertJsonToObject(String jsonMessage, Class<T> targetClass) {
         try {
-            return objectMapper.readValue(jsonMessage, dataClass);
+            return objectMapper.readValue(jsonMessage, targetClass);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to deserialize JSON to " + dataClass.getSimpleName(), e);
+            throw new RuntimeException("Failed to deserialize JSON to " + targetClass.getSimpleName(), e);
         }
     }
 
