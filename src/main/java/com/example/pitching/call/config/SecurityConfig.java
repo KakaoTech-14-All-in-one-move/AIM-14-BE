@@ -32,11 +32,15 @@ public class SecurityConfig { // TODO: Security가 완성되기 전까지 사용
     public MapReactiveUserDetailsService userDetailsService() {
         PasswordEncoder passwordEncoder = PasswordEncoderFactories.createDelegatingPasswordEncoder();
 
-        UserDetails user = User.withUsername("user")
+        UserDetails user1 = User.withUsername("A")
+                .password(passwordEncoder.encode("pw"))
+                .roles("USER")
+                .build();
+        UserDetails user2 = User.withUsername("B")
                 .password(passwordEncoder.encode("pw"))
                 .roles("USER")
                 .build();
 
-        return new MapReactiveUserDetailsService(user);
+        return new MapReactiveUserDetailsService(user1, user2);
     }
 }
