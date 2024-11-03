@@ -41,17 +41,4 @@ public record ChannelResponse(
                 voiceState.isScreenSharing()
         );
     }
-
-    public static ChannelResponse emtpy() {
-        return new ChannelResponse(null,
-                null,
-                null,
-                null,
-                null,
-                false,
-                false,
-                false,
-                false,
-                false);
-    }
 }

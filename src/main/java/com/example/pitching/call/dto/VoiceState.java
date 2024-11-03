@@ -40,20 +40,6 @@ public record VoiceState(
                 false);
     }
 
-    public static VoiceState from(StateRequest stateRequest) {
-        return new VoiceState(
-                null,
-                null,
-                stateRequest.serverId(),
-                stateRequest.channelId(),
-                null,
-                stateRequest.isMuted(),
-                stateRequest.isDeafened(),
-                stateRequest.isSpeaking(),
-                stateRequest.isCameraOn(),
-                stateRequest.isScreenSharing());
-    }
-
     public VoiceState changeChannelId(String channelId, ChannelType channelType) {
         return new VoiceState(
                 this.userId,
