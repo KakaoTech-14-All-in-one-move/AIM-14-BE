@@ -66,14 +66,14 @@ public class ServerStreamManager {
 
     @EventListener(ContextClosedEvent.class)
     private void onShutdown() {
-        log.info("Shutting down Reactive Redis connection...");
+        log.info("Clean up server stream resources...");
         serverStream.forEach((serverId, disposable) -> {
             if (disposable != null && !disposable.isDisposed()) {
                 disposable.dispose();
                 log.info("Unregister server stream: {}", serverId);
             }
         });
-        log.info("Shutting down Reactive Redis connection... Done");
+        log.info("Clean up server stream resources... Done");
     }
 
     private void registerServerStream(String serverId) {

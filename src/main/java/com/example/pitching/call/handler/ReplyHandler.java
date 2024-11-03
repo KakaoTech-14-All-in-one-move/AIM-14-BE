@@ -17,6 +17,7 @@ import com.example.pitching.call.operation.response.ChannelLeaveResponse;
 import com.example.pitching.call.operation.response.ChannelResponse;
 import com.example.pitching.call.operation.response.EmptyResponse;
 import com.example.pitching.call.operation.response.HelloResponse;
+import com.example.pitching.call.server.CallUdpClient;
 import com.example.pitching.call.service.ActiveUserManager;
 import com.example.pitching.call.service.ConvertService;
 import com.example.pitching.call.service.ServerStreamManager;
@@ -43,6 +44,7 @@ public class ReplyHandler {
     private final ServerStreamManager serverStreamManager;
     private final VoiceStateManager voiceStateManager;
     private final ActiveUserManager activeUserManager;
+    private final CallUdpClient callUdpClient;
 
     public Mono<Void> initializeUserSink(String userId) {
         return Mono.fromRunnable(() -> {
@@ -69,20 +71,12 @@ public class ReplyHandler {
                 });
     }
 
-    public void disposeSubscription(String userId) {
-        userSubscription.computeIfPresent(userId, (key, subscription) -> {
-            subscription.disposable().dispose();
-            log.info("Dispose Subscription : {}", userId);
-            return null;
-        });
-    }
-
-    public void removeUserSink(String userId) {
-        userSinkMap.remove(userId);
-    }
-
-    public void removeActiveUserFromServer(String userId) {
-        activeUserManager.removeActiveUser(userId).subscribe();
+    public void cleanupResources(String userId) {
+        disposeSubscription(userId);
+        removeUserSink(userId);
+        removeActiveUserFromServer(userId)
+                .flatMap(serverId -> voiceStateManager.removeVoiceState(serverId, userId))
+                .subscribe();
     }
 
     /**
@@ -175,6 +169,7 @@ public class ReplyHandler {
                         Mono.empty() : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, channelRequest.channelId())))
                 .then(activeUserManager.isCorrectAccess(userId, channelRequest.serverId()))
                 .then(updateChannelAndGetVoiceState(userId, channelRequest, jsonVoiceState))
+                .doOnSuccess(callUdpClient::initializeChannelSink)
                 .flatMapMany(voiceState -> putChannelEnterToStream(userId, voiceState));
     }
 
@@ -258,5 +253,21 @@ public class ReplyHandler {
         return serverStreamManager.addVoiceMessageToStream(voiceState.serverId(), jsonStateAck)
                 .doOnSuccess(record -> log.info("[{}] updated the state : id = {}", userId, stateRequest))
                 .then(Mono.empty());
+    }
+
+    private void disposeSubscription(String userId) {
+        userSubscription.computeIfPresent(userId, (key, subscription) -> {
+            subscription.disposable().dispose();
+            log.info("Dispose Subscription : {}", userId);
+            return null;
+        });
+    }
+
+    private void removeUserSink(String userId) {
+        userSinkMap.remove(userId);
+    }
+
+    private Mono<String> removeActiveUserFromServer(String userId) {
+        return activeUserManager.removeActiveUser(userId);
     }
 }

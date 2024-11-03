@@ -3,6 +3,7 @@ package com.example.pitching.call.service;
 import com.example.pitching.call.exception.DuplicateOperationException;
 import com.example.pitching.call.exception.ErrorCode;
 import com.example.pitching.call.exception.WrongAccessException;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.data.redis.core.ReactiveValueOperations;
 import org.springframework.stereotype.Component;
@@ -10,6 +11,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.Objects;
 
+@Slf4j
 @Component
 public class ActiveUserManager {
     private final ReactiveValueOperations<String, String> valueOperations;
@@ -29,8 +31,8 @@ public class ActiveUserManager {
     }
 
     // 로그아웃
-    public Mono<Boolean> removeActiveUser(String userId) {
-        return valueOperations.delete(getActiveUserRedisKey(userId));
+    public Mono<String> removeActiveUser(String userId) {
+        return valueOperations.getAndDelete(getActiveUserRedisKey(userId));
     }
 
     // 채널 입장
