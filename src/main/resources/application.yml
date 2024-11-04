@@ -51,6 +51,9 @@ jwt:
     expiration: PT1H  # 1 hour
   refresh-token:
     expiration: P7D  # 7 day
+
+front:
+  url: ${FRONT_URL}
 ---
 # local
 redis:

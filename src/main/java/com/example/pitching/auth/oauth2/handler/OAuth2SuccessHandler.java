@@ -7,6 +7,7 @@ import com.example.pitching.auth.repository.UserRepository;
 import com.example.pitching.auth.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -28,7 +29,8 @@ import java.util.Map;
 public class OAuth2SuccessHandler implements ServerAuthenticationSuccessHandler {
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
-    private final String FRONTEND_REDIRECT_URI = "http://localhost:5173/oauth2/callback";
+    @Value("${front.url}")
+    private String frontURL;
 
     @Override
     public Mono<Void> onAuthenticationSuccess(WebFilterExchange webFilterExchange, Authentication authentication) {
@@ -64,7 +66,7 @@ public class OAuth2SuccessHandler implements ServerAuthenticationSuccessHandler 
                     UserInfo userInfo = tuple.getT2();
 
                     String redirectUrl = UriComponentsBuilder
-                            .fromUriString(FRONTEND_REDIRECT_URI)
+                            .fromUriString(frontURL+"oauth2/callback")
                             .queryParam("accessToken", tokenInfo.accessToken())
                             .queryParam("refreshToken", tokenInfo.refreshToken())
                             .queryParam("email", userInfo.email())
