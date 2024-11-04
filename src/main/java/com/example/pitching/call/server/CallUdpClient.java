@@ -112,29 +112,36 @@ public class CallUdpClient {
 
     private Mono<String> extractChannelId(DatagramPacket packet) {
         return Mono.defer(() -> {
-            int uuidLength = 36;
-            byte[] channelIdBytes = new byte[uuidLength];
-            packet.content().readBytes(channelIdBytes, 0, uuidLength);
-            return Mono.just(new String(channelIdBytes, StandardCharsets.UTF_8));
-        }).onErrorMap(throwable -> new RuntimeException("Cannot extract channelId from packet:", throwable));
+                    int uuidLength = 36;
+                    byte[] channelIdBytes = new byte[uuidLength];
+                    packet.content().readBytes(channelIdBytes, 0, uuidLength);
+                    return Mono.just(new String(channelIdBytes, StandardCharsets.UTF_8));
+                })
+                .doOnSuccess(channelId -> log.info("Extracted channelId: {}", channelId))
+                .onErrorMap(throwable -> new RuntimeException("Cannot extract channelId from packet:", throwable));
     }
 
     private Mono<String> extractUserId(DatagramPacket packet) {
         return Mono.defer(() -> {
-            ByteBuf content = packet.content();
-            content.readerIndex(36);
+                    ByteBuf content = packet.content();
+                    content.readerIndex(36);
 
-            int userIdLength = content.bytesBefore((byte) '|');
-            if (userIdLength < 0) {
-                return Mono.error(new RuntimeException("Delimiter '|' not found in packet."));
-            }
+                    if (content.readByte() != '|') {
+                        return Mono.error(new RuntimeException("Expected '|' delimiter after channelId"));
+                    }
 
-            byte[] userIdBytes = new byte[userIdLength];
-            content.readBytes(userIdBytes);
-            content.readByte();
+                    int userIdLength = content.bytesBefore((byte) '|');
+                    if (userIdLength < 0) {
+                        return Mono.error(new RuntimeException("Delimiter '|' not found after userId"));
+                    }
 
-            return Mono.just(new String(userIdBytes, StandardCharsets.UTF_8));
-        });
+                    byte[] userIdBytes = new byte[userIdLength];
+                    content.readBytes(userIdBytes);
+                    content.readByte();
+
+                    return Mono.just(new String(userIdBytes, StandardCharsets.UTF_8));
+                })
+                .doOnSuccess(userId -> log.info("Extracted userId: {}", userId));
     }
 
     private void removeClientSink(String userId) {

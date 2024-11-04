@@ -221,7 +221,7 @@ public class ReplyHandler {
         Event channelAck = Event.of(ResponseOperation.LEAVE_CHANNEL_EVENT, ChannelLeaveResponse.from(channelRequest, userId), null);
         String jsonChannelAck = convertService.convertObjectToJson(channelAck);
         return serverStreamManager.addVoiceMessageToStream(channelRequest.serverId(), jsonChannelAck)
-                .doOnSuccess(record -> log.info("[{}] leaved the {} channel : id = {}", userId, channelRequest.channelType(), channelRequest.channelId()))
+                .doOnSuccess(_ -> log.info("[{}] leaved the {} channel : id = {}", userId, channelRequest.channelType(), channelRequest.channelId()))
                 .then(Mono.empty());
     }
 
@@ -253,7 +253,7 @@ public class ReplyHandler {
         Event stateAck = Event.of(ResponseOperation.UPDATE_STATE_EVENT, ChannelResponse.from(voiceState), null);
         String jsonStateAck = convertService.convertObjectToJson(stateAck);
         return serverStreamManager.addVoiceMessageToStream(voiceState.serverId(), jsonStateAck)
-                .doOnSuccess(record -> log.info("[{}] updated the state : id = {}", userId, stateRequest))
+                .doOnSuccess(_ -> log.info("[{}] updated the state : id = {}", userId, stateRequest))
                 .then(Mono.empty());
     }
 
