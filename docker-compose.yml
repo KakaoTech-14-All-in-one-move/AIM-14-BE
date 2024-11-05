@@ -3,3 +3,13 @@ services:
     image: redis:latest
     ports:
       - 6379:6379
+
+  postgres:
+    image: postgres:latest
+    container_name: postgres_r2dbc
+    environment:
+      POSTGRES_DB: test
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+    ports:
+      - "5432:5432"
