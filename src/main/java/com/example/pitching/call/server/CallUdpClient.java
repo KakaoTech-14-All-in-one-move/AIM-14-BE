@@ -33,7 +33,7 @@ public class CallUdpClient {
         this.client = UdpClient.create()
                 .metrics(true)
                 .wiretap(true)
-                .doOnChannelInit((_, channel, _) ->
+                .doOnChannelInit((observer, channel, remote) ->
                         channel.pipeline().addFirst(new LoggingHandler("reactor.netty.examples")))
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000);
     }
@@ -41,14 +41,14 @@ public class CallUdpClient {
     public void initializeCallSink(VoiceState voiceState) {
         // Create clientSink
         Sinks.Many<DatagramPacket> clientSink = clientSinkMap
-                .computeIfAbsent(voiceState.userId(), _ -> Sinks.many().unicast().onBackpressureBuffer());
+                .computeIfAbsent(voiceState.userId(), ignored -> Sinks.many().unicast().onBackpressureBuffer());
         Disposable disposable = clientSink
                 .asFlux()
                 .flatMap(datagramPacket -> sendPacket(datagramPacket, voiceState.userId()))
                 .subscribe();
         clientDisposable.put(voiceState.userId(), disposable);
         // Subscribe channelSink
-        channelSinkMap.computeIfAbsent(voiceState.channelId(), _ -> Sinks.many().multicast().directBestEffort())
+        channelSinkMap.computeIfAbsent(voiceState.channelId(), ignored -> Sinks.many().multicast().directBestEffort())
                 .asFlux()
                 .flatMap(packet -> tryEmitIfNotSameSender(voiceState, packet, clientSink))
                 .subscribe();
@@ -76,7 +76,7 @@ public class CallUdpClient {
     private Mono<Boolean> tryEmitIfNotSameSender(VoiceState voiceState, DatagramPacket packet, Sinks.Many<DatagramPacket> clientSink) {
         return udpAddressManager.isSameSender(voiceState.userId(), packet.sender())
                 .filter(Boolean.FALSE::equals)
-                .doOnNext(_ -> clientSink.tryEmitNext(packet));
+                .doOnNext(ignored -> clientSink.tryEmitNext(packet));
     }
 
     private Mono<Sinks.Many<DatagramPacket>> addClientUdpAddress(DatagramPacket datagramPacket, Sinks.Many<DatagramPacket> channelSink) {
@@ -88,7 +88,7 @@ public class CallUdpClient {
     private Mono<Sinks.Many<DatagramPacket>> getChannelSink(String channelId) {
         // TODO: get 에서 에러가 발생하면 서버가 끊김
         return Mono.justOrEmpty(channelSinkMap.get(channelId))
-                .switchIfEmpty(Mono.error(new RuntimeException(STR."Cannot find channel sink: \{channelId}")));
+                .switchIfEmpty(Mono.error(new RuntimeException("Cannot find channel sink: " + channelId)));
     }
 
     // 채널 삭제 시 싱크 삭제
@@ -97,9 +97,9 @@ public class CallUdpClient {
                 .flatMap(clientAddress ->
                         this.client
                                 .remoteAddress(() -> clientAddress)
-                                .handle((_, out) -> out.sendObject(Mono.just(datagramPacket)))
+                                .handle((in, out) -> out.sendObject(Mono.just(datagramPacket)))
                                 .connect()
-                                .doOnSuccess(_ -> log.info("Sent packet to client at: {}", clientAddress))
+                                .doOnSuccess(ignored -> log.info("Sent packet to client at: {}", clientAddress))
                                 .doOnError(error -> log.error("Failed to send packet to client at: {}", clientAddress, error))
                                 .flatMap(DisposableChannel::onDispose)
                 );

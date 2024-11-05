@@ -36,7 +36,7 @@ public class VoiceUdpServer {
                     .bindAddress(() -> new InetSocketAddress(9090))
                     .bindNow(Duration.ofSeconds(30))
                     .onDispose()
-                    .doOnSubscribe(_ -> log.info("Voice UDP Server successfully bound to port 9090."))
+                    .doOnSubscribe(ignored -> log.info("Voice UDP Server successfully bound to port 9090."))
                     .doOnError(e -> log.error("Failed to bind Voice UDP server.", e))
                     .doFinally(signalType -> {
                         log.info("Voice UdpServer is shutting down: {}", signalType);

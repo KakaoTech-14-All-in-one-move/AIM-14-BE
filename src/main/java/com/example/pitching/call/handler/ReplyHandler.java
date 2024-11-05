@@ -125,7 +125,7 @@ public class ReplyHandler {
     private Mono<Boolean> addActiveUser(String userId, String serverId) {
         return activeUserManager.addActiveUser(userId, serverId)
                 .filter(Boolean.TRUE::equals)
-                .doOnSuccess(_ -> subscribeServerSink(serverId, userId));
+                .doOnSuccess(ignored -> subscribeServerSink(serverId, userId));
     }
 
     private void subscribeServerSink(String serverId, String userId) {
@@ -184,7 +184,7 @@ public class ReplyHandler {
         Event channelAck = Event.of(ResponseOperation.ENTER_CHANNEL_EVENT, ChannelResponse.from(voiceState), null);
         String jsonChannelAck = convertService.convertObjectToJson(channelAck);
         return serverStreamManager.addVoiceMessageToStream(voiceState.serverId(), jsonChannelAck)
-                .doOnSuccess(_ -> log.info("[{}] entered the {} channel : id = {}", userId, voiceState.channelId(), voiceState.channelId()))
+                .doOnSuccess(ignored -> log.info("[{}] entered the {} channel : id = {}", userId, voiceState.channelId(), voiceState.channelId()))
                 .then(Mono.empty());
     }
 
@@ -221,7 +221,7 @@ public class ReplyHandler {
         Event channelAck = Event.of(ResponseOperation.LEAVE_CHANNEL_EVENT, ChannelLeaveResponse.from(channelRequest, userId), null);
         String jsonChannelAck = convertService.convertObjectToJson(channelAck);
         return serverStreamManager.addVoiceMessageToStream(channelRequest.serverId(), jsonChannelAck)
-                .doOnSuccess(_ -> log.info("[{}] leaved the {} channel : id = {}", userId, channelRequest.channelType(), channelRequest.channelId()))
+                .doOnSuccess(ignored -> log.info("[{}] leaved the {} channel : id = {}", userId, channelRequest.channelType(), channelRequest.channelId()))
                 .then(Mono.empty());
     }
 
@@ -253,7 +253,7 @@ public class ReplyHandler {
         Event stateAck = Event.of(ResponseOperation.UPDATE_STATE_EVENT, ChannelResponse.from(voiceState), null);
         String jsonStateAck = convertService.convertObjectToJson(stateAck);
         return serverStreamManager.addVoiceMessageToStream(voiceState.serverId(), jsonStateAck)
-                .doOnSuccess(_ -> log.info("[{}] updated the state : id = {}", userId, stateRequest))
+                .doOnSuccess(ignored -> log.info("[{}] updated the state : id = {}", userId, stateRequest))
                 .then(Mono.empty());
     }
 
