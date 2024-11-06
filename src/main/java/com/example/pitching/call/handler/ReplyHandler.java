@@ -1,22 +1,19 @@
 package com.example.pitching.call.handler;
 
+import com.example.pitching.auth.jwt.JwtTokenProvider;
 import com.example.pitching.call.dto.Subscription;
 import com.example.pitching.call.dto.VoiceState;
 import com.example.pitching.call.dto.properties.ServerProperties;
-import com.example.pitching.call.exception.DuplicateOperationException;
-import com.example.pitching.call.exception.ErrorCode;
-import com.example.pitching.call.exception.InvalidValueException;
+import com.example.pitching.call.exception.*;
 import com.example.pitching.call.operation.Data;
 import com.example.pitching.call.operation.Event;
 import com.example.pitching.call.operation.code.RequestOperation;
 import com.example.pitching.call.operation.code.ResponseOperation;
 import com.example.pitching.call.operation.request.ChannelRequest;
+import com.example.pitching.call.operation.request.InitRequest;
 import com.example.pitching.call.operation.request.ServerRequest;
 import com.example.pitching.call.operation.request.StateRequest;
-import com.example.pitching.call.operation.response.ChannelLeaveResponse;
-import com.example.pitching.call.operation.response.ChannelResponse;
-import com.example.pitching.call.operation.response.EmptyResponse;
-import com.example.pitching.call.operation.response.HelloResponse;
+import com.example.pitching.call.operation.response.*;
 import com.example.pitching.call.server.CallUdpClient;
 import com.example.pitching.call.service.ActiveUserManager;
 import com.example.pitching.call.service.ConvertService;
@@ -25,12 +22,14 @@ import com.example.pitching.call.service.VoiceStateManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.socket.WebSocketSession;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
@@ -39,6 +38,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ReplyHandler {
     private final Map<String, Sinks.Many<String>> userSinkMap = new ConcurrentHashMap<>();
     private final Map<String, Subscription> userSubscription = new ConcurrentHashMap<>();
+    private final JwtTokenProvider jwtTokenProvider;
     private final ServerProperties serverProperties;
     private final ConvertService convertService;
     private final ServerStreamManager serverStreamManager;
@@ -46,29 +46,17 @@ public class ReplyHandler {
     private final ActiveUserManager activeUserManager;
     private final CallUdpClient callUdpClient;
 
-    public Mono<Void> initializeUserSink(String userId) {
-        return Mono.fromRunnable(() -> {
-            Sinks.Many<String> sink = Sinks.many().unicast().onBackpressureBuffer();
-            userSinkMap.put(userId, sink);
-            log.info("Create user sink : {}", userId);
-        });
-    }
-
-    public Flux<String> getMessageFromUserSink(String userId) {
-        return userSinkMap.get(userId).asFlux();
-    }
-
-    public Flux<String> handleMessages(String receivedMessage, String userId) {
+    public Flux<String> handleMessages(String receivedMessage, WebSocketSession session) {
         return convertService.readRequestOperationFromMessage(receivedMessage)
-                .doOnSuccess(requestOperation -> log.info("[{}] Send Message : {} -> RequestOperation : {}", userId, receivedMessage, requestOperation))
                 .flatMapMany(requestOperation -> switch (requestOperation) {
-                    case RequestOperation.INIT -> sendHello();
+                    case RequestOperation.INIT -> sendHello(receivedMessage, session);
                     case RequestOperation.HEARTBEAT -> sendHeartbeatAck();
-                    case RequestOperation.SERVER -> enterServer(receivedMessage, userId);
-                    case RequestOperation.ENTER_CHANNEL -> enterChannel(receivedMessage, userId);
-                    case RequestOperation.LEAVE_CHANNEL -> leaveChannel(receivedMessage, userId);
-                    case RequestOperation.UPDATE_STATE -> updateState(receivedMessage, userId);
-                });
+                    case RequestOperation.SERVER -> enterServer(receivedMessage, getUserIdFromSession(session));
+                    case RequestOperation.ENTER_CHANNEL -> enterChannel(receivedMessage, getUserIdFromSession(session));
+                    case RequestOperation.LEAVE_CHANNEL -> leaveChannel(receivedMessage, getUserIdFromSession(session));
+                    case RequestOperation.UPDATE_STATE -> updateState(receivedMessage, getUserIdFromSession(session));
+                })
+                .doOnNext(requestOperation -> log.info("[{}] Send Message : {}", getUserIdFromSession(session), receivedMessage));
     }
 
     public void cleanupResources(String userId) {
@@ -80,14 +68,52 @@ public class ReplyHandler {
     }
 
     /**
+     * @param receivedMessage
      * @return jsonMessage
-     * 클라이언트가 처음 연결하면 Heartbeat_interval 을 담아서 응답
+     * 클라이언트가 처음 연결하면 토큰으로 인증과정을 거치고 Heartbeat_interval 을 담아서 응답
      */
-    private Flux<String> sendHello() {
+    private Flux<String> sendHello(String receivedMessage, WebSocketSession session) {
+        String token = convertService.readDataFromMessage(receivedMessage, InitRequest.class).token();
         Event hello = Event.of(ResponseOperation.INIT_ACK,
                 HelloResponse.of(serverProperties.getHeartbeatInterval()),
                 null);
-        return Flux.just(convertService.convertObjectToJson(hello));
+        return jwtTokenProvider.validateAndGetUserId(token)
+                .doOnSuccess(userId -> initializeUserSink(userId, session))
+                .thenMany(Flux.just(convertService.convertObjectToJson(hello)));
+    }
+
+    private void initializeUserSink(String userId, WebSocketSession session) {
+        Mono.fromRunnable(() -> {
+                    session.getAttributes().put("userId", userId);
+                    Sinks.Many<String> sink = Sinks.many().unicast().onBackpressureBuffer();
+                    userSinkMap.put(userId, sink);
+                    log.info("Create user sink : {}", userId);
+                })
+                .then(Mono.defer(() -> sendServerEvent(userId, session)))
+                .subscribe();
+    }
+
+    private Mono<Void> sendServerEvent(String userId, WebSocketSession session) {
+        return session.send(
+                getMessageFromUserSink(userId)
+                        .doOnNext(message -> log.info("[{}] Server Message : {}", userId, message))
+                        .onErrorResume(this::handleServerErrors)
+                        .map(session::textMessage)
+        );
+    }
+
+    private Flux<String> getMessageFromUserSink(String userId) {
+        return userSinkMap.get(userId).asFlux();
+    }
+
+    private Flux<String> handleServerErrors(Throwable e) {
+        if (!(e instanceof CommonException ex)) {
+            log.error("Exception occurs in handling send server messages : ", e);
+            return Flux.error(e);
+        }
+        log.error("{} -> ", ex.getErrorCode().name(), ex);
+        Event errorEvent = Event.error(ErrorResponse.from((CommonException) e));
+        return Flux.just(convertService.convertObjectToJson(errorEvent));
     }
 
     /**
@@ -98,7 +124,6 @@ public class ReplyHandler {
         Event heartbeatAck = Event.of(ResponseOperation.HEARTBEAT_ACK, null, null);
         return Flux.just(convertService.convertObjectToJson(heartbeatAck));
     }
-
 
     /**
      * @param receivedMessage
@@ -271,5 +296,11 @@ public class ReplyHandler {
 
     private Mono<String> removeActiveUserFromServer(String userId) {
         return activeUserManager.removeActiveUser(userId);
+    }
+
+    private String getUserIdFromSession(WebSocketSession session) {
+        return Optional.ofNullable(session.getAttributes().get("userId"))
+                .map(Object::toString)
+                .orElseThrow(() -> new UnAuthorizedException(ErrorCode.UNAUTHORIZED_USER, "Anonymous"));
     }
 }
