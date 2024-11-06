@@ -2,10 +2,9 @@ package com.example.pitching.auth.config;
 
 import com.example.pitching.auth.oauth2.handler.OAuth2FailureHandler;
 import com.example.pitching.auth.oauth2.handler.OAuth2SuccessHandler;
-import com.example.pitching.auth.jwt.JwtAuthenticationEntryPoint;
-import com.example.pitching.auth.jwt.JwtTokenProvider;
 import com.example.pitching.auth.userdetails.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -28,6 +27,7 @@ import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 import java.util.Arrays;
 
+@Slf4j
 @Configuration
 @EnableWebFluxSecurity
 @RequiredArgsConstructor

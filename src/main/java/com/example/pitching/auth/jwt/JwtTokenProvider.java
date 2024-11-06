@@ -2,16 +2,19 @@ package com.example.pitching.auth.jwt;
 
 import com.example.pitching.auth.domain.TokenStatus;
 import com.example.pitching.auth.dto.TokenInfo;
+import com.example.pitching.call.exception.ErrorCode;
+import com.example.pitching.call.exception.UnAuthorizedException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
-import io.jsonwebtoken.io.Decoders;
 import org.springframework.web.server.ResponseStatusException;
+import reactor.core.publisher.Mono;
 
 import javax.crypto.SecretKey;
 import java.time.Duration;
@@ -78,6 +81,17 @@ public class JwtTokenProvider {
         } catch (Exception e) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
         }
+    }
+
+    public Mono<String> validateAndGetUserId(String token) {
+        return Mono.fromCallable(() ->
+                        Jwts.parserBuilder()
+                                .setSigningKey(getSecretKey())
+                                .build()
+                                .parseClaimsJws(token)
+                                .getBody()
+                                .getSubject())
+                .onErrorMap(throwable -> new UnAuthorizedException(ErrorCode.UNAUTHORIZED_ACCESS_TOKEN, token));
     }
 
     public TokenStatus validateRefreshToken(String token) {
