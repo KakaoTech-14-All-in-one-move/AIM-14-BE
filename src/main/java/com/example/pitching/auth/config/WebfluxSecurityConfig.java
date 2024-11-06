@@ -7,6 +7,7 @@ import com.example.pitching.auth.oauth2.handler.OAuth2FailureHandler;
 import com.example.pitching.auth.oauth2.handler.OAuth2SuccessHandler;
 import com.example.pitching.auth.jwt.JwtAuthenticationEntryPoint;
 import com.example.pitching.auth.jwt.JwtTokenProvider;
+import com.example.pitching.auth.userdetails.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -42,6 +43,7 @@ public class WebfluxSecurityConfig {
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
     private final OAuth2FailureHandler oAuth2FailureHandler;
+    private final CustomUserDetailsService userDetailsService;
     @Value("${front.url}")
     private String frontURL;
 
@@ -88,10 +90,11 @@ public class WebfluxSecurityConfig {
             String token = authentication.getCredentials().toString();
             return Mono.just(token)
                     .map(jwtTokenProvider::validateAndGetEmail)
-                    .<Authentication>map(username -> new UsernamePasswordAuthenticationToken(
-                            username,
+                    .flatMap(userDetailsService::findByUsername)
+                    .<Authentication>map(userDetails -> new UsernamePasswordAuthenticationToken(
+                            userDetails,
                             null,
-                            Collections.emptyList()
+                            userDetails.getAuthorities()
                     ))
                     .onErrorMap(TokenExpiredException.class,
                             e -> new TokenExpiredException("Token has expired"))
