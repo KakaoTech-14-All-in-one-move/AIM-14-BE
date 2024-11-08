@@ -62,17 +62,24 @@ public class FileStorageService {
      * 파일의 유효성을 검사합니다.
      */
     private Mono<Void> validateFile(FilePart file) {
-        return Mono.just(file)
+        return file.content()
+                .map(dataBuffer -> dataBuffer.readableByteCount())
+                .reduce(0L, Long::sum)  // 모든 청크의 크기를 합산
+                .flatMap(totalSize -> {
+                    if (totalSize > maxFileSize.toBytes()) {
+                        return Mono.error(new IllegalArgumentException(
+                                String.format("File size %d bytes exceeds maximum limit of %d bytes",
+                                        totalSize, maxFileSize.toBytes())
+                        ));
+                    }
+                    return Mono.just(file);
+                })
                 .filter(f -> {
                     String contentType = f.headers().getContentType().toString();
                     return contentType.startsWith("image/");
                 })
                 .switchIfEmpty(Mono.error(
                         new IllegalArgumentException("Only image files are allowed")
-                ))
-                .filter(f -> f.headers().getContentLength() <= maxFileSize.toBytes())
-                .switchIfEmpty(Mono.error(
-                        new IllegalArgumentException("File size exceeds maximum limit of " + maxFileSize.toMegabytes() + "MB")
                 ))
                 .then();
     }

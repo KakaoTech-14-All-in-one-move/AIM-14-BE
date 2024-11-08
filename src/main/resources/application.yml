@@ -58,7 +58,7 @@ front:
 app:
   upload:
     dir: ./uploads
-    max-file-size: 5MB  # FileStorageService에서 사용할 제한 : 5MB
+    max-file-size: 2MB  # FileStorageService에서 사용할 제한 : 2MB
 ---
 # local
 redis:
