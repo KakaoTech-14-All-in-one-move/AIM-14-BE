@@ -44,10 +44,6 @@ spring:
             token-uri: https://kauth.kakao.com/oauth/token
             user-info-uri: https://kapi.kakao.com/v2/user/me
             user-name-attribute: id
-    webflux:
-      multipart:
-        max-file-size: 5MB
-        max-request-size: 5MB
 
 jwt:
   secret: ${JWT_SECRET_KEY}
@@ -62,7 +58,7 @@ front:
 app:
   upload:
     dir: ./uploads
-    max-file-size: 5MB  # FileStorageService에서 사용할 제한
+    max-file-size: 5MB  # FileStorageService에서 사용할 제한 : 5MB
 ---
 # local
 redis:
