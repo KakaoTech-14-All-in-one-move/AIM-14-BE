@@ -57,7 +57,7 @@ public class WebfluxSecurityConfig {
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers("/api/v1/auth/**", "/oauth2/**", "/login/oauth2/code/**").permitAll()
                         .pathMatchers("/api/**").authenticated()
-                        .anyExchange().authenticated()
+                        .anyExchange().permitAll()
                 )
                 .oauth2Login(oauth2 -> oauth2
                         .authenticationSuccessHandler(oAuth2SuccessHandler)
@@ -111,7 +111,9 @@ public class WebfluxSecurityConfig {
             // OAuth2 관련 경로 추가
             if (path.startsWith("/api/v1/auth/") ||
                     path.startsWith("/oauth2/") ||
-                    path.startsWith("/login/oauth2/")) {
+                    path.startsWith("/login/oauth2/") ||
+                    !path.startsWith("/api")
+            ) {
                 return Mono.empty();
             }
 
