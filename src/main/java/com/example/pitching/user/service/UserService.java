@@ -39,7 +39,7 @@ public class UserService {
 
         return Mono.justOrEmpty(user.getProfileImage())
                 // 프로필 이미지가 있으면 삭제, 없으면 그냥 넘어감
-                .flatMap(imageUrl -> fileStorageService.delete(imageUrl))
+                .flatMap(fileStorageService::delete)
                 .then(userRepository.delete(user))
                 .doOnSuccess(__ -> log.info("User successfully withdrawn. Email: {}", user.getEmail()));
     }
@@ -72,7 +72,7 @@ public class UserService {
         String oldImageUrl = user.getProfileImage();
 
         return Mono.just(user)
-                .doOnNext(u -> u.setProfileImage(newImageUrl))
+                .doOnNext(existingUser -> existingUser.setProfileImage(newImageUrl))
                 .flatMap(userRepository::save)
                 .map(User::getProfileImage)
                 .doOnSuccess(__ -> {
