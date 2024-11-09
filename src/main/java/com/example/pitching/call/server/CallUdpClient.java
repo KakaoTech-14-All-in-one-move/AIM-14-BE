@@ -40,19 +40,21 @@ public class CallUdpClient {
 
     public void initializeCallSink(VoiceState voiceState) {
         // Create clientSink
-        Sinks.Many<DatagramPacket> clientSink = clientSinkMap
-                .computeIfAbsent(voiceState.userId(), ignored -> Sinks.many().unicast().onBackpressureBuffer());
-        Disposable disposable = clientSink
-                .asFlux()
-                .flatMap(datagramPacket -> sendPacket(datagramPacket, voiceState.userId()))
-                .subscribe();
-        clientDisposable.put(voiceState.userId(), disposable);
-        // Subscribe channelSink
-        channelSinkMap.computeIfAbsent(voiceState.channelId(), ignored -> Sinks.many().multicast().directBestEffort())
-                .asFlux()
-                .flatMap(packet -> tryEmitIfNotSameSender(voiceState, packet, clientSink))
-                .subscribe();
-        log.info("[{}] initialize call sink for channel: {}", voiceState.userId(), voiceState.channelId());
+        if (!clientSinkMap.containsKey(voiceState.userId())) {
+            Sinks.Many<DatagramPacket> clientSink = clientSinkMap
+                    .computeIfAbsent(voiceState.userId(), ignored -> Sinks.many().unicast().onBackpressureBuffer());
+            Disposable disposable = clientSink
+                    .asFlux()
+                    .flatMap(datagramPacket -> sendPacket(datagramPacket, voiceState.userId()))
+                    .subscribe();
+            clientDisposable.put(voiceState.userId(), disposable);
+            // Subscribe channelSink
+            channelSinkMap.computeIfAbsent(voiceState.channelId(), ignored -> Sinks.many().multicast().directBestEffort())
+                    .asFlux()
+                    .flatMap(packet -> tryEmitIfNotSameSender(voiceState, packet, clientSink))
+                    .subscribe();
+            log.info("[{}] initialize call sink for channel: {}", voiceState.userId(), voiceState.channelId());
+        }
     }
 
     public Mono<Void> handleDatagramPacket(DatagramPacket datagramPacket) {

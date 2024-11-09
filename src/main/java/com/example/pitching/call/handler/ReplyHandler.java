@@ -36,6 +36,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 @RequiredArgsConstructor
 public class ReplyHandler {
+    public static final String TEST_CHANNEL_ID = "5143992e-9dcd-45fe-bcc7-e337417b0cfe";
+    public static final String TEST_SERVER_ID = "12345";
     private final Map<String, Sinks.Many<String>> userSinkMap = new ConcurrentHashMap<>();
     private final Map<String, Subscription> userSubscription = new ConcurrentHashMap<>();
     private final JwtTokenProvider jwtTokenProvider;
@@ -45,6 +47,7 @@ public class ReplyHandler {
     private final VoiceStateManager voiceStateManager;
     private final ActiveUserManager activeUserManager;
     private final CallUdpClient callUdpClient;
+    private int i = 0;
 
     public Flux<String> handleMessages(String receivedMessage, WebSocketSession session) {
         return convertService.readRequestOperationFromMessage(receivedMessage)
@@ -60,7 +63,7 @@ public class ReplyHandler {
     }
 
     public void cleanupResources(String userId) {
-        disposeSubscription(userId);
+        disposeSubscriptionIfPresent(userId);
         removeUserSink(userId);
         removeActiveUserFromServer(userId)
                 .flatMap(serverId -> voiceStateManager.removeVoiceState(serverId, userId))
@@ -144,7 +147,7 @@ public class ReplyHandler {
 
     // TODO: DB 연결되면 로직 추가
     private Mono<Boolean> isValidServerId(String serverId) {
-        return Mono.just(true);
+        return TEST_SERVER_ID.equals(serverId) ? Mono.just(true) : Mono.error(new InvalidValueException(ErrorCode.INVALID_SERVER_ID, serverId));
     }
 
     private Mono<Boolean> addActiveUser(String userId, String serverId) {
@@ -154,7 +157,7 @@ public class ReplyHandler {
     }
 
     private void subscribeServerSink(String serverId, String userId) {
-        disposeSubscription(userId);
+        disposeSubscriptionIfPresent(userId);
         Sinks.Many<String> userSink = userSinkMap.get(userId);
         Disposable disposable = serverStreamManager.getMessageFromServerSink(serverId)
                 .doOnNext(userSink::tryEmitNext)
@@ -186,7 +189,7 @@ public class ReplyHandler {
     private Flux<String> enterChannel(String receivedMessage, String userId) {
         ChannelRequest channelRequest = convertService.readDataFromMessage(receivedMessage, ChannelRequest.class);
         // TODO: userId로 username + Image Url 조회 (DB)
-        String username = "name";
+        String username = "neo.lee" + ++i;
 
         String jsonVoiceState = convertService.convertObjectToJson(VoiceState.from(channelRequest, userId, username));
         return isValidChannelId(channelRequest.serverId(), channelRequest.channelId())
@@ -209,7 +212,7 @@ public class ReplyHandler {
         Event channelAck = Event.of(ResponseOperation.ENTER_CHANNEL_EVENT, ChannelResponse.from(voiceState), null);
         String jsonChannelAck = convertService.convertObjectToJson(channelAck);
         return serverStreamManager.addVoiceMessageToStream(voiceState.serverId(), jsonChannelAck)
-                .doOnSuccess(ignored -> log.info("[{}] entered the {} channel : id = {}", userId, voiceState.channelId(), voiceState.channelId()))
+                .doOnSuccess(ignored -> log.info("[{}] entered the channel : id = {}", userId, voiceState.channelId()))
                 .then(Mono.empty());
     }
 
@@ -233,7 +236,7 @@ public class ReplyHandler {
 
     // TODO: DB 연결되면 로직 추가
     private Mono<Boolean> isValidChannelId(String ServerId, String channelId) {
-        return Mono.just(true);
+        return TEST_CHANNEL_ID.equals(channelId) ? Mono.just(true) : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, channelId));
     }
 
     private Mono<Long> deleteVoiceStateIfPresent(String userId, ChannelRequest channelRequest) {
@@ -282,7 +285,7 @@ public class ReplyHandler {
                 .then(Mono.empty());
     }
 
-    private void disposeSubscription(String userId) {
+    private void disposeSubscriptionIfPresent(String userId) {
         userSubscription.computeIfPresent(userId, (key, subscription) -> {
             subscription.disposable().dispose();
             log.info("Dispose Subscription : {}", userId);
