@@ -25,6 +25,10 @@ public class User {
     private String password;
     private String role;
 
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
     public void setProfileImage(String profileImage) {
         this.profileImage = profileImage;
     }
