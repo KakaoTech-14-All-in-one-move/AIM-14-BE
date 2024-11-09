@@ -50,6 +50,6 @@ public class UserController {
     public Mono<ResponseEntity<Void>> withdrawUser(
             @AuthenticationPrincipal UserDetails userDetails) {
         return userService.withdrawUser(userDetails.getUsername())
-                .then(Mono.just(ResponseEntity.ok(null)));
+                .then(Mono.just(ResponseEntity.noContent().build()));
     }
 }
