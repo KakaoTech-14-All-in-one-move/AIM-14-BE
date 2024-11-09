@@ -54,6 +54,11 @@ jwt:
 
 front:
   url: ${FRONT_URL}
+
+app:
+  upload:
+    dir: ./uploads
+    max-file-size: 2MB
 ---
 # local
 redis:
