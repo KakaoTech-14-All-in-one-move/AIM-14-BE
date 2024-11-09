@@ -22,6 +22,11 @@ public class UserService {
                 .flatMap(user -> updateUserProfileImage(user, file));
     }
 
+    public Mono<String> updateUsername(String email, String newUsername) {
+        return findUser(email)
+                .flatMap(user -> updateUserUsername(user, newUsername));
+    }
+
     private Mono<User> findUser(String email) {
         return userRepository.findByEmail(email)
                 .switchIfEmpty(Mono.error(
@@ -29,6 +34,17 @@ public class UserService {
                         // new ResourceNotFoundException("User not found with email: " + email)
                         new Error("User not found with email: " + email)
                 ));
+    }
+
+    private Mono<String> updateUserUsername(User user, String newUsername) {
+        return Mono.just(user)
+                .map(u -> {
+                    u.setUsername(newUsername);
+                    return u;
+                })
+                .flatMap(userRepository::save)
+                .map(User::getUsername)
+                .doOnSuccess(__ -> log.info("Updated username for user: {}", user.getEmail()));
     }
 
     private Mono<String> updateUserProfileImage(User user, FilePart file) {
