@@ -159,8 +159,9 @@ public class ReplyHandler {
     }
 
     private void subscribeServerSink(String serverId, String userId) {
+        // React 에서 거의 동시에 두 번 요청을 보내는 경우를 방지하기 위해 추가
         if (!activeUserManager.isSubscriptionRequired(userId)) {
-            log.info("Subscription is not required : {}", userId);
+            log.debug("Subscription is not required : {}", userId);
             return;
         }
         disposeSubscriptionIfPresent(userId);

@@ -4,7 +4,6 @@ import com.example.pitching.call.config.RedisConfig;
 import io.lettuce.core.XAddArgs;
 import io.lettuce.core.api.reactive.RedisReactiveCommands;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.connection.ReactiveRedisConnectionFactory;
@@ -54,35 +53,27 @@ public class ServerStreamManager {
     }
 
     public Flux<String> getMessageFromServerSink(String serverId) {
-        return serverSinkMap.computeIfAbsent(serverId, key -> {
-            log.warn("Creating new sink for serverId: {}", key);
-            registerServerStream(key);
-            return serverSinkMap.get(key);
-        }).asFlux();
-    }
-
-    @EventListener(ApplicationReadyEvent.class)
-    private void initialize() {
-        // TODO: 모든 serverId를 조회하여 해당 serverId에 대한 Sink 생성 후 Stream 구독 (반복문)
-        String serverId = "12345";
-        registerServerStream(serverId);
-    }
-
-    @EventListener(ContextClosedEvent.class)
-    private void onShutdown() {
-        log.info("Clean up server stream resources...");
-        serverStream.forEach((serverId, disposable) -> {
-            if (disposable != null && !disposable.isDisposed()) {
-                disposable.dispose();
-                log.info("Unregister server stream: {}", serverId);
+        return Flux.defer(() -> {
+            synchronized (this) {
+                Sinks.Many<String> sink = serverSinkMap.get(serverId);
+                if (sink == null || sink.currentSubscriberCount() == 0) {
+                    registerServerStream(serverId);
+                    sink = serverSinkMap.get(serverId);
+                }
+                return sink.asFlux();
             }
         });
-        log.info("Clean up server stream resources... Done");
     }
 
     private void registerServerStream(String serverId) {
-        Sinks.Many<String> sink = Sinks.many().multicast().directAllOrNothing(); // 현재 구독자가 없어도 complete 되지 않는다
+        // 1. onBackpressureBuffer 로 설정했더니 구독자가 모두 없어지면 스트림이 complete 됨
+        // 2. directAllOrNothing 으로 설정했더니 구독자가 놓치는 경우가 생김
+        // 3. 다시 onBackpressureBuffer로 설정하고, complete 되면 다시 생성하도록 함
+
+        cleanupExistingResources(serverId);
+        Sinks.Many<String> sink = Sinks.many().multicast().onBackpressureBuffer();
         serverSinkMap.put(serverId, sink);
+
         var streamOffsetForVoice = StreamOffset.create(getServerStreamRedisKey(serverId), ReadOffset.latest());
         Disposable subscription = streamReceiver.receive(streamOffsetForVoice)
                 .subscribe(record -> {
@@ -92,6 +83,17 @@ public class ServerStreamManager {
                 });
         serverStream.put(serverId, subscription);
         log.info("Register server stream: {}", serverId);
+    }
+
+    private void cleanupExistingResources(String serverId) {
+        Disposable oldSubscription = serverStream.remove(serverId);
+        if (oldSubscription != null) {
+            oldSubscription.dispose();
+        }
+        Sinks.Many<String> oldSink = serverSinkMap.remove(serverId);
+        if (oldSink != null) {
+            oldSink.tryEmitComplete();
+        }
     }
 
     private void addSequenceBeforeEmit(String serverId, String sequence, String jsonMessage) {
@@ -106,5 +108,17 @@ public class ServerStreamManager {
 
     private String getServerStreamRedisKey(String serverId) {
         return String.format("server:%s:events", serverId);
+    }
+
+    @EventListener(ContextClosedEvent.class)
+    private void onShutdown() {
+        log.info("Clean up server stream resources...");
+        serverStream.forEach((serverId, disposable) -> {
+            if (disposable != null && !disposable.isDisposed()) {
+                disposable.dispose();
+                log.info("Unregister server stream: {}", serverId);
+            }
+        });
+        log.info("Clean up server stream resources... Done");
     }
 }
