@@ -38,10 +38,7 @@ public class UserService {
 
     private Mono<String> updateUserUsername(User user, String newUsername) {
         return Mono.just(user)
-                .map(u -> {
-                    u.setUsername(newUsername);
-                    return u;
-                })
+                .doOnNext(existingUser -> existingUser.setUsername(newUsername))
                 .flatMap(userRepository::save)
                 .map(User::getUsername)
                 .doOnSuccess(__ -> log.info("Updated username for user: {}", user.getEmail()));
