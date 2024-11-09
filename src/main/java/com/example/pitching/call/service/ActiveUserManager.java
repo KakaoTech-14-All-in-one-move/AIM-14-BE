@@ -24,9 +24,9 @@ public class ActiveUserManager {
     public Mono<Boolean> addActiveUser(String userId, String serverId) {
         return isActiveUser(userId)
                 .flatMap(isActive -> {
-                    if (!isActive) return valueOperations.setIfAbsent(getActiveUserRedisKey(userId), serverId);
+                    if (!isActive) return valueOperations.set(getActiveUserRedisKey(userId), serverId);
                     return valueOperations.getAndSet(getActiveUserRedisKey(userId), serverId)
-                            .flatMap(pastServerId -> validateServerDestination(serverId, pastServerId));
+                            .map(pastServerId -> validateServerDestination(serverId, pastServerId));
                 });
     }
 
@@ -42,9 +42,8 @@ public class ActiveUserManager {
                 .switchIfEmpty(Mono.error(new WrongAccessException(ErrorCode.WRONG_ACCESS_INACTIVE_SERVER, serverId)));
     }
 
-    private Mono<Boolean> validateServerDestination(String serverId, String pastServerId) {
-        if (!Objects.equals(pastServerId, serverId)) return Mono.just(true);
-        return Mono.error(new DuplicateOperationException(ErrorCode.DUPLICATE_SERVER_DESTINATION, serverId));
+    private Boolean validateServerDestination(String serverId, String pastServerId) {
+        return !Objects.equals(pastServerId, serverId);
     }
 
     private Mono<Boolean> isActiveUser(String userId) {

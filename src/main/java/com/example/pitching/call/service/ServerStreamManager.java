@@ -96,7 +96,7 @@ public class ServerStreamManager {
                 .subscribe(serverEvent -> {
                     Sinks.Many<String> serverSink = serverSinkMap.get(serverId);
                     serverSink.tryEmitNext(convertService.convertObjectToJson(serverEvent));
-                    log.info("ServerEvent emitted to ServerSink: {}", jsonMessage);
+                    log.info("ServerEvent emitted to {}: {}", serverId, jsonMessage);
                 });
     }
 
