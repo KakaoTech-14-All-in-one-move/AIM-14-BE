@@ -1,6 +1,5 @@
 package com.example.pitching.call.service;
 
-import com.example.pitching.call.exception.DuplicateOperationException;
 import com.example.pitching.call.exception.ErrorCode;
 import com.example.pitching.call.exception.WrongAccessException;
 import lombok.extern.slf4j.Slf4j;
@@ -9,29 +8,46 @@ import org.springframework.data.redis.core.ReactiveValueOperations;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
 public class ActiveUserManager {
     private final ReactiveValueOperations<String, String> valueOperations;
+    private final Map<String, Boolean> isSubscriptionRequired = new ConcurrentHashMap<>();
 
     public ActiveUserManager(ReactiveStringRedisTemplate redisTemplate) {
         this.valueOperations = redisTemplate.opsForValue();
     }
 
+    public void setSubscriptionRequired(String userId, boolean isRequired) {
+        isSubscriptionRequired.put(userId, isRequired);
+    }
+
+    public boolean isSubscriptionRequired(String userId) {
+        return isSubscriptionRequired.getOrDefault(userId, true);
+    }
+
     // 서버 입장
-    public Mono<Boolean> addActiveUser(String userId, String serverId) {
+    public Mono<Boolean> addUserActiveToRedisIfServerIdChanged(String userId, String serverId) {
         return isActiveUser(userId)
                 .flatMap(isActive -> {
-                    if (!isActive) return valueOperations.set(getActiveUserRedisKey(userId), serverId);
+                    if (!isActive) return valueOperations.setIfAbsent(getActiveUserRedisKey(userId), serverId);
                     return valueOperations.getAndSet(getActiveUserRedisKey(userId), serverId)
-                            .map(pastServerId -> validateServerDestination(serverId, pastServerId));
+                            .map(pastServerId -> validateServerDestination(serverId, pastServerId))
+                            .doOnSuccess(isChanged -> {
+                                if (isChanged) {
+                                    log.info("ALREADY ACTIVE BUT NOT SAME SERVER ID");
+                                    setSubscriptionRequired(userId, true);
+                                }
+                            });
                 });
     }
 
     // 로그아웃
-    public Mono<String> removeActiveUser(String userId) {
+    public Mono<String> removeUserActiveFromRedis(String userId) {
         return valueOperations.getAndDelete(getActiveUserRedisKey(userId));
     }
 

@@ -63,6 +63,7 @@ public class ReplyHandler {
     }
 
     public void cleanupResources(String userId) {
+        log.info("Clean up Resources in ReplyHandler");
         disposeSubscriptionIfPresent(userId);
         removeUserSink(userId);
         removeActiveUserFromServer(userId)
@@ -86,14 +87,15 @@ public class ReplyHandler {
     }
 
     private void initializeUserSink(String userId, WebSocketSession session) {
-        Mono.fromRunnable(() -> {
-                    session.getAttributes().put("userId", userId);
-                    Sinks.Many<String> sink = Sinks.many().unicast().onBackpressureBuffer();
-                    userSinkMap.put(userId, sink);
-                    log.info("Create user sink : {}", userId);
-                })
-                .then(Mono.defer(() -> sendServerEvent(userId, session)))
-                .subscribe();
+        session.getAttributes().put("userId", userId);
+        if (userSinkMap.containsKey(userId)) return;
+        userSinkMap.computeIfAbsent(userId, key -> {
+            Sinks.Many<String> sink = Sinks.many().unicast().onBackpressureBuffer();
+            activeUserManager.setSubscriptionRequired(userId, true);
+            log.info("Create user sink : {}", userId);
+            return sink;
+        });
+        Mono.defer(() -> sendServerEvent(userId, session)).subscribe();
     }
 
     private Mono<Void> sendServerEvent(String userId, WebSocketSession session) {
@@ -151,19 +153,24 @@ public class ReplyHandler {
     }
 
     private Mono<Boolean> addActiveUser(String userId, String serverId) {
-        return activeUserManager.addActiveUser(userId, serverId)
+        return activeUserManager.addUserActiveToRedisIfServerIdChanged(userId, serverId)
                 .filter(Boolean.TRUE::equals)
                 .doOnSuccess(ignored -> subscribeServerSink(serverId, userId));
     }
 
     private void subscribeServerSink(String serverId, String userId) {
+        if (!activeUserManager.isSubscriptionRequired(userId)) {
+            log.info("Subscription is not required : {}", userId);
+            return;
+        }
         disposeSubscriptionIfPresent(userId);
         Sinks.Many<String> userSink = userSinkMap.get(userId);
         Disposable disposable = serverStreamManager.getMessageFromServerSink(serverId)
                 .doOnNext(userSink::tryEmitNext)
-                .subscribe();
+                .subscribe(serverEvent -> log.info("ServerEvent emitted to {}: {}", userId, serverEvent));
         userSubscription.put(userId, Subscription.of(serverId, disposable));
         log.info("[{}] subscribes server sink : {}", userId, serverId);
+        activeUserManager.setSubscriptionRequired(userId, false);
     }
 
     private Flux<String> createServerAck(String serverId) {
@@ -212,7 +219,7 @@ public class ReplyHandler {
         Event channelAck = Event.of(ResponseOperation.ENTER_CHANNEL_EVENT, ChannelResponse.from(voiceState), null);
         String jsonChannelAck = convertService.convertObjectToJson(channelAck);
         return serverStreamManager.addVoiceMessageToStream(voiceState.serverId(), jsonChannelAck)
-                .doOnSuccess(ignored -> log.info("[{}] entered the channel : id = {}", userId, voiceState.channelId()))
+                .doOnSuccess(ignored -> log.info("[{}] entered the {} channel : id = {}", userId, voiceState.channelType(), voiceState.channelId()))
                 .then(Mono.empty());
     }
 
@@ -298,7 +305,7 @@ public class ReplyHandler {
     }
 
     private Mono<String> removeActiveUserFromServer(String userId) {
-        return activeUserManager.removeActiveUser(userId);
+        return activeUserManager.removeUserActiveFromRedis(userId);
     }
 
     private String getUserIdFromSession(WebSocketSession session) {

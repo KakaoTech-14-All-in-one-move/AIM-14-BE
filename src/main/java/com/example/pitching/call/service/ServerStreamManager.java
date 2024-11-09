@@ -54,7 +54,11 @@ public class ServerStreamManager {
     }
 
     public Flux<String> getMessageFromServerSink(String serverId) {
-        return serverSinkMap.get(serverId).asFlux();
+        return serverSinkMap.computeIfAbsent(serverId, key -> {
+            log.warn("Creating new sink for serverId: {}", key);
+            registerServerStream(key);
+            return serverSinkMap.get(key);
+        }).asFlux();
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -77,7 +81,7 @@ public class ServerStreamManager {
     }
 
     private void registerServerStream(String serverId) {
-        Sinks.Many<String> sink = Sinks.many().multicast().onBackpressureBuffer();
+        Sinks.Many<String> sink = Sinks.many().multicast().directAllOrNothing(); // 현재 구독자가 없어도 complete 되지 않는다
         serverSinkMap.put(serverId, sink);
         var streamOffsetForVoice = StreamOffset.create(getServerStreamRedisKey(serverId), ReadOffset.latest());
         Disposable subscription = streamReceiver.receive(streamOffsetForVoice)
