@@ -68,22 +68,6 @@ public class UserService {
                 .doOnSuccess(__ -> log.info("Updated username for user: {}", user.getEmail()));
     }
 
-    private Mono<String> updateUserProfileImage(User user, FilePart file) {
-        return storeNewImage(file)
-                .flatMap(newImageUrl -> updateUserAndHandleOldImage(user, newImageUrl));
-    }
-
-    private Mono<String> updateUserImage(User user, String newImageUrl) {
-        return Mono.just(user)
-                .map(u -> {
-                    u.setProfileImage(newImageUrl);
-                    return u;
-                })
-                .flatMap(userRepository::save)
-                .map(User::getProfileImage)
-                .doOnSuccess(__ -> log.info("Updated profile image for user: {}", user.getEmail()));
-    }
-
     private Mono<String> updateUserAndHandleOldImage(User user, String newImageUrl) {
         String oldImageUrl = user.getProfileImage();
 
