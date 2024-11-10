@@ -41,12 +41,7 @@ class CustomUserDetailsServiceTest {
     @DisplayName("이메일로 UserDetails를 정상적으로 조회할 수 있다")
     void findByEmail() {
         // given
-        User user = User.builder()
-                .email(TEST_EMAIL)
-                .username(TEST_USERNAME)
-                .password(TEST_PASSWORD)
-                .role("USER")
-                .build();
+        User user = User.createNewUser(TEST_EMAIL, TEST_USERNAME, null, TEST_PASSWORD);
 
         when(userRepository.findByEmail(TEST_EMAIL))
                 .thenReturn(Mono.just(user));
@@ -88,12 +83,8 @@ class CustomUserDetailsServiceTest {
     @DisplayName("CustomUserDetails가 User 정보를 올바르게 변환한다")
     void customUserDetailsConversion() {
         // given
-        User user = User.builder()
-                .email(TEST_EMAIL)
-                .username(TEST_USERNAME)
-                .password(TEST_PASSWORD)
-                .role("USER")
-                .build();
+        User user = User.createNewUser(TEST_EMAIL, TEST_USERNAME, null, TEST_PASSWORD);
+
 
         when(userRepository.findByEmail(TEST_EMAIL))
                 .thenReturn(Mono.just(user));
@@ -119,12 +110,7 @@ class CustomUserDetailsServiceTest {
     @DisplayName("리액티브 스트림을 사용한 UserDetails 조회 테스트")
     void reactiveUserDetailsRetrieval() {
         // given
-        User user = User.builder()
-                .email(TEST_EMAIL)
-                .username(TEST_USERNAME)
-                .password(TEST_PASSWORD)
-                .role("USER")
-                .build();
+        User user = User.createNewUser(TEST_EMAIL, TEST_USERNAME, null, TEST_PASSWORD);
 
         when(userRepository.findByEmail(TEST_EMAIL))
                 .thenReturn(Mono.just(user));
