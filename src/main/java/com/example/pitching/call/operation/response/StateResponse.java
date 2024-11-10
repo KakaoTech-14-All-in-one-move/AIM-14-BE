@@ -5,7 +5,7 @@ import com.example.pitching.call.dto.VoiceState;
 import com.example.pitching.call.operation.Data;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public record ChannelResponse(
+public record StateResponse(
         @JsonProperty("user_id")
         String userId,
         @JsonProperty("username")
@@ -27,8 +27,8 @@ public record ChannelResponse(
         @JsonProperty("screen_sharing")
         boolean isScreenSharing
 ) implements Data {
-    public static ChannelResponse from(VoiceState voiceState) {
-        return new ChannelResponse(
+    public static StateResponse from(VoiceState voiceState) {
+        return new StateResponse(
                 voiceState.userId(),
                 voiceState.username(),
                 voiceState.serverId(),

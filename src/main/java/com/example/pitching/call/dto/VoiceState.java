@@ -1,5 +1,6 @@
 package com.example.pitching.call.dto;
 
+import com.example.pitching.auth.domain.User;
 import com.example.pitching.call.operation.request.ChannelRequest;
 import com.example.pitching.call.operation.request.StateRequest;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -26,10 +27,10 @@ public record VoiceState(
         @JsonProperty("screen_sharing")
         boolean isScreenSharing
 ) {
-    public static VoiceState from(ChannelRequest channelRequest, String userId, String username) {
+    public static VoiceState from(ChannelRequest channelRequest, User user) {
         return new VoiceState(
-                userId,
-                username,
+                user.getEmail(),
+                user.getUsername(),
                 channelRequest.serverId(),
                 channelRequest.channelId(),
                 channelRequest.channelType(),

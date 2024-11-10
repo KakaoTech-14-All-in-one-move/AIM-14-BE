@@ -7,7 +7,7 @@ import lombok.Getter;
 public enum ResponseOperation implements Operation {
     ERROR(-1, "Send message when error occurs."),
     INIT_ACK(10, "Sent immediately after connecting, contains the heartbeat_interval to use."),
-//    HEARTBEAT(11, "Fired periodically by the client to keep the connection alive."),
+    //    HEARTBEAT(11, "Fired periodically by the client to keep the connection alive."),
     HEARTBEAT_ACK(11, "Sent in response to receiving a heartbeat to acknowledge that it has been received."),
     SERVER_ACK(12, "Send current state of the server."),
     ENTER_CHANNEL_EVENT(13, "Success to enter voice/video channel."),

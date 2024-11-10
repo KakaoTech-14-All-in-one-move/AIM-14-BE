@@ -1,6 +1,6 @@
 package com.example.pitching.call.server;
 
-import com.example.pitching.call.dto.VoiceState;
+import com.example.pitching.call.operation.response.ChannelEnterResponse;
 import com.example.pitching.call.service.UdpAddressManager;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelOption;
@@ -38,22 +38,22 @@ public class CallUdpClient {
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000);
     }
 
-    public void initializeCallSink(VoiceState voiceState) {
+    public void initializeCallSink(ChannelEnterResponse channelEnterResponse) {
         // Create clientSink
-        if (!clientSinkMap.containsKey(voiceState.userId())) {
+        if (!clientSinkMap.containsKey(channelEnterResponse.userId())) {
             Sinks.Many<DatagramPacket> clientSink = clientSinkMap
-                    .computeIfAbsent(voiceState.userId(), ignored -> Sinks.many().unicast().onBackpressureBuffer());
+                    .computeIfAbsent(channelEnterResponse.userId(), ignored -> Sinks.many().unicast().onBackpressureBuffer());
             Disposable disposable = clientSink
                     .asFlux()
-                    .flatMap(datagramPacket -> sendPacket(datagramPacket, voiceState.userId()))
+                    .flatMap(datagramPacket -> sendPacket(datagramPacket, channelEnterResponse.userId()))
                     .subscribe();
-            clientDisposable.put(voiceState.userId(), disposable);
+            clientDisposable.put(channelEnterResponse.userId(), disposable);
             // Subscribe channelSink
-            channelSinkMap.computeIfAbsent(voiceState.channelId(), ignored -> Sinks.many().multicast().directBestEffort())
+            channelSinkMap.computeIfAbsent(channelEnterResponse.channelId(), ignored -> Sinks.many().multicast().directBestEffort())
                     .asFlux()
-                    .flatMap(packet -> tryEmitIfNotSameSender(voiceState, packet, clientSink))
+                    .flatMap(packet -> tryEmitIfNotSameSender(channelEnterResponse, packet, clientSink))
                     .subscribe();
-            log.info("[{}] initialize call sink for channel: {}", voiceState.userId(), voiceState.channelId());
+            log.info("[{}] initialize call sink for channel: {}", channelEnterResponse.userId(), channelEnterResponse.channelId());
         }
     }
 
@@ -75,8 +75,8 @@ public class CallUdpClient {
         return udpAddressManager.removeUdpAddress(userId);
     }
 
-    private Mono<Boolean> tryEmitIfNotSameSender(VoiceState voiceState, DatagramPacket packet, Sinks.Many<DatagramPacket> clientSink) {
-        return udpAddressManager.isSameSender(voiceState.userId(), packet.sender())
+    private Mono<Boolean> tryEmitIfNotSameSender(ChannelEnterResponse channelEnterResponse, DatagramPacket packet, Sinks.Many<DatagramPacket> clientSink) {
+        return udpAddressManager.isSameSender(channelEnterResponse.userId(), packet.sender())
                 .filter(Boolean.FALSE::equals)
                 .doOnNext(ignored -> clientSink.tryEmitNext(packet));
     }

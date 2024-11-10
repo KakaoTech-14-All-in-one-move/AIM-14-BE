@@ -1,6 +1,8 @@
 package com.example.pitching.call.handler;
 
+import com.example.pitching.auth.domain.User;
 import com.example.pitching.auth.jwt.JwtTokenProvider;
+import com.example.pitching.auth.repository.UserRepository;
 import com.example.pitching.call.dto.Subscription;
 import com.example.pitching.call.dto.VoiceState;
 import com.example.pitching.call.dto.properties.ServerProperties;
@@ -27,6 +29,7 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
+import reactor.util.function.Tuple2;
 
 import java.util.Map;
 import java.util.Optional;
@@ -47,6 +50,7 @@ public class ReplyHandler {
     private final VoiceStateManager voiceStateManager;
     private final ActiveUserManager activeUserManager;
     private final CallUdpClient callUdpClient;
+    private final UserRepository userRepository;
     private int i = 0;
 
     public Flux<String> handleMessages(String receivedMessage, WebSocketSession session) {
@@ -176,7 +180,7 @@ public class ReplyHandler {
 
     private Flux<String> createServerAck(String serverId) {
         return voiceStateManager.getAllVoiceState(serverId)
-                .map(mapEntry -> ChannelResponse.from(convertService.convertJsonToObject(mapEntry.getValue(), VoiceState.class)))
+                .map(mapEntry -> StateResponse.from(convertService.convertJsonToObject(mapEntry.getValue(), VoiceState.class)))
                 .flatMap(this::createServerAckEvent)
                 .switchIfEmpty(createServerAckEvent(EmptyResponse.of()));
     }
@@ -196,31 +200,37 @@ public class ReplyHandler {
      */
     private Flux<String> enterChannel(String receivedMessage, String userId) {
         ChannelRequest channelRequest = convertService.readDataFromMessage(receivedMessage, ChannelRequest.class);
-        // TODO: userId로 username + Image Url 조회 (DB)
-        String username = "neo.lee" + ++i;
 
-        String jsonVoiceState = convertService.convertObjectToJson(VoiceState.from(channelRequest, userId, username));
         return isValidChannelId(channelRequest.serverId(), channelRequest.channelId())
                 .flatMap(isValid -> isValid ?
                         Mono.empty() : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, channelRequest.channelId())))
                 .then(activeUserManager.isCorrectAccess(userId, channelRequest.serverId()))
-                .then(updateChannelAndGetVoiceState(userId, channelRequest, jsonVoiceState))
-                .doOnSuccess(callUdpClient::initializeCallSink)
-                .flatMapMany(voiceState -> putChannelEnterToStream(userId, voiceState));
-    }
-
-    private Mono<VoiceState> updateChannelAndGetVoiceState(String userId, ChannelRequest channelRequest, String jsonVoiceState) {
-        return voiceStateManager.addIfAbsentOrChangeChannel(channelRequest, userId, jsonVoiceState)
                 .then(callUdpClient.removeUdpAddressFromRedis(userId))
-                .then(voiceStateManager.getVoiceState(channelRequest.serverId(), userId))
-                .flatMap(convertService::convertJsonToVoiceState);
+                .then(userRepository.findByEmail(userId))
+                .flatMap(user -> createUserAndVoiceStateTuple(userId, user, channelRequest))
+                .map(tuple -> ChannelEnterResponse.from(tuple.getT2(), tuple.getT1().getProfileImage()))
+                .doOnSuccess(callUdpClient::initializeCallSink)
+                .flatMapMany(this::putChannelEnterToStream);
     }
 
-    private Mono<String> putChannelEnterToStream(String userId, VoiceState voiceState) {
-        Event channelAck = Event.of(ResponseOperation.ENTER_CHANNEL_EVENT, ChannelResponse.from(voiceState), null);
+    private Mono<Tuple2<User, VoiceState>> createUserAndVoiceStateTuple(String userId, User user, ChannelRequest channelRequest) {
+        return Mono.zip(
+                Mono.just(user),
+                Mono.just(VoiceState.from(channelRequest, user))
+                        .flatMap(voiceState -> addOrChangeVoiceState(userId, channelRequest, voiceState)));
+    }
+
+    private Mono<VoiceState> addOrChangeVoiceState(String userId, ChannelRequest channelRequest, VoiceState voiceState) {
+        return voiceStateManager.addIfAbsentOrChangeChannel(channelRequest, userId, convertService.convertObjectToJson(voiceState))
+                .thenReturn(voiceState);
+    }
+
+    private Mono<String> putChannelEnterToStream(ChannelEnterResponse channelEnterResponse) {
+        Event channelAck = Event.of(ResponseOperation.ENTER_CHANNEL_EVENT, channelEnterResponse, null);
         String jsonChannelAck = convertService.convertObjectToJson(channelAck);
-        return serverStreamManager.addVoiceMessageToStream(voiceState.serverId(), jsonChannelAck)
-                .doOnSuccess(ignored -> log.info("[{}] entered the {} channel : id = {}", userId, voiceState.channelType(), voiceState.channelId()))
+        return serverStreamManager.addVoiceMessageToStream(channelEnterResponse.serverId(), jsonChannelAck)
+                .doOnSuccess(ignored -> log.info("[{}] entered the {} channel : id = {}",
+                        channelEnterResponse.userId(), channelEnterResponse.channelType(), channelEnterResponse.channelId()))
                 .then(Mono.empty());
     }
 
@@ -286,7 +296,7 @@ public class ReplyHandler {
     }
 
     private Mono<String> putUpdateStateToStream(String userId, VoiceState voiceState, StateRequest stateRequest) {
-        Event stateAck = Event.of(ResponseOperation.UPDATE_STATE_EVENT, ChannelResponse.from(voiceState), null);
+        Event stateAck = Event.of(ResponseOperation.UPDATE_STATE_EVENT, StateResponse.from(voiceState), null);
         String jsonStateAck = convertService.convertObjectToJson(stateAck);
         return serverStreamManager.addVoiceMessageToStream(voiceState.serverId(), jsonStateAck)
                 .doOnSuccess(ignored -> log.info("[{}] updated the state : id = {}", userId, stateRequest))
