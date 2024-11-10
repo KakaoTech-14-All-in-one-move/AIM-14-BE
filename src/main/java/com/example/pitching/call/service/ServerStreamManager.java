@@ -16,6 +16,7 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
+import reactor.core.scheduler.Schedulers;
 
 import java.time.Duration;
 import java.util.Map;
@@ -74,7 +75,7 @@ public class ServerStreamManager {
         Sinks.Many<String> sink = Sinks.many().multicast().onBackpressureBuffer();
         serverSinkMap.put(serverId, sink);
 
-        var streamOffsetForVoice = StreamOffset.create(getServerStreamRedisKey(serverId), ReadOffset.latest());
+        var streamOffsetForVoice = StreamOffset.create(getServerStreamRedisKey(serverId), ReadOffset.lastConsumed());
         Disposable subscription = streamReceiver.receive(streamOffsetForVoice)
                 .subscribe(record -> {
                     String sequence = record.getId().getValue();
