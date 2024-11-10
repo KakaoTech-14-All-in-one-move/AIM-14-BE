@@ -147,6 +147,7 @@ public class ReplyHandler {
         return isValidServerId(serverId)
                 .filter(Boolean.TRUE::equals)
                 .then(addActiveUser(userId, serverId))
+                .then(userRepository.findByEmail(userId))
                 .thenMany(createServerAck(serverId))
                 .switchIfEmpty(Flux.error(new InvalidValueException(ErrorCode.INVALID_SERVER_ID, serverId)));
     }
@@ -180,9 +181,15 @@ public class ReplyHandler {
 
     private Flux<String> createServerAck(String serverId) {
         return voiceStateManager.getAllVoiceState(serverId)
-                .map(mapEntry -> StateResponse.from(convertService.convertJsonToObject(mapEntry.getValue(), VoiceState.class)))
-                .flatMap(this::createServerAckEvent)
+                .flatMap(this::createDataWithProfileImage)
                 .switchIfEmpty(createServerAckEvent(EmptyResponse.of()));
+    }
+
+    private Flux<String> createDataWithProfileImage(Map.Entry<String, String> mapEntry) {
+        VoiceState voiceState = convertService.convertJsonToObject(mapEntry.getValue(), VoiceState.class);
+        return userRepository.findByEmail(voiceState.userId())
+                .map(user -> ChannelEnterResponse.from(voiceState, user.getProfileImage()))
+                .flatMapMany(this::createServerAckEvent);
     }
 
     private Flux<String> createServerAckEvent(Data response) {
