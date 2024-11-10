@@ -17,7 +17,9 @@ import java.util.List;
 public class User {
     @Id
     private final String email;
+    @Setter
     private String username;
+    @Setter
     @Column("profile_image")
     private String profileImage;
     private final String password;
@@ -38,11 +40,4 @@ public class User {
         return new User(email, username, profileImage, password, "ROLE_USER");
     }
 
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public void setProfileImage(String profileImage) {
-        this.profileImage = profileImage;
-    }
 }
