@@ -51,7 +51,7 @@ class CustomUserDetailsServiceTest {
 
         // then
         assertThat(userDetails).isNotNull();
-        assertThat(userDetails.getUsername()).isEqualTo(TEST_USERNAME);
+        assertThat(userDetails.getUsername()).isEqualTo(TEST_EMAIL);
         assertThat(userDetails.getAuthorities())
                 .extracting("authority")
                 .containsExactly("ROLE_USER");
@@ -96,7 +96,7 @@ class CustomUserDetailsServiceTest {
         assertThat(userDetails).isInstanceOf(CustomUserDetails.class);
         CustomUserDetails customUserDetails = (CustomUserDetails) userDetails;
 
-        assertThat(customUserDetails.getUsername()).isEqualTo(TEST_USERNAME);
+        assertThat(customUserDetails.getUsername()).isEqualTo(TEST_EMAIL);
         assertThat(customUserDetails.getPassword()).isEqualTo(TEST_PASSWORD);
         assertThat(customUserDetails.isEnabled()).isTrue();
         assertThat(customUserDetails.isAccountNonExpired()).isTrue();
@@ -119,7 +119,7 @@ class CustomUserDetailsServiceTest {
         StepVerifier.create(userDetailsService.findByUsername(TEST_EMAIL))
                 .assertNext(userDetails -> {
                     assertThat(userDetails).isNotNull();
-                    assertThat(userDetails.getUsername()).isEqualTo(TEST_USERNAME);
+                    assertThat(userDetails.getUsername()).isEqualTo(TEST_EMAIL);
                     assertThat(userDetails.getAuthorities())
                             .extracting("authority")
                             .containsExactly("ROLE_USER");
