@@ -31,6 +31,6 @@ public class User {
 
     public static User createNewUser(String email, String username,
                                      String profileImage, String password) {
-        return new User(email, username, profileImage, password, "ROLE_USER");
+        return new User(email, username, profileImage, password, "USER");
     }
 }
