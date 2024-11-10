@@ -16,12 +16,12 @@ import java.util.List;
 @Getter
 public class User {
     @Id
-    private String email;
+    private final String email;          
     private String username;
     @Column("profile_image")
     private String profileImage;
-    private String password;
-    private String role;
+    private final String password;
+    private final String role;
 
     @PersistenceCreator
     public User(String email, String username, String profileImage,
