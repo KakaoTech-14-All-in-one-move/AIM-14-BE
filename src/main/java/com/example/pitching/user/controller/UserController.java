@@ -45,4 +45,11 @@ public class UserController {
                 .onErrorResume(e -> Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                         .body(Map.of("error", e.getMessage()))));
     }
+
+    @DeleteMapping("/me")
+    public Mono<ResponseEntity<Void>> withdrawUser(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return userService.withdrawUser(userDetails.getUsername())
+                .then(Mono.just(ResponseEntity.noContent().build()));
+    }
 }
