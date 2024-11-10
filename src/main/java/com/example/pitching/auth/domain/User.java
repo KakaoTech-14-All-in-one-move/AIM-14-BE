@@ -16,7 +16,7 @@ import java.util.List;
 @Getter
 public class User {
     @Id
-    private final String email;          
+    private final String email;
     private String username;
     @Column("profile_image")
     private String profileImage;
@@ -31,6 +31,11 @@ public class User {
         this.profileImage = profileImage;
         this.password = password;
         this.role = role;
+    }
+
+    public static User createNewUser(String email, String username,
+                                     String profileImage, String password) {
+        return new User(email, username, profileImage, password, "ROLE_USER");
     }
 
     public void setUsername(String username) {
