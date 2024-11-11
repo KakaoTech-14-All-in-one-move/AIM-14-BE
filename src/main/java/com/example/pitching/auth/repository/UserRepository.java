@@ -5,8 +5,8 @@ import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import reactor.core.publisher.Mono;
 
-public interface UserRepository extends ReactiveCrudRepository<User, Long> {
-    Mono<User> findByEmail(String username);
+public interface UserRepository extends ReactiveCrudRepository<User, String> {
+    Mono<User> findByEmail(String email);
     Mono<Boolean> existsByEmail(String email);
     @Query("INSERT INTO users (email, username, password, role) VALUES (:email, :username, :password, :role)")
     Mono<Void> insertUser(String email, String username, String password, String role);

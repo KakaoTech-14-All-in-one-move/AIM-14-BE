@@ -37,9 +37,7 @@ dependencies {
 	testImplementation 'io.projectreactor:reactor-test'
 	testImplementation 'org.springframework.security:spring-security-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-	// https://mvnrepository.com/artifact/io.projectreactor/reactor-test
 	testImplementation 'io.projectreactor:reactor-test:3.6.10'
-	// https://mvnrepository.com/artifact/org.postgresql/r2dbc-postgresql
 	implementation 'org.postgresql:r2dbc-postgresql:1.0.5.RELEASE'
 
 	// JWT 관련 의존성

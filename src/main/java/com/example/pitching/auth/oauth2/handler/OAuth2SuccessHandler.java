@@ -45,11 +45,7 @@ public class OAuth2SuccessHandler implements ServerAuthenticationSuccessHandler 
                 .switchIfEmpty(
                         Mono.defer(() -> {
                             return userRepository.insertUser(email, name, null, "USER")
-                                    .then(Mono.just(User.builder()
-                                            .email(email)
-                                            .username(name)
-                                            .role("USER")
-                                            .build()));
+                                    .then(Mono.just(User.createNewUser(email, name, null, null)));
                         })
                 )
                 .map(user -> {
