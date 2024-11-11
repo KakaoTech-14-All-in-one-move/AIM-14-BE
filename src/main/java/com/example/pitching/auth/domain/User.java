@@ -8,26 +8,18 @@ import org.springframework.data.relational.core.mapping.Table;
 
 @Table("users")
 @Getter
+@AllArgsConstructor
+@NoArgsConstructor
 public class User {
     @Id
-    private final String email;
+    private String email;
     @Setter
     private String username;
     @Setter
     @Column("profile_image")
     private String profileImage;
-    private final String password;
-    private final String role;
-
-    @PersistenceCreator
-    public User(String email, String username, String profileImage,
-                String password, String role) {
-        this.email = email;
-        this.username = username;
-        this.profileImage = profileImage;
-        this.password = password;
-        this.role = role;
-    }
+    private String password;
+    private String role;
 
     public static User createNewUser(String email, String username,
                                      String profileImage, String password) {
