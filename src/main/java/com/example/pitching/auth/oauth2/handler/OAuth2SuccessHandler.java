@@ -67,6 +67,7 @@ public class OAuth2SuccessHandler implements ServerAuthenticationSuccessHandler 
                             .queryParam("refreshToken", tokenInfo.refreshToken())
                             .queryParam("email", userInfo.email())
                             .queryParam("username", userInfo.username())
+                            .queryParam("profile_image", userInfo.profile_image())
                             .build()
                             .encode()
                             .toUriString();
