@@ -31,6 +31,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 import reactor.util.function.Tuple2;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -39,7 +40,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 @RequiredArgsConstructor
 public class ReplyHandler {
-    public static final String TEST_CHANNEL_ID = "5143992e-9dcd-45fe-bcc7-e337417b0cfe";
+    public static final String TEST_VOICE_CHANNEL_ID = "5143992e-9dcd-45fe-bcc7-e337417b0cfe";
+    public static final String TEST_VIDEO_CHANNEL_ID = "6143992e-9dcd-45fe-bcc7-e337417b0cfe";
     public static final String TEST_SERVER_ID = "12345";
     private final Map<String, Sinks.Many<String>> userSinkMap = new ConcurrentHashMap<>();
     private final Map<String, Subscription> userSubscription = new ConcurrentHashMap<>();
@@ -261,7 +263,8 @@ public class ReplyHandler {
 
     // TODO: DB 연결되면 로직 추가
     private Mono<Boolean> isValidChannelId(String ServerId, String channelId) {
-        return TEST_CHANNEL_ID.equals(channelId) ? Mono.just(true) : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, channelId));
+        List<String> channalList = List.of(TEST_VIDEO_CHANNEL_ID, TEST_VOICE_CHANNEL_ID);
+        return channalList.contains(channelId) ? Mono.just(true) : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, channelId));
     }
 
     private Mono<Long> deleteVoiceStateIfPresent(String userId, ChannelRequest channelRequest) {
