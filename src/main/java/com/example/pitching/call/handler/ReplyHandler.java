@@ -12,7 +12,7 @@ import com.example.pitching.call.operation.Event;
 import com.example.pitching.call.operation.code.RequestOperation;
 import com.example.pitching.call.operation.code.ResponseOperation;
 import com.example.pitching.call.operation.request.ChannelRequest;
-import com.example.pitching.call.operation.request.InitRequest;
+import com.example.pitching.call.operation.request.WebsocketAuthRequest;
 import com.example.pitching.call.operation.request.ServerRequest;
 import com.example.pitching.call.operation.request.StateRequest;
 import com.example.pitching.call.operation.response.*;
@@ -83,7 +83,7 @@ public class ReplyHandler {
      * 클라이언트가 처음 연결하면 토큰으로 인증과정을 거치고 Heartbeat_interval 을 담아서 응답
      */
     private Flux<String> sendHello(String receivedMessage, WebSocketSession session) {
-        String token = convertService.readDataFromMessage(receivedMessage, InitRequest.class).token();
+        String token = convertService.readDataFromMessage(receivedMessage, WebsocketAuthRequest.class).token();
         Event hello = Event.of(ResponseOperation.INIT_ACK,
                 HelloResponse.of(serverProperties.getHeartbeatInterval()),
                 null);

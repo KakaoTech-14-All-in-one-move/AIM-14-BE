@@ -75,9 +75,4 @@ public class CallWebSocketHandler implements WebSocketHandler {
                 .map(Object::toString)
                 .orElse(ANONYMOUS);
     }
-
-    private Mono<String> getUserIdFromSessionByDefer(WebSocketSession session) {
-        return Mono.defer(() -> Mono.fromCallable(() -> session.getAttributes().get("userId").toString()))
-                .switchIfEmpty(Mono.just(ANONYMOUS));
-    }
 }
