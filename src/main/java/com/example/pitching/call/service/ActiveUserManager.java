@@ -37,12 +37,12 @@ public class ActiveUserManager {
                     if (!isActive) return valueOperations.setIfAbsent(getActiveUserRedisKey(userId), serverId);
                     return valueOperations.getAndSet(getActiveUserRedisKey(userId), serverId)
                             .map(pastServerId -> validateServerDestination(serverId, pastServerId))
-                            .doOnSuccess(isChanged -> {
-                                if (isChanged) {
-                                    log.info("ALREADY ACTIVE BUT NOT SAME SERVER ID");
-                                    setSubscriptionRequired(userId, true);
-                                }
-                            });
+                            .filter(Boolean.TRUE::equals)
+                            .doOnSuccess(ignored -> {
+                                log.info("ALREADY ACTIVE BUT NOT SAME SERVER ID");
+                                setSubscriptionRequired(userId, true);
+                            })
+                            .defaultIfEmpty(Boolean.FALSE);
                 });
     }
 
