@@ -41,13 +41,6 @@ public class ServerService {
         return transactionalOperator.transactional(operation);
     }
 
-    public Mono<ServerResponse> getServerById(Long serverId, String email) {
-        return userServerMembershipRepository.findByServerIdAndEmail(serverId, email)
-                .switchIfEmpty(Mono.error(new RuntimeException("Server membership not found")))
-                .flatMap(membership -> serverRepository.findByServerId(serverId))
-                .map(this::mapToResponse);
-    }
-
     public Flux<ServerResponse> getUserServers(String email) {
         return serverRepository.findServersByUserEmail(email)
                 .map(this::mapToResponse);
@@ -81,9 +74,5 @@ public class ServerService {
                 server.getServerImage(),
                 server.getCreatedAt().toString()
         );
-    }
-
-    public Mono<Boolean> isUserMemberOfServer(Long serverId, String email) {
-        return userServerMembershipRepository.existsByServerIdAndEmail(serverId, email);
     }
 }
