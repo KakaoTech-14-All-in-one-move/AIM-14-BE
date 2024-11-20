@@ -17,4 +17,7 @@ public interface UserServerMembershipRepository extends ReactiveCrudRepository<U
 
     @Query("SELECT * FROM user_server_memberships WHERE server_id = :serverId AND email = :email")
     Mono<UserServerMembership> findByServerIdAndEmail(Long serverId, String email);
+
+    @Query("SELECT COUNT(*) FROM user_server_memberships WHERE server_id = :serverId")
+    Mono<Long> countByServerId(Long serverId);
 }
