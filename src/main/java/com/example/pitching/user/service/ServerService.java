@@ -18,7 +18,6 @@ import java.time.LocalDateTime;
 public class ServerService {
     private final ServerRepository serverRepository;
     private final UserServerMembershipRepository userServerMembershipRepository;
-    private final TransactionalOperator transactionalOperator;
 
     public Mono<ServerResponse> createServer(ServerRequest request, String email) {
         Server newServer = Server.createNewServer(
@@ -26,7 +25,7 @@ public class ServerService {
                 request.server_image()
         );
 
-        Mono<ServerResponse> operation = serverRepository.save(newServer)
+        return serverRepository.save(newServer)
                 .flatMap(server -> {
                     UserServerMembership membership = new UserServerMembership(
                             email,
@@ -37,8 +36,6 @@ public class ServerService {
                             .thenReturn(server);
                 })
                 .map(this::mapToResponse);
-
-        return transactionalOperator.transactional(operation);
     }
 
     public Flux<ServerResponse> getUserServers(String email) {
@@ -47,24 +44,20 @@ public class ServerService {
     }
 
     public Mono<ServerResponse> updateServer(Long serverId, ServerRequest request, String email) {
-        Mono<ServerResponse> operation = userServerMembershipRepository.findByServerIdAndEmail(serverId, email)
+        return userServerMembershipRepository.findByServerIdAndEmail(serverId, email)
                 .switchIfEmpty(Mono.error(new RuntimeException("Server membership not found")))
                 .then(serverRepository.updateServerInfo(serverId, request.server_name(), request.server_image()))
                 .then(serverRepository.findByServerId(serverId))
                 .map(this::mapToResponse);
-
-        return transactionalOperator.transactional(operation);
     }
 
     public Mono<Void> deleteServer(Long serverId, String email) {
-        Mono<Void> operation = userServerMembershipRepository.findByServerIdAndEmail(serverId, email)
-                .switchIfEmpty(Mono.error(new RuntimeException("Server membership not found")))
-                .flatMap(membership ->
-                        userServerMembershipRepository.deleteByServerIdAndEmail(serverId, email)
-                                .then(serverRepository.deleteById(serverId))
-                );
-
-        return transactionalOperator.transactional(operation);
+        return Mono.from(
+                userServerMembershipRepository.deleteByServerIdAndEmail(serverId, email)
+                        .thenMany(userServerMembershipRepository.countByServerId(serverId))
+                        .filter(memberCount -> memberCount == 0)
+                        .flatMap(memberCount -> serverRepository.deleteById(serverId))
+        );
     }
 
     private ServerResponse mapToResponse(Server server) {
