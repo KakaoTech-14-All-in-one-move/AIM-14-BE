@@ -17,7 +17,4 @@ public interface ServerRepository extends ReactiveCrudRepository<Server, Long> {
         WHERE usm.email = :email
         """)
     Flux<Server> findServersByUserEmail(String email);
-
-    @Query("UPDATE servers SET server_name = :serverName, server_image = :serverImage WHERE server_id = :serverId")
-    Mono<Void> updateServerInfo(Long serverId, String serverName, String serverImage);
 }
