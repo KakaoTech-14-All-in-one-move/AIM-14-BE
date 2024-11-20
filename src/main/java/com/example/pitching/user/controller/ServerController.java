@@ -28,15 +28,22 @@ public class ServerController {
                 .defaultIfEmpty(ResponseEntity.badRequest().build());
     }
 
-    @PutMapping("/{server_id}")
-    public Mono<ResponseEntity<ServerResponse>> updateServer(
+    @PutMapping("/{server_id}/name")
+    public Mono<ResponseEntity<ServerResponse>> updateServerName(
             @PathVariable(name = "server_id") Long serverId,
             @RequestBody ServerRequest request,
             @AuthenticationPrincipal UserDetails user) {
-        log.info("Updating server: serverId={}, user={}, request={}", serverId, user.getUsername(), request);
-        return serverService.updateServer(serverId, request, user.getUsername())
-                .doOnSuccess(response -> log.info("Server updated successfully: serverId={}", serverId))
-                .doOnError(error -> log.error("Failed to update server: serverId={}, error={}", serverId, error.getMessage()))
+        return serverService.updateServerName(serverId, request.server_name(), user.getUsername())
+                .map(ResponseEntity::ok)
+                .defaultIfEmpty(ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/{server_id}/image")
+    public Mono<ResponseEntity<ServerResponse>> updateServerImage(
+            @PathVariable(name = "server_id") Long serverId,
+            @RequestBody ServerRequest request,
+            @AuthenticationPrincipal UserDetails user) {
+        return serverService.updateServerImage(serverId, request.server_image(), user.getUsername())
                 .map(ResponseEntity::ok)
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
