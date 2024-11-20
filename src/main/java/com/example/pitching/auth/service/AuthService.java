@@ -8,6 +8,8 @@ import com.example.pitching.auth.exception.InvalidTokenException;
 import com.example.pitching.auth.exception.TokenExpiredException;
 import com.example.pitching.auth.repository.UserRepository;
 import com.example.pitching.auth.jwt.JwtTokenProvider;
+import com.example.pitching.user.dto.ServerInfo;
+import com.example.pitching.user.repository.ServerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -21,21 +23,32 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final ServerRepository serverRepository;
 
     public Mono<LoginResponse> authenticate(String email, String password) {
         return userRepository.findByEmail(email)
                 .cast(User.class)
                 .filter(user -> passwordEncoder.matches(password, user.getPassword()))
-                .map(user -> new LoginResponse(
-                        jwtTokenProvider.createTokenInfo(user.getEmail()),
-                        new UserInfo(
-                                user.getEmail(),
-                                user.getUsername(),
-                                user.getProfileImage()
-                        )
-                ))
+                .flatMap(user -> serverRepository.findServersByUserEmail(user.getEmail())
+                        .map(server -> new ServerInfo(
+                                server.getServerId(),
+                                server.getServerName(),
+                                server.getServerImage()
+                        ))
+                        .collectList()
+                        .map(servers -> new LoginResponse(
+                                jwtTokenProvider.createTokenInfo(user.getEmail()),
+                                new UserInfo(
+                                        user.getEmail(),
+                                        user.getUsername(),
+                                        user.getProfileImage(),
+                                        servers
+                                )
+                        ))
+                )
                 .switchIfEmpty(Mono.error(new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "Invalid credentials")));
+                        HttpStatus.NOT_FOUND, "Invalid credentials"
+                )));
     }
 
     public Mono<TokenInfo> refreshToken(String refreshToken) {
