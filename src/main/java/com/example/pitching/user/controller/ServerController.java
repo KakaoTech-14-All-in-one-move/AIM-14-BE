@@ -28,7 +28,8 @@ public class ServerController {
             @AuthenticationPrincipal UserDetails user) {
         return serverService.createServer(request, user.getUsername())
                 .map(ResponseEntity::ok)
-                .defaultIfEmpty(ResponseEntity.badRequest().build());
+                .onErrorResume(e -> Mono.just(ResponseEntity.badRequest()
+                        .body(null)));
     }
 
     @PutMapping("/{server_id}/name")
@@ -38,7 +39,8 @@ public class ServerController {
             @AuthenticationPrincipal UserDetails user) {
         return serverService.updateServerName(serverId, request.server_name(), user.getUsername())
                 .map(ResponseEntity::ok)
-                .defaultIfEmpty(ResponseEntity.notFound().build());
+                .onErrorResume(e -> Mono.just(ResponseEntity.badRequest()
+                        .body(null)));
     }
 
     @PostMapping(value = "/{server_id}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -48,7 +50,7 @@ public class ServerController {
         return file
                 .flatMap(filePart -> serverService.updateServerImage(serverId, filePart))
                 .map(imageUrl -> ResponseEntity.ok(Map.of("serverImageUrl", imageUrl)))
-                .onErrorResume(e -> Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .onErrorResume(e -> Mono.just(ResponseEntity.badRequest()
                         .body(Map.of("error", e.getMessage()))));
     }
 
@@ -59,7 +61,7 @@ public class ServerController {
         String email = request.get("email");
         return serverService.inviteMember(serverId, email)
                 .map(result -> ResponseEntity.ok(Map.of("message", "Successfully invited member")))
-                .onErrorResume(e -> Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .onErrorResume(e -> Mono.just(ResponseEntity.badRequest()
                         .body(Map.of("error", e.getMessage()))));
     }
 
@@ -67,7 +69,9 @@ public class ServerController {
     public Mono<ResponseEntity<Flux<ServerResponse>>> getServers(
             @AuthenticationPrincipal UserDetails user) {
         return Mono.just(serverService.getUserServers(user.getUsername()))
-                .map(ResponseEntity::ok);
+                .map(ResponseEntity::ok)
+                .onErrorResume(e -> Mono.just(ResponseEntity.badRequest()
+                        .body(Flux.empty())));
     }
 
     @DeleteMapping("/{server_id}")
@@ -76,6 +80,7 @@ public class ServerController {
             @AuthenticationPrincipal UserDetails user) {
         return serverService.deleteServer(serverId, user.getUsername())
                 .then(Mono.just(ResponseEntity.ok().<Void>build()))
-                .onErrorResume(e -> Mono.just(ResponseEntity.badRequest().<Void>build()));
+                .onErrorResume(e -> Mono.just(ResponseEntity.badRequest()
+                        .build()));
     }
 }
