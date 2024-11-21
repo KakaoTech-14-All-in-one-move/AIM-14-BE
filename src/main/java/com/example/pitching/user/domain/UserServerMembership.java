@@ -17,7 +17,7 @@ public class UserServerMembership {
     private String email;
 
     @Column("server_id")
-    private Long serverId;  // 필드명을 serverId로 통일
+    private Long serverId;
 
     @Column("joined_at")
     private LocalDateTime joinedAt;
