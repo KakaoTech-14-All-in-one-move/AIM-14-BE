@@ -8,6 +8,7 @@ import com.example.pitching.user.repository.ServerRepository;
 import com.example.pitching.user.repository.UserServerMembershipRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
@@ -20,6 +21,7 @@ import java.time.LocalDateTime;
 public class ServerService {
     private final ServerRepository serverRepository;
     private final UserServerMembershipRepository userServerMembershipRepository;
+    private final FileStorageService fileStorageService;
 
     public Mono<ServerResponse> createServer(ServerRequest request, String email) {
         Server newServer = Server.createNewServer(
@@ -60,19 +62,46 @@ public class ServerService {
                 .doOnError(e -> log.error("Failed to update server name: serverId={}, error={}", serverId, e.getMessage()));
     }
 
-    public Mono<ServerResponse> updateServerImage(Long serverId, String newImage, String email) {
-        log.info("Updating server image: serverId={}, newImage={}, email={}", serverId, newImage, email);
+    public Mono<String> updateServerImage(Long serverId, FilePart file) {
+        return findServer(serverId)
+                .flatMap(server -> storeNewImage(file)
+                        .flatMap(newImageUrl -> updateServerAndHandleOldImage(server, newImageUrl)));
+    }
 
-        return userServerMembershipRepository.findByServerIdAndEmail(serverId, email)
-                .switchIfEmpty(Mono.error(new RuntimeException("Server membership not found")))
-                .doOnNext(membership -> log.info("Found membership: {}", membership))
-                .flatMap(membership -> serverRepository.findByServerId(serverId)
-                        .doOnNext(server -> server.setServerImage(newImage))
-                        .flatMap(serverRepository::save)
-                        .doOnSuccess(updatedServer -> log.info("Updated server image: {}", updatedServer))
-                )
-                .map(this::mapToResponse)
-                .doOnError(e -> log.error("Failed to update server image: serverId={}, error={}", serverId, e.getMessage()));
+    private Mono<Server> findServer(Long serverId) {
+        return serverRepository.findById(serverId)
+                .switchIfEmpty(Mono.error(
+                        new Error("Server not found with id: " + serverId)
+                ));
+    }
+
+    private Mono<String> storeNewImage(FilePart file) {
+        return fileStorageService.store(file)
+                .onErrorMap(error ->
+                        new Error("Failed to store new server image: " + error.getMessage())
+                );
+    }
+
+    private Mono<String> updateServerAndHandleOldImage(Server server, String newImageUrl) {
+        String oldImageUrl = server.getServerImage();
+
+        return Mono.just(server)
+                .doOnNext(existingServer -> existingServer.setServerImage(newImageUrl))
+                .flatMap(serverRepository::save)
+                .map(Server::getServerImage)
+                .doOnSuccess(__ -> {
+                    if (oldImageUrl != null && !oldImageUrl.isEmpty()) {
+                        deleteOldImage(oldImageUrl);
+                    }
+                })
+                .doOnSuccess(__ -> log.info("Updated server image. Server ID: {}", server.getServerId()));
+    }
+
+    private void deleteOldImage(String imageUrl) {
+        fileStorageService.delete(imageUrl)
+                .doOnSuccess(__ -> log.info("Successfully deleted old server image: {}", imageUrl))
+                .doOnError(error -> log.error("Failed to delete old server image: {}", imageUrl, error))
+                .subscribe();
     }
 
     public Mono<Void> deleteServer(Long serverId, String email) {

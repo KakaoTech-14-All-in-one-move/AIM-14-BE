@@ -5,12 +5,17 @@ import com.example.pitching.user.dto.ServerResponse;
 import com.example.pitching.user.service.ServerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -38,14 +43,16 @@ public class ServerController {
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
-    @PutMapping("/{server_id}/image")
-    public Mono<ResponseEntity<ServerResponse>> updateServerImage(
+    @PostMapping(value = "/{server_id}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Mono<ResponseEntity<Map<String, String>>> updateServerImage(
             @PathVariable(name = "server_id") Long serverId,
-            @RequestBody ServerRequest request,
-            @AuthenticationPrincipal UserDetails user) {
-        return serverService.updateServerImage(serverId, request.server_image(), user.getUsername())
-                .map(ResponseEntity::ok)
-                .defaultIfEmpty(ResponseEntity.notFound().build());
+            @RequestPart("file") Mono<FilePart> file) {
+
+        return file
+                .flatMap(filePart -> serverService.updateServerImage(serverId, filePart))
+                .map(imageUrl -> ResponseEntity.ok(Map.of("serverImageUrl", imageUrl)))
+                .onErrorResume(e -> Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(Map.of("error", e.getMessage()))));
     }
 
     @GetMapping
