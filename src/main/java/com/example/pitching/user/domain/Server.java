@@ -1,6 +1,6 @@
 package com.example.pitching.user.domain;
 
-import com.example.pitching.user.domain.enums.ChannelCategory;
+import com.example.pitching.user.domain.utility.ChannelCategory;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;

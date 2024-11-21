@@ -1,4 +1,4 @@
-package com.example.pitching.user.domain.utils;
+package com.example.pitching.user.domain.utility;
 
 public class ChannelCategory {
     public static final String CHAT = "CHAT";
