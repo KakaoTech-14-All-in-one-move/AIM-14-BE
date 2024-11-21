@@ -9,6 +9,7 @@ import com.example.pitching.auth.exception.TokenExpiredException;
 import com.example.pitching.auth.repository.UserRepository;
 import com.example.pitching.auth.jwt.JwtTokenProvider;
 import com.example.pitching.user.dto.ServerInfo;
+import com.example.pitching.user.repository.ChannelRepository;
 import com.example.pitching.user.repository.ServerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -24,17 +25,23 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final ServerRepository serverRepository;
+    private final ChannelRepository channelRepository;  // 추가
 
     public Mono<LoginResponse> authenticate(String email, String password) {
         return userRepository.findByEmail(email)
                 .cast(User.class)
                 .filter(user -> passwordEncoder.matches(password, user.getPassword()))
                 .flatMap(user -> serverRepository.findServersByUserEmail(user.getEmail())
-                        .map(server -> new ServerInfo(
-                                server.getServerId(),
-                                server.getServerName(),
-                                server.getServerImage()
-                        ))
+                        .flatMap(server ->
+                                channelRepository.findByServerId(server.getServerId())
+                                        .collectList()
+                                        .map(channels -> new ServerInfo(
+                                                server.getServerId(),
+                                                server.getServerName(),
+                                                server.getServerImage(),
+                                                channels
+                                        ))
+                        )
                         .collectList()
                         .map(servers -> new LoginResponse(
                                 jwtTokenProvider.createTokenInfo(user.getEmail()),
