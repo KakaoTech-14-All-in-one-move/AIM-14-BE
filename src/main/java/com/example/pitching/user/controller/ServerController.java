@@ -4,7 +4,6 @@ import com.example.pitching.user.dto.ServerRequest;
 import com.example.pitching.user.dto.ServerResponse;
 import com.example.pitching.user.service.ServerService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -17,7 +16,6 @@ import reactor.core.publisher.Mono;
 
 import java.util.Map;
 
-@Slf4j
 @RestController
 @RequestMapping("/api/v1/servers")
 @RequiredArgsConstructor
@@ -47,7 +45,6 @@ public class ServerController {
     public Mono<ResponseEntity<Map<String, String>>> updateServerImage(
             @PathVariable(name = "server_id") Long serverId,
             @RequestPart("file") Mono<FilePart> file) {
-
         return file
                 .flatMap(filePart -> serverService.updateServerImage(serverId, filePart))
                 .map(imageUrl -> ResponseEntity.ok(Map.of("serverImageUrl", imageUrl)))
@@ -77,14 +74,8 @@ public class ServerController {
     public Mono<ResponseEntity<Void>> deleteServer(
             @PathVariable(name = "server_id") Long serverId,
             @AuthenticationPrincipal UserDetails user) {
-        log.info("Deleting server: serverId={}, user={}", serverId, user.getUsername());
         return serverService.deleteServer(serverId, user.getUsername())
-                .doOnSuccess(v -> log.info("Server deleted successfully: serverId={}", serverId))
-                .doOnError(error -> log.error("Failed to delete server: serverId={}, error={}", serverId, error.getMessage()))
                 .then(Mono.just(ResponseEntity.ok().<Void>build()))
-                .onErrorResume(e -> {
-                    log.error("Error processing delete request: serverId={}, error={}", serverId, e.getMessage());
-                    return Mono.just(ResponseEntity.badRequest().<Void>build());
-                });
+                .onErrorResume(e -> Mono.just(ResponseEntity.badRequest().<Void>build()));
     }
 }
