@@ -12,7 +12,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.reactive.TransactionalOperator;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import java.time.LocalDateTime;
@@ -131,12 +130,18 @@ public class ServerService {
     }
 
     public Mono<Void> deleteServer(Long serverId, String email) {
-        return Mono.from(
-                userServerMembershipRepository.deleteByServerIdAndEmail(serverId, email)
-                        .thenMany(userServerMembershipRepository.countByServerId(serverId))
-                        .filter(memberCount -> memberCount == 0)
-                        .flatMap(memberCount -> serverRepository.deleteById(serverId))
-        );
+        return serverRepository.findById(serverId)
+                .flatMap(server ->
+                        userServerMembershipRepository.deleteByServerIdAndEmail(serverId, email)
+                                .then(userServerMembershipRepository.countByServerId(serverId))
+                                .filter(memberCount -> memberCount == 0)
+                                .flatMap(__ ->
+                                        Mono.justOrEmpty(server.getServerImage())
+                                                .flatMap(fileStorageService::delete)
+                                                .then(serverRepository.deleteById(serverId))
+                                                .switchIfEmpty(serverRepository.deleteById(serverId))
+                                )
+                );
     }
 
     private ServerResponse mapToResponse(Server server) {
