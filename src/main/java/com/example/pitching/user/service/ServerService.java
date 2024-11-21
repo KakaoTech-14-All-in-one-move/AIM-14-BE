@@ -73,18 +73,12 @@ public class ServerService {
     }
 
     public Mono<ServerResponse> updateServerName(Long serverId, String newName, String email) {
-        log.info("Updating server name: serverId={}, newName={}, email={}", serverId, newName, email);
-
         return userServerMembershipRepository.findByServerIdAndEmail(serverId, email)
                 .switchIfEmpty(Mono.error(new RuntimeException("Server membership not found")))
-                .doOnNext(membership -> log.info("Found membership: {}", membership))
                 .flatMap(membership -> serverRepository.findByServerId(serverId)
                         .doOnNext(server -> server.setServerName(newName))
-                        .flatMap(serverRepository::save)
-                        .doOnSuccess(updatedServer -> log.info("Updated server name: {}", updatedServer))
-                )
-                .map(this::mapToResponse)
-                .doOnError(e -> log.error("Failed to update server name: serverId={}, error={}", serverId, e.getMessage()));
+                        .flatMap(serverRepository::save))
+                .map(this::mapToResponse);
     }
 
     public Mono<String> updateServerImage(Long serverId, FilePart file) {
