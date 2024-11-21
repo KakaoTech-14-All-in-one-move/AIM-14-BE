@@ -46,9 +46,10 @@ public class ServerController {
     @PostMapping(value = "/{server_id}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Mono<ResponseEntity<Map<String, String>>> updateServerImage(
             @PathVariable(name = "server_id") Long serverId,
-            @RequestPart("file") Mono<FilePart> file) {
+            @RequestPart("file") Mono<FilePart> file,
+            @AuthenticationPrincipal UserDetails user) {
         return file
-                .flatMap(filePart -> serverService.updateServerImage(serverId, filePart))
+                .flatMap(filePart -> serverService.updateServerImage(serverId, filePart, user.getUsername()))
                 .map(imageUrl -> ResponseEntity.ok(Map.of("serverImageUrl", imageUrl)))
                 .onErrorResume(e -> Mono.just(ResponseEntity.badRequest()
                         .body(Map.of("error", e.getMessage()))));

@@ -14,6 +14,8 @@ import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.rmi.ServerException;
 import java.time.LocalDateTime;
 
 @Slf4j
@@ -66,7 +68,8 @@ public class ServerService {
     }
 
     public Mono<ServerResponse> updateServerName(Long serverId, String newName, String email) {
-        return userServerMembershipRepository.findByServerIdAndEmail(serverId, email)
+        return checkMemberAccess(serverId, email)
+                .filter(hasAccess -> hasAccess)
                 .switchIfEmpty(Mono.error(new RuntimeException("Server membership not found")))
                 .flatMap(membership -> serverRepository.findByServerId(serverId)
                         .doOnNext(server -> server.setServerName(newName))
@@ -74,8 +77,16 @@ public class ServerService {
                 .map(this::mapToResponse);
     }
 
-    public Mono<String> updateServerImage(Long serverId, FilePart file) {
-        return findServer(serverId)
+    private Mono<Boolean> checkMemberAccess(Long serverId, String email) {
+        return userServerMembershipRepository.findByServerIdAndEmail(serverId, email)
+                .hasElement();
+    }
+
+    public Mono<String> updateServerImage(Long serverId, FilePart file, String email) {
+        return checkMemberAccess(serverId, email)
+                .filter(hasAccess -> hasAccess)
+                .switchIfEmpty(Mono.error(new RuntimeException("Server membership not found")))
+                .then(findServer(serverId))
                 .flatMap(server -> storeNewImage(file)
                         .flatMap(newImageUrl -> updateServerAndHandleOldImage(server, newImageUrl)));
     }
