@@ -21,22 +21,19 @@ CREATE TABLE IF NOT EXISTS user_server_memberships (
     PRIMARY KEY (email, server_id)
     );
 
--- 채널 카테고리 타입 정의
-CREATE TYPE channel_category AS ENUM ('CHAT', 'VOICE', 'VIDEO');
-
--- channels 테이블 생성
+-- channels 테이블 재정의 (ENUM 대신 VARCHAR 사용)
 CREATE TABLE IF NOT EXISTS channels (
     channel_id SERIAL PRIMARY KEY,
     server_id BIGINT NOT NULL REFERENCES servers(server_id) ON DELETE CASCADE,
     channel_name VARCHAR(100) NOT NULL,
-    channel_category channel_category NOT NULL,
+    channel_category VARCHAR(20) NOT NULL,  -- ENUM 대신 VARCHAR 사용
     channel_position INTEGER NOT NULL
     );
 
 -- 순서 제약 추가
-CREATE UNIQUE INDEX idx_channel_position
-    ON channels(server_id, channel_position);
+--CREATE UNIQUE INDEX idx_channel_position
+--    ON channels(server_id, channel_position);
 
 -- 같은 서버, 같은 카테고리 내에서만 채널명 유니크하도록 변경
-CREATE UNIQUE INDEX idx_channel_category_name
-    ON channels(server_id, channel_category, channel_name);
+--CREATE UNIQUE INDEX idx_channel_category_name
+--    ON channels(server_id, channel_category, channel_name);
