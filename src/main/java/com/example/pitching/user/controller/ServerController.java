@@ -55,6 +55,17 @@ public class ServerController {
                         .body(Map.of("error", e.getMessage()))));
     }
 
+    @PostMapping("/{server_id}/invite")
+    public Mono<ResponseEntity<Map<String, String>>> inviteMember(
+            @PathVariable(name = "server_id") Long serverId,
+            @RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        return serverService.inviteMember(serverId, email)
+                .map(result -> ResponseEntity.ok(Map.of("message", "Successfully invited member")))
+                .onErrorResume(e -> Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(Map.of("error", e.getMessage()))));
+    }
+
     @GetMapping
     public Mono<ResponseEntity<Flux<ServerResponse>>> getServers(
             @AuthenticationPrincipal UserDetails user) {
