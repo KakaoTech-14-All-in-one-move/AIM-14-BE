@@ -8,10 +8,6 @@ import reactor.core.publisher.Mono;
 
 @Repository
 public interface UserServerMembershipRepository extends ReactiveCrudRepository<UserServerMembership, String> {
-    // 명시적 쿼리 사용
-    @Query("SELECT EXISTS(SELECT 1 FROM user_server_memberships WHERE server_id = :serverId AND email = :email)")
-    Mono<Boolean> existsByServerIdAndEmail(Long serverId, String email);
-
     @Query("DELETE FROM user_server_memberships WHERE server_id = :serverId AND email = :email")
     Mono<Void> deleteByServerIdAndEmail(Long serverId, String email);
 
