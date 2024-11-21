@@ -26,18 +26,11 @@ public class ServerService {
     private final FileStorageService fileStorageService;
 
     public Mono<ServerResponse> createServer(ServerRequest request, String email) {
-        Server newServer = Server.createNewServer(
-                request.server_name(),
-                request.server_image()
-        );
-
-        return serverRepository.save(newServer)
+        return serverRepository.save(Server.createNewServer(
+                        request.server_name(),
+                        request.server_image()))
                 .flatMap(server -> {
-                    UserServerMembership membership = new UserServerMembership(
-                            email,
-                            server.getServerId(),
-                            LocalDateTime.now()
-                    );
+                    UserServerMembership membership = UserServerMembership.createMembership(email, server.getServerId());
                     return userServerMembershipRepository.save(membership)
                             .thenReturn(server);
                 })
