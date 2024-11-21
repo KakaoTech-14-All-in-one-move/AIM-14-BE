@@ -1,6 +1,5 @@
 package com.example.pitching.user.domain;
 
-import com.example.pitching.user.domain.enums.ChannelCategory;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -26,17 +25,14 @@ public class Channel {
     private String channelName;
 
     @Column("channel_category")
-    private ChannelCategory channelCategory;
+    private String channelCategory;
 
     @Column("channel_position")
     private Integer channelPosition;
 
-    @Column("created_at")
-    private LocalDateTime createdAt;
-
     public static Channel createNewChannel(Long serverId, String channelName,
-                                        ChannelCategory category, Integer position) {
+                                        String category, Integer position) {
         return new Channel(null, serverId, channelName, category,
-                position, LocalDateTime.now());
+                position);
     }
 }
