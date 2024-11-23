@@ -5,6 +5,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public record ServerRequest(
         @JsonProperty("server_id")
-        String serverId
+        Long serverId
 ) implements Data {
 }

@@ -13,7 +13,7 @@ public record ChannelEnterResponse(
         @JsonProperty("profile_image")
         String profileImage,
         @JsonProperty("server_id")
-        String serverId,
+        Long serverId,
         @JsonProperty("channel_id")
         String channelId,
         @JsonProperty("channel_type")

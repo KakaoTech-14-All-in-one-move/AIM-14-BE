@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public record ChannelRequest(
         @JsonProperty("server_id")
-        String serverId,
+        Long serverId,
         @JsonProperty("channel_id")
         String channelId,
         @JsonProperty("channel_type")

@@ -12,15 +12,16 @@ import com.example.pitching.call.operation.Event;
 import com.example.pitching.call.operation.code.RequestOperation;
 import com.example.pitching.call.operation.code.ResponseOperation;
 import com.example.pitching.call.operation.request.ChannelRequest;
-import com.example.pitching.call.operation.request.WebsocketAuthRequest;
 import com.example.pitching.call.operation.request.ServerRequest;
 import com.example.pitching.call.operation.request.StateRequest;
+import com.example.pitching.call.operation.request.WebsocketAuthRequest;
 import com.example.pitching.call.operation.response.*;
 import com.example.pitching.call.server.CallUdpClient;
 import com.example.pitching.call.service.ActiveUserManager;
 import com.example.pitching.call.service.ConvertService;
 import com.example.pitching.call.service.ServerStreamManager;
 import com.example.pitching.call.service.VoiceStateManager;
+import com.example.pitching.user.service.ServerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -42,7 +43,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ReplyHandler {
     public static final String TEST_VOICE_CHANNEL_ID = "5143992e-9dcd-45fe-bcc7-e337417b0cfe";
     public static final String TEST_VIDEO_CHANNEL_ID = "6143992e-9dcd-45fe-bcc7-e337417b0cfe";
-    public static final String TEST_SERVER_ID = "12345";
     private final Map<String, Sinks.Many<String>> userSinkMap = new ConcurrentHashMap<>();
     private final Map<String, Subscription> userSubscription = new ConcurrentHashMap<>();
     private final JwtTokenProvider jwtTokenProvider;
@@ -52,8 +52,8 @@ public class ReplyHandler {
     private final VoiceStateManager voiceStateManager;
     private final ActiveUserManager activeUserManager;
     private final CallUdpClient callUdpClient;
+    private final ServerService serverService;
     private final UserRepository userRepository;
-    private int i = 0;
 
     public Flux<String> handleMessages(String receivedMessage, WebSocketSession session) {
         return convertService.readRequestOperationFromMessage(receivedMessage)
@@ -73,7 +73,7 @@ public class ReplyHandler {
         disposeSubscriptionIfPresent(userId);
         removeUserSink(userId);
         removeActiveUserFromServer(userId)
-                .flatMap(serverId -> voiceStateManager.removeVoiceState(serverId, userId))
+                .flatMap(serverId -> voiceStateManager.removeVoiceState(Long.valueOf(serverId), userId))
                 .subscribe();
     }
 
@@ -142,30 +142,24 @@ public class ReplyHandler {
      * @return jsonMessage
      * @apiNote 무조건 기존 서버 입장
      * 새로운 서버를 만들거나 새로운 서버에 초대된 경우 HTTP 를 사용하여 Server 참여 인원에 추가 (DB)
-     * TODO: Server list에 포함되어 있는지 검사 (DB)
      */
     private Flux<String> enterServer(String receivedMessage, String userId) {
-        String serverId = convertService.readDataFromMessage(receivedMessage, ServerRequest.class).serverId();
-        return isValidServerId(serverId)
+        Long serverId = convertService.readDataFromMessage(receivedMessage, ServerRequest.class).serverId();
+        return serverService.isValidServer(serverId)
                 .filter(Boolean.TRUE::equals)
                 .then(addActiveUser(userId, serverId))
                 .then(userRepository.findByEmail(userId))
                 .thenMany(createServerAck(serverId))
-                .switchIfEmpty(Flux.error(new InvalidValueException(ErrorCode.INVALID_SERVER_ID, serverId)));
+                .switchIfEmpty(Flux.error(new InvalidValueException(ErrorCode.INVALID_SERVER_ID, String.valueOf(serverId))));
     }
 
-    // TODO: DB 연결되면 로직 추가
-    private Mono<Boolean> isValidServerId(String serverId) {
-        return TEST_SERVER_ID.equals(serverId) ? Mono.just(true) : Mono.error(new InvalidValueException(ErrorCode.INVALID_SERVER_ID, serverId));
-    }
-
-    private Mono<Boolean> addActiveUser(String userId, String serverId) {
-        return activeUserManager.addUserActiveToRedisIfServerIdChanged(userId, serverId)
+    private Mono<Boolean> addActiveUser(String userId, Long serverId) {
+        return activeUserManager.addUserActiveToRedisIfServerIdChanged(userId, String.valueOf(serverId))
                 .filter(Boolean.TRUE::equals)
                 .doOnSuccess(ignored -> subscribeServerSink(serverId, userId));
     }
 
-    private void subscribeServerSink(String serverId, String userId) {
+    private void subscribeServerSink(Long serverId, String userId) {
         // React 에서 거의 동시에 두 번 요청을 보내는 경우를 방지하기 위해 추가
         if (!activeUserManager.isSubscriptionRequired(userId)) {
             log.debug("Subscription is not required : {}", userId);
@@ -181,7 +175,7 @@ public class ReplyHandler {
         activeUserManager.setSubscriptionRequired(userId, false);
     }
 
-    private Flux<String> createServerAck(String serverId) {
+    private Flux<String> createServerAck(Long serverId) {
         return voiceStateManager.getAllVoiceState(serverId)
                 .flatMap(this::createDataWithProfileImage)
                 .switchIfEmpty(createServerAckEvent(EmptyResponse.of()));
@@ -262,7 +256,7 @@ public class ReplyHandler {
     }
 
     // TODO: DB 연결되면 로직 추가
-    private Mono<Boolean> isValidChannelId(String ServerId, String channelId) {
+    private Mono<Boolean> isValidChannelId(Long ServerId, String channelId) {
         List<String> channalList = List.of(TEST_VIDEO_CHANNEL_ID, TEST_VOICE_CHANNEL_ID);
         return channalList.contains(channelId) ? Mono.just(true) : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, channelId));
     }

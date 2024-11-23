@@ -52,10 +52,10 @@ public class ActiveUserManager {
     }
 
     // 채널 입장
-    public Mono<String> isCorrectAccess(String userId, String serverId) {
+    public Mono<String> isCorrectAccess(String userId, Long serverId) {
         return valueOperations.get(getActiveUserRedisKey(userId))
-                .filter(currentServerId -> Objects.equals(currentServerId, serverId))
-                .switchIfEmpty(Mono.error(new WrongAccessException(ErrorCode.WRONG_ACCESS_INACTIVE_SERVER, serverId)));
+                .filter(currentServerId -> Objects.equals(currentServerId, String.valueOf(serverId)))
+                .switchIfEmpty(Mono.error(new WrongAccessException(ErrorCode.WRONG_ACCESS_INACTIVE_SERVER, String.valueOf(serverId))));
     }
 
     private Boolean validateServerDestination(String serverId, String pastServerId) {

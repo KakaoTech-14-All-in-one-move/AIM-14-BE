@@ -24,8 +24,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @Component
 public class ServerStreamManager {
-    private final Map<String, Sinks.Many<String>> serverSinkMap = new ConcurrentHashMap<>();
-    private final Map<String, Disposable> serverStream = new ConcurrentHashMap<>();
+    private final Map<Long, Sinks.Many<String>> serverSinkMap = new ConcurrentHashMap<>();
+    private final Map<Long, Disposable> serverStream = new ConcurrentHashMap<>();
     private final StreamReceiver<String, MapRecord<String, String, String>> streamReceiver;
     private final ConvertService convertService;
     private final RedisReactiveCommands<String, String> redisCommands;
@@ -46,13 +46,13 @@ public class ServerStreamManager {
         streamReceiver = StreamReceiver.create(redisConnectionFactory, options);
     }
 
-    public Mono<String> addVoiceMessageToStream(String serverId, String message) {
+    public Mono<String> addVoiceMessageToStream(Long serverId, String message) {
         XAddArgs xAddArgs = new XAddArgs().maxlen(redisProperties.maxlen()).approximateTrimming(true);
         return redisCommands
                 .xadd(getServerStreamRedisKey(serverId), xAddArgs, Map.of("message", message));
     }
 
-    public Flux<String> getMessageFromServerSink(String serverId) {
+    public Flux<String> getMessageFromServerSink(Long serverId) {
         return Flux.defer(() -> {
             synchronized (this) {
                 Sinks.Many<String> sink = serverSinkMap.get(serverId);
@@ -65,7 +65,7 @@ public class ServerStreamManager {
         });
     }
 
-    private void registerServerStream(String serverId) {
+    private void registerServerStream(Long serverId) {
         // 1. onBackpressureBuffer 로 설정했더니 구독자가 모두 없어지면 스트림이 complete 됨
         // 2. directAllOrNothing 으로 설정했더니 구독자가 놓치는 경우가 생김
         // 3. 다시 onBackpressureBuffer로 설정하고, complete 되면 다시 생성하도록 함
@@ -85,7 +85,7 @@ public class ServerStreamManager {
         log.info("Register server stream: {}", serverId);
     }
 
-    private void cleanupExistingResources(String serverId) {
+    private void cleanupExistingResources(Long serverId) {
         Disposable oldSubscription = serverStream.remove(serverId);
         if (oldSubscription != null) {
             oldSubscription.dispose();
@@ -96,7 +96,7 @@ public class ServerStreamManager {
         }
     }
 
-    private void addSequenceBeforeEmit(String serverId, String sequence, String jsonMessage) {
+    private void addSequenceBeforeEmit(Long serverId, String sequence, String jsonMessage) {
         convertService.convertJsonToEventWithSequence(sequence, jsonMessage)
                 .doOnError(throwable -> log.error("Error occurred while converting json to event: ", throwable))
                 .subscribe(serverEvent -> {
@@ -106,8 +106,8 @@ public class ServerStreamManager {
                 });
     }
 
-    private String getServerStreamRedisKey(String serverId) {
-        return String.format("server:%s:events", serverId);
+    private String getServerStreamRedisKey(Long serverId) {
+        return String.format("server:%d:events", serverId);
     }
 
     @EventListener(ContextClosedEvent.class)

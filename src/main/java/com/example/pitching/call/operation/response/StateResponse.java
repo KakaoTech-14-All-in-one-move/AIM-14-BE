@@ -11,7 +11,7 @@ public record StateResponse(
         @JsonProperty("username")
         String username,
         @JsonProperty("server_id")
-        String serverId,
+        Long serverId,
         @JsonProperty("channel_id")
         String channelId,
         @JsonProperty("channel_type")

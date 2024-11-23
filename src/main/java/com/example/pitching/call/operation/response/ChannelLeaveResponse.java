@@ -9,7 +9,7 @@ public record ChannelLeaveResponse(
         @JsonProperty("user_id")
         String userId,
         @JsonProperty("server_id")
-        String serverId,
+        Long serverId,
         @JsonProperty("channel_id")
         String channelId,
         @JsonProperty("channel_type")

@@ -25,15 +25,15 @@ public class VoiceStateManager {
         this.convertService = convertService;
     }
 
-    public Mono<String> getVoiceState(String serverId, String userId) {
+    public Mono<String> getVoiceState(Long serverId, String userId) {
         return hashOperations.get(getVoiceStateRedisKey(serverId), userId);
     }
 
-    public Mono<Long> removeVoiceState(String serverId, String userId) {
+    public Mono<Long> removeVoiceState(Long serverId, String userId) {
         return hashOperations.remove(getVoiceStateRedisKey(serverId), userId);
     }
 
-    public Flux<Map.Entry<String, String>> getAllVoiceState(String serverId) {
+    public Flux<Map.Entry<String, String>> getAllVoiceState(Long serverId) {
         return hashOperations.entries(getVoiceStateRedisKey(serverId));
     }
 
@@ -75,15 +75,15 @@ public class VoiceStateManager {
         return addVoiceState(userId, channelRequest.serverId(), convertService.convertObjectToJson(newVoiceState));
     }
 
-    private Mono<Boolean> addVoiceState(String userId, String serverId, String jsonVoiceState) {
+    private Mono<Boolean> addVoiceState(String userId, Long serverId, String jsonVoiceState) {
         return hashOperations.put(getVoiceStateRedisKey(serverId), userId, jsonVoiceState);
     }
 
-    private Mono<Boolean> existsVoiceState(String serverId, String userId) {
+    private Mono<Boolean> existsVoiceState(Long serverId, String userId) {
         return hashOperations.hasKey(getVoiceStateRedisKey(serverId), userId);
     }
 
-    private String getVoiceStateRedisKey(String serverId) {
-        return String.format("server:%s:call", serverId);
+    private String getVoiceStateRedisKey(Long serverId) {
+        return String.format("server:%d:call", serverId);
     }
 }
