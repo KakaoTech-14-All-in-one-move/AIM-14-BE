@@ -5,18 +5,33 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.support.WebExchangeBindException;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 import org.springframework.http.HttpStatus;
 
+import java.util.stream.Collectors;
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-    // TODO: 전체 API 예외처리를 해당 Handler를 통해서 해야 함
-
     private Mono<ResponseEntity<ApiError>> toErrorResponse(ApiError error) {
         return Mono.just(ResponseEntity
                 .status(error.getStatus())
                 .body(error));
+    }
+
+    @ExceptionHandler(WebExchangeBindException.class)
+    public Mono<ResponseEntity<ApiError>> handleValidationException(WebExchangeBindException ex) {
+        String errorMessage = ex.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .map(fieldError -> {
+                    String field = fieldError.getField();
+                    String defaultMessage = fieldError.getDefaultMessage();
+                    return String.format("%s: %s", field, defaultMessage);
+                })
+                .collect(Collectors.joining(", "));
+        return toErrorResponse(new ApiError.BadRequest(errorMessage));
     }
 
     @ExceptionHandler(ResponseStatusException.class)
