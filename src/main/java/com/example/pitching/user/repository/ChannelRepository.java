@@ -11,6 +11,10 @@ import reactor.core.publisher.Mono;
 
 @Repository
 public interface ChannelRepository extends ReactiveCrudRepository<Channel, Long> {
-    // 서버 ID로 채널 목록 조회
     Flux<Channel> findByServerId(Long serverId);
+    Flux<Channel> findByServerIdOrderByChannelPosition(Long serverId);
+
+    // 서버의 최대 position 값을 가져오는 쿼리 추가
+    @Query("SELECT COALESCE(MAX(channel_position), 0) FROM channels WHERE server_id = :serverId")
+    Mono<Integer> findMaxPositionByServerId(Long serverId);
 }
