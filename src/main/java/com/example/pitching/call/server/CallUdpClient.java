@@ -22,7 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @Component
 public class CallUdpClient {
-    private final ConcurrentHashMap<String, Sinks.Many<DatagramPacket>> channelSinkMap = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, Sinks.Many<DatagramPacket>> channelSinkMap = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Sinks.Many<DatagramPacket>> clientSinkMap = new ConcurrentHashMap<>();
     private final Map<String, Disposable> clientDisposable = new ConcurrentHashMap<>();
     private final UdpAddressManager udpAddressManager;

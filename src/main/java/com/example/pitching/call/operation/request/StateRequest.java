@@ -7,7 +7,7 @@ public record StateRequest(
         @JsonProperty("server_id")
         Long serverId,
         @JsonProperty("channel_id")
-        String channelId,
+        Long channelId,
         @JsonProperty("muted")
         boolean isMuted,
         @JsonProperty("deafened")

@@ -49,7 +49,7 @@ public class VoiceStateManager {
         return existsVoiceState(stateRequest.serverId(), userId)
                 .filter(Boolean.TRUE::equals)
                 .then(updateAndGetVoiceState(stateRequest, userId))
-                .switchIfEmpty(Mono.error(new WrongAccessException(ErrorCode.WRONG_ACCESS_INACTIVE_CHANNEL, stateRequest.channelId())));
+                .switchIfEmpty(Mono.error(new WrongAccessException(ErrorCode.WRONG_ACCESS_INACTIVE_CHANNEL, String.valueOf(stateRequest.channelId()))));
     }
 
     private Mono<Boolean> changeChannelAndSave(ChannelRequest channelRequest, String userId) {
@@ -70,7 +70,7 @@ public class VoiceStateManager {
 
     private Mono<Boolean> changeChannelId(ChannelRequest channelRequest, String userId, VoiceState oldVoiceState) {
         if (Objects.equals(oldVoiceState.channelId(), channelRequest.channelId()))
-            return Mono.error(new DuplicateOperationException(ErrorCode.DUPLICATE_CHANNEL_ENTRY, channelRequest.channelId()));
+            return Mono.error(new DuplicateOperationException(ErrorCode.DUPLICATE_CHANNEL_ENTRY, String.valueOf(channelRequest.channelId())));
         VoiceState newVoiceState = oldVoiceState.changeChannelId(channelRequest.channelId(), channelRequest.channelType());
         return addVoiceState(userId, channelRequest.serverId(), convertService.convertObjectToJson(newVoiceState));
     }

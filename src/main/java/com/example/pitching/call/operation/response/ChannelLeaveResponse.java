@@ -11,7 +11,7 @@ public record ChannelLeaveResponse(
         @JsonProperty("server_id")
         Long serverId,
         @JsonProperty("channel_id")
-        String channelId,
+        Long channelId,
         @JsonProperty("channel_type")
         ChannelType channelType
 ) implements Data {

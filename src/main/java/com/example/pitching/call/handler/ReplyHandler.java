@@ -41,8 +41,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 @RequiredArgsConstructor
 public class ReplyHandler {
-    public static final String TEST_VOICE_CHANNEL_ID = "5143992e-9dcd-45fe-bcc7-e337417b0cfe";
-    public static final String TEST_VIDEO_CHANNEL_ID = "6143992e-9dcd-45fe-bcc7-e337417b0cfe";
+    public static final Long TEST_VOICE_CHANNEL_ID = 1L;
+    public static final Long TEST_VIDEO_CHANNEL_ID = 2L;
     private final Map<String, Sinks.Many<String>> userSinkMap = new ConcurrentHashMap<>();
     private final Map<String, Subscription> userSubscription = new ConcurrentHashMap<>();
     private final JwtTokenProvider jwtTokenProvider;
@@ -206,7 +206,7 @@ public class ReplyHandler {
 
         return isValidChannelId(channelRequest.serverId(), channelRequest.channelId())
                 .flatMap(isValid -> isValid ?
-                        Mono.empty() : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, channelRequest.channelId())))
+                        Mono.empty() : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, String.valueOf(channelRequest.channelId()))))
                 .then(activeUserManager.isCorrectAccess(userId, channelRequest.serverId()))
                 .then(callUdpClient.removeUdpAddressFromRedis(userId))
                 .then(userRepository.findByEmail(userId))
@@ -248,7 +248,7 @@ public class ReplyHandler {
         ChannelRequest channelRequest = convertService.readDataFromMessage(receivedMessage, ChannelRequest.class);
         return isValidChannelId(channelRequest.serverId(), channelRequest.channelId())
                 .flatMap(isValid -> isValid ?
-                        Mono.empty() : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, channelRequest.channelId())))
+                        Mono.empty() : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, String.valueOf(channelRequest.channelId()))))
                 .then(activeUserManager.isCorrectAccess(userId, channelRequest.serverId()))
                 .then(deleteVoiceStateIfPresent(userId, channelRequest))
                 .then(callUdpClient.removeUdpAddressFromRedis(userId))
@@ -256,15 +256,15 @@ public class ReplyHandler {
     }
 
     // TODO: DB 연결되면 로직 추가
-    private Mono<Boolean> isValidChannelId(Long ServerId, String channelId) {
-        List<String> channalList = List.of(TEST_VIDEO_CHANNEL_ID, TEST_VOICE_CHANNEL_ID);
-        return channalList.contains(channelId) ? Mono.just(true) : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, channelId));
+    private Mono<Boolean> isValidChannelId(Long ServerId, Long channelId) {
+        List<Long> channalList = List.of(TEST_VIDEO_CHANNEL_ID, TEST_VOICE_CHANNEL_ID);
+        return channalList.contains(channelId) ? Mono.just(true) : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, String.valueOf(channelId)));
     }
 
     private Mono<Long> deleteVoiceStateIfPresent(String userId, ChannelRequest channelRequest) {
         return voiceStateManager.removeVoiceState(channelRequest.serverId(), userId)
                 .filter(result -> result == 1)
-                .switchIfEmpty(Mono.error(new DuplicateOperationException(ErrorCode.DUPLICATE_CHANNEL_EXIT, channelRequest.channelId())));
+                .switchIfEmpty(Mono.error(new DuplicateOperationException(ErrorCode.DUPLICATE_CHANNEL_EXIT, String.valueOf(channelRequest.channelId()))));
     }
 
     private Mono<String> putChannelLeaveToStream(String userId, ChannelRequest channelRequest) {
@@ -287,7 +287,7 @@ public class ReplyHandler {
 
         return isValidChannelId(stateRequest.serverId(), stateRequest.channelId())
                 .flatMap(isValid -> isValid ?
-                        Mono.empty() : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, stateRequest.channelId())))
+                        Mono.empty() : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, String.valueOf(stateRequest.channelId()))))
                 .then(activeUserManager.isCorrectAccess(userId, stateRequest.serverId()))
                 .then(updateStateAndGetVoiceState(userId, stateRequest))
                 .flatMapMany(voiceState -> putUpdateStateToStream(userId, voiceState, stateRequest));

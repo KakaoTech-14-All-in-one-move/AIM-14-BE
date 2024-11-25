@@ -13,7 +13,7 @@ public record VoiceState(
         @JsonProperty("server_id")
         Long serverId,
         @JsonProperty("channel_id")
-        String channelId,
+        Long channelId,
         @JsonProperty("channel_type")
         ChannelType channelType,
         @JsonProperty("muted")
@@ -41,7 +41,7 @@ public record VoiceState(
                 false);
     }
 
-    public VoiceState changeChannelId(String channelId, ChannelType channelType) {
+    public VoiceState changeChannelId(Long channelId, ChannelType channelType) {
         return new VoiceState(
                 this.userId,
                 this.username,
