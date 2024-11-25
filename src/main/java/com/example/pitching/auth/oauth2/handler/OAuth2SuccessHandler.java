@@ -6,6 +6,7 @@ import com.example.pitching.auth.dto.UserInfo;
 import com.example.pitching.auth.repository.UserRepository;
 import com.example.pitching.auth.jwt.JwtTokenProvider;
 import com.example.pitching.user.dto.ServerInfo;
+import com.example.pitching.user.repository.ChannelRepository;
 import com.example.pitching.user.repository.ServerRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -37,6 +38,7 @@ public class OAuth2SuccessHandler implements ServerAuthenticationSuccessHandler 
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
     private final ServerRepository serverRepository;
+    private final ChannelRepository channelRepository;
     @Value("${front.url}")
     private String frontURL;
 
@@ -57,11 +59,16 @@ public class OAuth2SuccessHandler implements ServerAuthenticationSuccessHandler 
                         })
                 )
                 .flatMap(user -> serverRepository.findServersByUserEmail(user.getEmail())
-                        .map(server -> new ServerInfo(
-                                server.getServerId(),
-                                server.getServerName(),
-                                server.getServerImage()
-                        ))
+                        .flatMap(server ->
+                                channelRepository.findByServerId(server.getServerId())
+                                        .collectList()
+                                        .map(channels -> new ServerInfo(
+                                                server.getServerId(),
+                                                server.getServerName(),
+                                                server.getServerImage(),
+                                                channels
+                                        ))
+                        )
                         .collectList()
                         .map(servers -> {
                             TokenInfo tokenInfo = jwtTokenProvider.createTokenInfo(email);
