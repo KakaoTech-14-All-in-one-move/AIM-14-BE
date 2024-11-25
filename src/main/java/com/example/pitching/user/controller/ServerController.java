@@ -1,5 +1,6 @@
 package com.example.pitching.user.controller;
 
+import com.example.pitching.user.dto.InviteMemberRequest;
 import com.example.pitching.user.dto.ServerRequest;
 import com.example.pitching.user.dto.ServerResponse;
 import com.example.pitching.user.service.ServerService;
@@ -59,8 +60,8 @@ public class ServerController {
     @ResponseStatus(HttpStatus.CREATED)
     public Mono<Void> inviteMember(
             @PathVariable(name = "server_id") @Positive Long serverId,
-            @Valid @RequestBody @Email String email) {
-        return serverService.inviteMember(serverId, email);
+            @Valid @RequestBody InviteMemberRequest request) {
+        return serverService.inviteMember(serverId, request.email());
     }
 
     @GetMapping
