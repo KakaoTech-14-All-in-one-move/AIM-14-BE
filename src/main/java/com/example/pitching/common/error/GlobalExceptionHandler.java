@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    // TODO: 전체 API 예외처리를 해당 Handler를 통해서 해야 함
 
     private Mono<ResponseEntity<ApiError>> toErrorResponse(ApiError error) {
         return Mono.just(ResponseEntity
