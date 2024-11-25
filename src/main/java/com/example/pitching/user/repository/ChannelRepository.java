@@ -2,7 +2,6 @@ package com.example.pitching.user.repository;
 
 
 import com.example.pitching.user.domain.Channel;
-import com.example.pitching.user.domain.utility.ChannelCategory;
 import org.springframework.data.r2dbc.repository.Query;
 import org.springframework.data.repository.reactive.ReactiveCrudRepository;
 import org.springframework.stereotype.Repository;
