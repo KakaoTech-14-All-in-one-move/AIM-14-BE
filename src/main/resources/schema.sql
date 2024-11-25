@@ -31,9 +31,9 @@ CREATE TABLE IF NOT EXISTS channels (
     );
 
 -- 순서 제약 추가
---CREATE UNIQUE INDEX idx_channel_position
---    ON channels(server_id, channel_position);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_channel_position
+    ON channels(server_id, channel_position);
 
 -- 같은 서버, 같은 카테고리 내에서만 채널명 유니크하도록 변경
---CREATE UNIQUE INDEX idx_channel_category_name
---    ON channels(server_id, channel_category, channel_name);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_channel_category_name
+    ON channels(server_id, channel_category, channel_name);
