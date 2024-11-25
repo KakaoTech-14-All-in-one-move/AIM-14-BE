@@ -1,15 +1,16 @@
 package com.example.pitching.user.service;
 
 import com.example.pitching.user.domain.Channel;
+import com.example.pitching.user.domain.Server;
 import com.example.pitching.user.dto.CreateChannelRequest;
 import com.example.pitching.user.repository.ChannelRepository;
 import com.example.pitching.user.repository.ServerRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-
-import javax.management.InstanceNotFoundException;
 
 @Service
 @RequiredArgsConstructor
@@ -18,26 +19,36 @@ public class ChannelService {
     private final ServerRepository serverRepository;
 
     public Mono<Channel> createChannel(Long serverId, CreateChannelRequest request) {
-        return serverRepository.findById(serverId)
-                .switchIfEmpty(Mono.error(new InstanceNotFoundException("존재하지 않는 서버입니다.")))
-                .flatMap(server -> getNextChannelPosition(serverId)
-                        .flatMap(nextPosition -> {
-                            Channel newChannel = Channel.createNewChannel(
-                                    serverId,
-                                    request.channelName(),
-                                    request.channelCategory(),
-                                    nextPosition
-                            );
+        return Mono.just(request)
+                .flatMap(req -> validateServer(serverId)
+                        .then(getNextChannelPosition(serverId))
+                        .map(position -> createChannelEntity(serverId, req, position))
+                        .flatMap(this::saveChannel)
+                );
+    }
 
-                            return channelRepository.save(newChannel);
-                        })
-                )
-                .onErrorMap(e -> {
-                    if (e instanceof InstanceNotFoundException) {
-                        return e;
-                    }
-                    return new RuntimeException("채널 생성에 실패했습니다: " + e.getMessage());
-                });
+    private Mono<Server> validateServer(Long serverId) {
+        return serverRepository.findById(serverId)
+                .switchIfEmpty(Mono.error(() ->
+                        new ResponseStatusException(HttpStatus.NOT_FOUND, "존재하지 않는 서버입니다.")
+                ));
+    }
+
+    private Channel createChannelEntity(Long serverId, CreateChannelRequest request, Integer position) {
+        return Channel.createNewChannel(
+                serverId,
+                request.channelName(),
+                request.channelCategory(),
+                position
+        );
+    }
+
+    private Mono<Channel> saveChannel(Channel channel) {
+        return channelRepository.save(channel)
+                .onErrorMap(e -> new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        String.format("'%s' 채널이 이미 존재합니다.", channel.getChannelName())
+                ));
     }
 
     private Mono<Integer> getNextChannelPosition(Long serverId) {
@@ -47,40 +58,34 @@ public class ChannelService {
     }
 
     public Mono<Channel> updateChannelName(Long channelId, String newName) {
+        return findChannelById(channelId)
+                .map(channel -> updateChannelWithNewName(channel, newName))
+                .flatMap(this::saveChannel);
+    }
+
+    private Mono<Channel> findChannelById(Long channelId) {
         return channelRepository.findById(channelId)
-                .switchIfEmpty(Mono.error(new InstanceNotFoundException("존재하지 않는 채널입니다.")))
-                .flatMap(existingChannel -> {
-                    Channel updatedChannel = new Channel(
-                            existingChannel.getChannelId(),
-                            existingChannel.getServerId(),
-                            newName,
-                            existingChannel.getChannelCategory(),
-                            existingChannel.getChannelPosition()
-                    );
-                    return channelRepository.save(updatedChannel);
-                })
-                .onErrorMap(e -> {
-                    if (e instanceof InstanceNotFoundException) {
-                        return e;
-                    }
-                    return new RuntimeException("채널 이름 변경에 실패했습니다: " + e.getMessage());
-                });
+                .switchIfEmpty(Mono.error(() ->
+                        new ResponseStatusException(HttpStatus.NOT_FOUND, "존재하지 않는 채널입니다.")
+                ));
+    }
+
+    private Channel updateChannelWithNewName(Channel channel, String newName) {
+        return new Channel(
+                channel.getChannelId(),
+                channel.getServerId(),
+                newName,
+                channel.getChannelCategory(),
+                channel.getChannelPosition()
+        );
     }
 
     public Mono<Void> deleteChannel(Long channelId) {
-        return channelRepository.findById(channelId)
-                .switchIfEmpty(Mono.error(new InstanceNotFoundException("존재하지 않는 채널입니다.")))
-                .flatMap(channel -> channelRepository.deleteById(channelId))
-                .onErrorMap(e -> {
-                    if (e instanceof InstanceNotFoundException) {
-                        return e;
-                    }
-                    return new RuntimeException("채널 삭제에 실패했습니다: " + e.getMessage());
-                });
+        return findChannelById(channelId)
+                .then(channelRepository.deleteById(channelId));
     }
 
     public Flux<Channel> getChannelsByServerId(Long serverId) {
-        return channelRepository.findByServerIdOrderByChannelPosition(serverId)
-                .onErrorMap(e -> new RuntimeException("채널 목록 조회에 실패했습니다: " + e.getMessage()));
+        return channelRepository.findByServerIdOrderByChannelPosition(serverId);
     }
 }
