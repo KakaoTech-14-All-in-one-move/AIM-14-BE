@@ -2,7 +2,6 @@ package com.example.pitching.user.controller;
 
 import com.example.pitching.user.dto.UpdateUsernameRequest;
 import com.example.pitching.user.dto.UserResponse;
-import com.example.pitching.user.service.FileValidator;
 import com.example.pitching.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +22,6 @@ import java.util.Map;
 @Validated
 public class UserController {
     private final UserService userService;
-    private final FileValidator fileValidator;
 
     @PostMapping(value = "/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.OK)
