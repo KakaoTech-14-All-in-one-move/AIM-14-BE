@@ -16,7 +16,7 @@ public class FileValidator {
     private static final long MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
     private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png", "gif");
 
-    public Mono<FilePart> validate(FilePart file) { 
+    public Mono<FilePart> validate(FilePart file) {
         return Mono.just(file)
                 .filterWhen(this::validateFileSize)
                 .switchIfEmpty(Mono.error(
