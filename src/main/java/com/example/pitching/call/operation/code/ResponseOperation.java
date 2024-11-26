@@ -12,7 +12,12 @@ public enum ResponseOperation implements Operation {
     SERVER_ACK(12, "Send current state of the server."),
     ENTER_CHANNEL_EVENT(13, "Success to enter voice/video channel."),
     LEAVE_CHANNEL_EVENT(14, "Success to leave voice/video channel."),
-    UPDATE_STATE_EVENT(15, "Success to update state.");
+    UPDATE_STATE_EVENT(15, "Success to update state."),
+    PRESENTER_ACK(16, ""),
+    VIEWER_ACK(17, ""),
+    ICE_CANDIDATE_ACK(18, ""),
+    STOP_COMMUNICATION(19, ""),
+    ;
 
     @JsonValue
     private final int code;

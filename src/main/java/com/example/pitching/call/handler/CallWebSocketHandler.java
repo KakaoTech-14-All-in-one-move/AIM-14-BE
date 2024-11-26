@@ -4,7 +4,6 @@ import com.example.pitching.call.dto.properties.ServerProperties;
 import com.example.pitching.call.exception.CommonException;
 import com.example.pitching.call.operation.Event;
 import com.example.pitching.call.operation.response.ErrorResponse;
-import com.example.pitching.call.server.CallUdpClient;
 import com.example.pitching.call.service.ConvertService;
 import io.micrometer.common.lang.NonNullApi;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +27,6 @@ public class CallWebSocketHandler implements WebSocketHandler {
     private final ServerProperties serverProperties;
     private final ConvertService convertService;
     private final ReplyHandler replyHandler;
-    private final CallUdpClient callUdpClient;
 
     @Override
     public List<String> getSubProtocols() {
@@ -45,7 +43,7 @@ public class CallWebSocketHandler implements WebSocketHandler {
                 session.receive()
                         .timeout(serverProperties.getTimeout())
                         .map(WebSocketMessage::getPayloadAsText)
-                        .flatMap(jsonMessage -> replyHandler.handleMessages(jsonMessage, session)
+                        .flatMap(jsonMessage -> replyHandler.handleMessages(session, jsonMessage)
                                 .onErrorResume(e -> handleReplyErrors(getUserIdFromSession(session), e)))
                         .doOnNext(message -> log.info("[{}] Reply Message : {}", getUserIdFromSession(session), message))
                         .map(session::textMessage)
@@ -54,7 +52,6 @@ public class CallWebSocketHandler implements WebSocketHandler {
                             log.info("[{}] Disconnected: {}", userId, signalType);
                             if (!ANONYMOUS.equals(userId)) {
                                 replyHandler.cleanupResources(userId);
-                                callUdpClient.cleanupResources(userId);
                             }
                         })
         );

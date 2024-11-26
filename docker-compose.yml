@@ -13,3 +13,14 @@ services:
       POSTGRES_PASSWORD: test
     ports:
       - "5432:5432"
+
+  kms:
+    image: kurento/kurento-media-server:latest
+    platform: linux/amd64
+    container_name: kms
+    ports:
+      - "8888:8888"
+    restart: always
+    environment:
+      - KMS_MIN_PORT=40000
+      - KMS_MAX_PORT=40050
