@@ -412,7 +412,7 @@ public class ReplyHandler {
 
     private void disposeSubscriptionIfPresent(String userId) {
         UserSession userSession = userSessionMap.get(userId);
-        if (userSession.isPresentSubscription()) {
+        if (userSession != null && userSession.doesSubscriberExists()) {
             userSession.dispose();
             log.info("Dispose Subscription : {}", userId);
         }

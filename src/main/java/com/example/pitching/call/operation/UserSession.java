@@ -4,6 +4,7 @@ import com.example.pitching.call.dto.Subscription;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.ToString;
+import lombok.extern.slf4j.Slf4j;
 import org.kurento.client.IceCandidate;
 import org.kurento.client.MediaPipeline;
 import org.kurento.client.WebRtcEndpoint;
@@ -13,6 +14,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
 
+@Slf4j
 @ToString
 @AllArgsConstructor
 public class UserSession {
@@ -56,10 +58,6 @@ public class UserSession {
         return this.webRtcEndpoint == null;
     }
 
-    public boolean isPresentSubscription() {
-        return this.subscription != null;
-    }
-
     public void connect(WebRtcEndpoint nextWebRtc) {
         this.webRtcEndpoint.connect(nextWebRtc);
     }
@@ -69,18 +67,20 @@ public class UserSession {
                 .subscribeOn(Schedulers.single()).subscribe();
     }
 
-    public Flux<String> getUserSinkAsFlux() {
-        return this.userSink.asFlux();
-    }
-
     public void tryEmitNext(String message) {
         this.userSink.tryEmitNext(message);
     }
 
+    public Flux<String> getUserSinkAsFlux() {
+        return this.userSink.asFlux();
+    }
+
+    public boolean doesSubscriberExists() {
+        return subscription != null && !this.subscription.disposable().isDisposed();
+    }
+
     public void dispose() {
-        if (subscription != null) {
-            subscription.disposable().dispose();
-        }
+        subscription.disposable().dispose();
     }
 
     public void releaseMediaPipeline() {
