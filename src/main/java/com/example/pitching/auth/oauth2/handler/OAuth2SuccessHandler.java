@@ -53,10 +53,11 @@ public class OAuth2SuccessHandler implements ServerAuthenticationSuccessHandler 
 
         return userRepository.findByEmail(email)
                 .switchIfEmpty(
-                        Mono.defer(() -> {
-                            return userRepository.insertUser(email, name, null, "USER")
-                                    .then(Mono.just(User.createNewUser(email, name, null, null)));
-                        })
+                        Mono.defer(() -> userRepository.insertUser(email, name, null, "USER")
+                                .then(Mono.just(User.createNewUser(email, name, null, null)))
+                                .onErrorMap(e -> new ResponseStatusException(
+                                        HttpStatus.INTERNAL_SERVER_ERROR, "OAuth2 회원가입 처리 중 오류가 발생했습니다."))
+                        )
                 )
                 .flatMap(user -> serverRepository.findServersByUserEmail(user.getEmail())
                         .flatMap(server ->
@@ -81,71 +82,80 @@ public class OAuth2SuccessHandler implements ServerAuthenticationSuccessHandler 
                             return Tuples.of(tokenInfo, userInfo);
                         }))
                 .flatMap(tuple -> {
-                    TokenInfo tokenInfo = tuple.getT1();
-                    UserInfo userInfo = tuple.getT2();
-
-                    // servers를 JSON 문자열로 변환
-                    String serversJson = null;
                     try {
-                        serversJson = new ObjectMapper()
+                        TokenInfo tokenInfo = tuple.getT1();
+                        UserInfo userInfo = tuple.getT2();
+
+                        String serversJson = new ObjectMapper()
                                 .writeValueAsString(userInfo.servers());
+
+                        String redirectUrl = UriComponentsBuilder
+                                .fromUriString(frontURL + "oauth2/callback")
+                                .queryParam("accessToken", tokenInfo.accessToken())
+                                .queryParam("refreshToken", tokenInfo.refreshToken())
+                                .queryParam("email", userInfo.email())
+                                .queryParam("username", userInfo.username())
+                                .queryParam("profile_image", userInfo.profile_image())
+                                .queryParam("servers", URLEncoder.encode(serversJson, StandardCharsets.UTF_8))
+                                .build()
+                                .toUriString();
+
+                        exchange.getResponse().setStatusCode(HttpStatus.TEMPORARY_REDIRECT);
+                        exchange.getResponse().getHeaders().setLocation(URI.create(redirectUrl));
+
+                        return exchange.getResponse().setComplete();
                     } catch (JsonProcessingException e) {
-                        throw new RuntimeException(e);
+                        return Mono.error(new ResponseStatusException(
+                                HttpStatus.INTERNAL_SERVER_ERROR, "OAuth2 로그인 처리 중 오류가 발생했습니다."));
                     }
-
-                    String redirectUrl = UriComponentsBuilder
-                            .fromUriString(frontURL + "oauth2/callback")
-                            .queryParam("accessToken", tokenInfo.accessToken())
-                            .queryParam("refreshToken", tokenInfo.refreshToken())
-                            .queryParam("email", userInfo.email())
-                            .queryParam("username", userInfo.username())
-                            .queryParam("profile_image", userInfo.profile_image())
-                            .queryParam("servers", URLEncoder.encode(serversJson, StandardCharsets.UTF_8))
-                            .build()
-                            .toUriString();
-
-                    exchange.getResponse().setStatusCode(HttpStatus.TEMPORARY_REDIRECT);
-                    exchange.getResponse().getHeaders().setLocation(URI.create(redirectUrl));
-
-                    return exchange.getResponse().setComplete();
                 })
-                .onErrorResume(JsonProcessingException.class, e -> {
-                    log.error("Error processing servers to JSON", e);
-                    return Mono.error(new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR));
-                });
+                .onErrorMap(e -> !(e instanceof ResponseStatusException),
+                        e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "OAuth2 인증 처리 중 오류가 발생했습니다."));
     }
 
     private String getEmail(String provider, OAuth2User oAuth2User) {
         Map<String, Object> attributes = oAuth2User.getAttributes();
 
-        return switch (provider) {
-            case "google" -> (String) "google@" + attributes.get("email");
-            case "kakao" -> {
-                Map<String, Object> kakaoAccount = (Map<String, Object>) attributes.get("kakao_account");
-                yield (String) "kakao@" + kakaoAccount.get("email");
-            }
-            case "naver" -> {
-                Map<String, Object> response = (Map<String, Object>) attributes.get("response");
-                yield (String) "naver@" + response.get("email");
-            }
-            default -> throw new IllegalArgumentException("Unsupported provider: " + provider);
-        };
+        try {
+            return switch (provider) {
+                case "google" -> (String) "google@" + attributes.get("email");
+                case "kakao" -> {
+                    Map<String, Object> kakaoAccount = (Map<String, Object>) attributes.get("kakao_account");
+                    yield (String) "kakao@" + kakaoAccount.get("email");
+                }
+                case "naver" -> {
+                    Map<String, Object> response = (Map<String, Object>) attributes.get("response");
+                    yield (String) "naver@" + response.get("email");
+                }
+                default -> throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST, "지원하지 않는 OAuth2 제공자입니다: " + provider);
+            };
+        } catch (Exception e) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "OAuth2 이메일 정보를 가져오는데 실패했습니다.");
+        }
     }
 
     private String getName(String provider, OAuth2User oAuth2User) {
         Map<String, Object> attributes = oAuth2User.getAttributes();
 
-        return switch (provider) {
-            case "google" -> (String) attributes.get("name");
-            case "kakao" -> {
-                Map<String, Object> properties = (Map<String, Object>) attributes.get("properties");
-                yield (String) properties.get("nickname");
-            }
-            case "naver" -> {
-                Map<String, Object> response = (Map<String, Object>) attributes.get("response");
-                yield (String) response.get("name");
-            }
-            default -> throw new IllegalArgumentException("Unsupported provider: " + provider);
-        };
+        try {
+            return switch (provider) {
+                case "google" -> (String) attributes.get("name");
+                case "kakao" -> {
+                    Map<String, Object> properties = (Map<String, Object>) attributes.get("properties");
+                    yield (String) properties.get("nickname");
+                }
+                case "naver" -> {
+                    Map<String, Object> response = (Map<String, Object>) attributes.get("response");
+                    yield (String) response.get("name");
+                }
+                default -> throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST, "지원하지 않는 OAuth2 제공자입니다: " + provider);
+            };
+        } catch (Exception e) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "OAuth2 사용자 이름을 가져오는데 실패했습니다.");
+        }
     }
 }

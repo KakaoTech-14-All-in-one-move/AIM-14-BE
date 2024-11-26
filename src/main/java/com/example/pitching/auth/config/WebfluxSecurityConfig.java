@@ -1,8 +1,5 @@
 package com.example.pitching.auth.config;
 
-import com.example.pitching.auth.exception.InvalidCredentialsException;
-import com.example.pitching.auth.exception.InvalidTokenException;
-import com.example.pitching.auth.exception.TokenExpiredException;
 import com.example.pitching.auth.oauth2.handler.OAuth2FailureHandler;
 import com.example.pitching.auth.oauth2.handler.OAuth2SuccessHandler;
 import com.example.pitching.auth.jwt.JwtAuthenticationEntryPoint;
@@ -13,7 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
-import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.ReactiveAuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
@@ -22,17 +19,14 @@ import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 import org.springframework.security.web.server.authentication.AuthenticationWebFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsConfigurationSource;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
-
-import java.time.Duration;
 import java.util.Arrays;
-import java.util.Collections;
 
 @Configuration
 @EnableWebFluxSecurity
@@ -73,7 +67,6 @@ public class WebfluxSecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // TODO: HTTPS 프로토콜 변경
         configuration.setAllowedOrigins(Arrays.asList(frontURL));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
@@ -96,19 +89,16 @@ public class WebfluxSecurityConfig {
                             null,
                             userDetails.getAuthorities()
                     ))
-                    .onErrorMap(TokenExpiredException.class,
-                            e -> new TokenExpiredException("Token has expired"))
-                    .onErrorMap(JwtException.class,
-                            e -> new InvalidTokenException("Invalid token"))
-                    .onErrorMap(Exception.class,
-                            e -> new InvalidCredentialsException("Authentication failed: " + e.getMessage()));
+                    .onErrorMap(e -> new ResponseStatusException(
+                            HttpStatus.UNAUTHORIZED,
+                            "인증에 실패했습니다: " + e.getMessage())
+                    );
         };
 
         AuthenticationWebFilter filter = new AuthenticationWebFilter(authenticationManager);
 
         filter.setServerAuthenticationConverter(exchange -> {
             String path = exchange.getRequest().getPath().value();
-            // OAuth2 관련 경로 추가
             if (path.startsWith("/api/v1/auth/") ||
                     path.startsWith("/oauth2/") ||
                     path.startsWith("/login/oauth2/") ||
@@ -119,11 +109,11 @@ public class WebfluxSecurityConfig {
 
             return Mono.justOrEmpty(exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION))
                     .switchIfEmpty(Mono.error(
-                            new AuthenticationCredentialsNotFoundException("Missing Authorization header")
+                            new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authorization 헤더가 없습니다.")
                     ))
                     .filter(authHeader -> authHeader.startsWith("Bearer "))
                     .switchIfEmpty(Mono.error(
-                            new InvalidTokenException("Invalid Authorization header format")
+                            new ResponseStatusException(HttpStatus.UNAUTHORIZED, "잘못된 Authorization 헤더 형식입니다.")
                     ))
                     .map(authHeader -> authHeader.substring(7))
                     .map(token -> new UsernamePasswordAuthenticationToken(token, token));

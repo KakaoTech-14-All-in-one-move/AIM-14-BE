@@ -1,16 +1,10 @@
 package com.example.pitching.user.dto;
 
-
-import lombok.Getter;
-import lombok.Setter;
-
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-@Getter
-@Setter
-public class UpdateUsernameRequest {
-    @NotBlank(message = "Username cannot be blank")
-    @Size(min = 2, max = 50, message = "Username must be between 2 and 50 characters")
-    private String username;
-}
+public record UpdateUsernameRequest(
+        @NotBlank(message = "사용자 이름은 필수입니다")
+        @Size(min = 2, max = 50, message = "사용자 이름은 2-50자 사이여야 합니다")
+        String username
+) {}

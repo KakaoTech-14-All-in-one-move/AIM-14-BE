@@ -5,18 +5,32 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.support.WebExchangeBindException;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
-import org.springframework.http.HttpStatus;
+
+import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-    // TODO: 전체 API 예외처리를 해당 Handler를 통해서 해야 함
-
     private Mono<ResponseEntity<ApiError>> toErrorResponse(ApiError error) {
         return Mono.just(ResponseEntity
                 .status(error.getStatus())
                 .body(error));
+    }
+
+    @ExceptionHandler(WebExchangeBindException.class)
+    public Mono<ResponseEntity<ApiError>> handleValidationException(WebExchangeBindException ex) {
+        String errorMessage = ex.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .map(fieldError -> {
+                    String field = fieldError.getField();
+                    String defaultMessage = fieldError.getDefaultMessage();
+                    return String.format("%s: %s", field, defaultMessage);
+                })
+                .collect(Collectors.joining(", "));
+        return toErrorResponse(new ApiError.BadRequest(errorMessage));
     }
 
     @ExceptionHandler(ResponseStatusException.class)
@@ -24,6 +38,9 @@ public class GlobalExceptionHandler {
         ApiError error = switch (ex.getStatusCode().value()) {
             case 404 -> new ApiError.NotFound(ex.getReason());
             case 400 -> new ApiError.BadRequest(ex.getReason());
+            case 401 -> new ApiError.Unauthorized(ex.getReason());
+            case 409 -> new ApiError.Conflict(ex.getReason());
+            case 413 -> new ApiError.PayloadTooLarge(ex.getReason());
             default -> new ApiError.ServerError(ex.getReason());
         };
         return toErrorResponse(error);
@@ -31,9 +48,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({DataIntegrityViolationException.class, R2dbcDataIntegrityViolationException.class})
     public Mono<ResponseEntity<ApiError>> handleDataIntegrityViolation(Exception ex) {
-        return handleResponseStatusException(
-                new ResponseStatusException(HttpStatus.BAD_REQUEST, "중복된 데이터가 존재합니다.")
-        );
+        return toErrorResponse(new ApiError.Conflict("중복된 데이터가 존재합니다."));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

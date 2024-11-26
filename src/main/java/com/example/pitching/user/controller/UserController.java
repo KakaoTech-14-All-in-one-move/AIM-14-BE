@@ -1,12 +1,12 @@
 package com.example.pitching.user.controller;
 
 import com.example.pitching.user.dto.UpdateUsernameRequest;
+import com.example.pitching.user.dto.UserResponse;
 import com.example.pitching.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -24,32 +24,29 @@ public class UserController {
     private final UserService userService;
 
     @PostMapping(value = "/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public Mono<ResponseEntity<Map<String, String>>> updateProfileImage(
+    @ResponseStatus(HttpStatus.OK)
+    public Mono<Map<String, String>> updateProfileImage(
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestPart("file") Mono<FilePart> file) {
 
         return file
-                .flatMap(filePart -> userService.updateProfileImage(userDetails.getUsername(), filePart))
-                .map(imageUrl -> ResponseEntity.ok(Map.of("profileImageUrl", imageUrl)))
-                .onErrorResume(e -> Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body(Map.of("error", e.getMessage()))));
+                .flatMap(filePart ->
+                        userService.updateProfileImage(userDetails.getUsername(), filePart))
+                .map(imageUrl -> Map.of("profileImageUrl", imageUrl));
     }
 
     @PutMapping("/username")
-    public Mono<ResponseEntity<Map<String, String>>> updateUsername(
+    @ResponseStatus(HttpStatus.OK)
+    public Mono<UserResponse> updateUsername(
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody UpdateUsernameRequest request) {
-
-        return userService.updateUsername(userDetails.getUsername(), request.getUsername())
-                .map(username -> ResponseEntity.ok(Map.of("username", username)))
-                .onErrorResume(e -> Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body(Map.of("error", e.getMessage()))));
+        return userService.updateUsername(userDetails.getUsername(), request.username());
     }
 
     @DeleteMapping("/me")
-    public Mono<ResponseEntity<Void>> withdrawUser(
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public Mono<Void> withdrawUser(
             @AuthenticationPrincipal UserDetails userDetails) {
-        return userService.withdrawUser(userDetails.getUsername())
-                .then(Mono.just(ResponseEntity.noContent().build()));
+        return userService.withdrawUser(userDetails.getUsername());
     }
 }
