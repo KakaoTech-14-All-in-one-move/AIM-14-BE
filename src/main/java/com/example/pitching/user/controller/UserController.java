@@ -32,9 +32,8 @@ public class UserController {
             @RequestPart("file") Mono<FilePart> file) {
 
         return file
-                .flatMap(fileValidator::validate)
-                .flatMap(validatedFile ->
-                        userService.updateProfileImage(userDetails.getUsername(), validatedFile))
+                .flatMap(filePart ->
+                        userService.updateProfileImage(userDetails.getUsername(), filePart))
                 .map(imageUrl -> Map.of("profileImageUrl", imageUrl));
     }
 

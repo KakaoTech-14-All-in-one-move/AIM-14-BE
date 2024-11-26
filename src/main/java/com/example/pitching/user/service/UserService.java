@@ -28,8 +28,9 @@ public class UserService {
     }
 
     public Mono<String> updateProfileImage(String email, FilePart file) {
+        System.out.println("User Service update profile image");
         return findUser(email)
-                .flatMap(user -> storeNewImage(file)
+                .flatMap(user -> fileStorageService.store(file)  // validateFile이 store 메서드 내부에서 실행됨
                         .flatMap(newImageUrl -> updateUserAndHandleOldImage(user, newImageUrl)))
                 .transform(this::mapCommonError);
     }
