@@ -39,6 +39,7 @@ public class GlobalExceptionHandler {
         ApiError error = switch (ex.getStatusCode().value()) {
             case 404 -> new ApiError.NotFound(ex.getReason());
             case 400 -> new ApiError.BadRequest(ex.getReason());
+            case 413 -> new ApiError.PayloadTooLarge(ex.getReason());
             default -> new ApiError.ServerError(ex.getReason());
         };
         return toErrorResponse(error);
