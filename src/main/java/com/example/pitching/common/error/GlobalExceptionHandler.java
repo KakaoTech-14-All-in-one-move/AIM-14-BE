@@ -8,7 +8,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.bind.support.WebExchangeBindException;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
-import org.springframework.http.HttpStatus;
 
 import java.util.stream.Collectors;
 
@@ -39,6 +38,8 @@ public class GlobalExceptionHandler {
         ApiError error = switch (ex.getStatusCode().value()) {
             case 404 -> new ApiError.NotFound(ex.getReason());
             case 400 -> new ApiError.BadRequest(ex.getReason());
+            case 401 -> new ApiError.Unauthorized(ex.getReason());
+            case 409 -> new ApiError.Conflict(ex.getReason());
             case 413 -> new ApiError.PayloadTooLarge(ex.getReason());
             default -> new ApiError.ServerError(ex.getReason());
         };
@@ -47,9 +48,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({DataIntegrityViolationException.class, R2dbcDataIntegrityViolationException.class})
     public Mono<ResponseEntity<ApiError>> handleDataIntegrityViolation(Exception ex) {
-        return handleResponseStatusException(
-                new ResponseStatusException(HttpStatus.BAD_REQUEST, "중복된 데이터가 존재합니다.")
-        );
+        return toErrorResponse(new ApiError.Conflict("중복된 데이터가 존재합니다."));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
