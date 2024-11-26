@@ -26,41 +26,46 @@ public class ServerService {
     private final UserServerMembershipRepository userServerMembershipRepository;
     private final FileStorageService fileStorageService;
 
-    public Mono<ServerResponse> createServer(ServerRequest request, String email) {
-        return serverRepository.save(Server.createNewServer(
-                        request.server_name(),
-                        request.server_image()))
-                .flatMap(server -> {
-                    UserServerMembership membership = UserServerMembership.createMembership(email, server.getServerId());
-                    return userServerMembershipRepository.save(membership)
-                            .thenReturn(server);
-                })
-                .map(this::mapToResponse)
+    private <T> Mono<T> mapCommonError(Mono<T> mono) {
+        return mono
                 .onErrorMap(DataIntegrityViolationException.class,
-                        e -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "서버 생성에 실패했습니다."))
+                        e -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "중복된 데이터가 존재합니다."))
                 .onErrorMap(e -> !(e instanceof ResponseStatusException),
-                        e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "서버 생성 중 오류가 발생했습니다."));
+                        e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "처리 중 오류가 발생했습니다."));
+    }
+
+    public Mono<ServerResponse> createServer(ServerRequest request, String email) {
+        return mapCommonError(
+                serverRepository.save(Server.createNewServer(
+                                request.server_name(),
+                                request.server_image()))
+                        .flatMap(server -> {
+                            UserServerMembership membership = UserServerMembership.createMembership(email, server.getServerId());
+                            return userServerMembershipRepository.save(membership)
+                                    .thenReturn(server);
+                        })
+                        .map(this::mapToResponse)
+        );
     }
 
     public Mono<Void> inviteMember(Long serverId, String email) {
-        return Mono.zip(
-                        serverRepository.findById(serverId)
-                                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "서버를 찾을 수 없습니다."))),
-                        userRepository.findByEmail(email)
-                                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다.")))
-                )
-                .flatMap(tuple -> userServerMembershipRepository.findByServerIdAndEmail(serverId, email)
-                        .hasElement()
-                        .flatMap(exists -> {
-                            if (exists) {
-                                return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 초대된 사용자입니다."));
-                            }
-                            UserServerMembership membership = UserServerMembership.createMembership(email, serverId);
-                            return userServerMembershipRepository.save(membership);
-                        }))
-                .then()
-                .onErrorMap(e -> !(e instanceof ResponseStatusException),
-                        e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "초대 처리 중 오류가 발생했습니다."));
+        return mapCommonError(
+                Mono.zip(
+                                findServer(serverId),
+                                userRepository.findByEmail(email)
+                                        .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다.")))
+                        )
+                        .flatMap(tuple -> userServerMembershipRepository.findByServerIdAndEmail(serverId, email)
+                                .hasElement()
+                                .flatMap(exists -> {
+                                    if (exists) {
+                                        return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 초대된 사용자입니다."));
+                                    }
+                                    UserServerMembership membership = UserServerMembership.createMembership(email, serverId);
+                                    return userServerMembershipRepository.save(membership);
+                                }))
+                        .then()
+        );
     }
 
     public Flux<ServerResponse> getUserServers(String email) {
@@ -72,26 +77,19 @@ public class ServerService {
 
     public Mono<ServerResponse> updateServerName(Long serverId, String newName, String email) {
         return checkMemberAccess(serverId, email)
-                .filter(hasAccess -> hasAccess)
-                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.FORBIDDEN, "서버에 대한 접근 권한이 없습니다.")))
-                .flatMap(__ -> serverRepository.findByServerId(serverId)
-                        .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "서버를 찾을 수 없습니다.")))
-                        .doOnNext(server -> server.setServerName(newName))
-                        .flatMap(serverRepository::save))
+                .flatMap(__ -> findServer(serverId))
+                .doOnNext(server -> server.setServerName(newName))
+                .flatMap(serverRepository::save)
                 .map(this::mapToResponse)
-                .onErrorMap(e -> !(e instanceof ResponseStatusException),
-                        e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "서버 이름 수정 중 오류가 발생했습니다."));
+                .transform(this::mapCommonError);
     }
 
     public Mono<String> updateServerImage(Long serverId, FilePart file, String email) {
         return checkMemberAccess(serverId, email)
-                .filter(hasAccess -> hasAccess)
-                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.FORBIDDEN, "서버에 대한 접근 권한이 없습니다.")))
-                .then(findServer(serverId))
+                .flatMap(__ -> findServer(serverId))
                 .flatMap(server -> storeNewImage(file)
                         .flatMap(newImageUrl -> updateServerAndHandleOldImage(server, newImageUrl)))
-                .onErrorMap(e -> !(e instanceof ResponseStatusException),
-                        e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "서버 이미지 업데이트 중 오류가 발생했습니다."));
+                .transform(this::mapCommonError);
     }
 
     private Mono<Server> findServer(Long serverId) {
@@ -99,6 +97,13 @@ public class ServerService {
                 .switchIfEmpty(Mono.error(
                         new ResponseStatusException(HttpStatus.NOT_FOUND, "서버를 찾을 수 없습니다.")
                 ));
+    }
+
+    private Mono<Boolean> checkMemberAccess(Long serverId, String email) {
+        return userServerMembershipRepository.findByServerIdAndEmail(serverId, email)
+                .hasElement()
+                .filter(hasAccess -> hasAccess)
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.FORBIDDEN, "서버에 대한 접근 권한이 없습니다.")));
     }
 
     private Mono<String> storeNewImage(FilePart file) {
@@ -110,49 +115,38 @@ public class ServerService {
 
     private Mono<String> updateServerAndHandleOldImage(Server server, String newImageUrl) {
         String oldImageUrl = server.getServerImage();
+        server.setServerImage(newImageUrl);
 
-        return Mono.just(server)
-                .doOnNext(existingServer -> existingServer.setServerImage(newImageUrl))
-                .flatMap(serverRepository::save)
+        return serverRepository.save(server)
                 .map(Server::getServerImage)
-                .doOnNext(__ -> {
-                    if (oldImageUrl != null && !oldImageUrl.isEmpty()) {
-                        deleteOldImage(oldImageUrl);
-                    }
-                });
+                .doOnNext(__ -> deleteOldImageIfExists(oldImageUrl));
     }
 
-    private void deleteOldImage(String imageUrl) {
-        fileStorageService.delete(imageUrl)
-                .doOnError(error -> log.error("Failed to delete old server image: {}", imageUrl, error))
-                .onErrorMap(e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "이전 이미지 삭제 중 오류가 발생했습니다."))
-                .subscribe();
+    private void deleteOldImageIfExists(String oldImageUrl) {
+        if (oldImageUrl != null && !oldImageUrl.isEmpty()) {
+            fileStorageService.delete(oldImageUrl)
+                    .doOnError(error -> log.error("Failed to delete old server image: {}", oldImageUrl, error))
+                    .onErrorMap(e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "이전 이미지 삭제 중 오류가 발생했습니다."))
+                    .subscribe();
+        }
     }
 
     public Mono<Void> deleteServer(Long serverId, String email) {
         return checkMemberAccess(serverId, email)
-                .filter(hasAccess -> hasAccess)
-                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.FORBIDDEN, "서버에 대한 접근 권한이 없습니다.")))
-                .then(serverRepository.findById(serverId))
-                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "서버를 찾을 수 없습니다.")))
-                .flatMap(server ->
-                        userServerMembershipRepository.deleteByServerIdAndEmail(serverId, email)
-                                .then(userServerMembershipRepository.countByServerId(serverId))
-                                .filter(memberCount -> memberCount == 0)
-                                .flatMap(__ ->
-                                        Mono.justOrEmpty(server.getServerImage())
-                                                .flatMap(fileStorageService::delete)
-                                                .then(serverRepository.deleteById(serverId))
-                                                .switchIfEmpty(serverRepository.deleteById(serverId))
-                                )
-                )
-                .onErrorMap(e -> !(e instanceof ResponseStatusException),
-                        e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "서버 삭제 중 오류가 발생했습니다."));
+                .then(findServer(serverId))
+                .flatMap(server -> deleteServerAndRelatedData(server, serverId, email))
+                .transform(this::mapCommonError);
     }
 
-    private Mono<Boolean> checkMemberAccess(Long serverId, String email) {
-        return userServerMembershipRepository.findByServerIdAndEmail(serverId, email)
-                .hasElement();
+    private Mono<Void> deleteServerAndRelatedData(Server server, Long serverId, String email) {
+        return userServerMembershipRepository.deleteByServerIdAndEmail(serverId, email)
+                .then(userServerMembershipRepository.countByServerId(serverId))
+                .filter(memberCount -> memberCount == 0)
+                .flatMap(__ -> {
+                    Mono<Void> deleteImage = server.getServerImage() != null ?
+                            fileStorageService.delete(server.getServerImage()) : Mono.empty();
+                    return deleteImage.then(serverRepository.deleteById(serverId));
+                });
     }
 
     private ServerResponse mapToResponse(Server server) {
