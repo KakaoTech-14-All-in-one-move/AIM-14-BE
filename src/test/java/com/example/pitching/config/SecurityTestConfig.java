@@ -39,7 +39,7 @@ public class SecurityTestConfig {
                 .httpBasic(httpBasic -> httpBasic.disable())
                 .formLogin(formLogin -> formLogin.disable())
                 .authorizeExchange(exchanges -> exchanges
-                        .pathMatchers("/api/v1/auth/**", "/oauth2/**", "/login/oauth2/code/**").permitAll()
+                        .pathMatchers("/api/v1/auth/**", "/oauth2/**", "/login/oauth2/code/**").authenticated()
                         .pathMatchers("/api/**").authenticated()
                         .anyExchange().permitAll()
                 )
