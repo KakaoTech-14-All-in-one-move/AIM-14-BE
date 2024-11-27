@@ -52,6 +52,7 @@ public class CallWebSocketHandler implements WebSocketHandler {
                             log.info("[{}] Disconnected: {}", userId, signalType);
                             if (!ANONYMOUS.equals(userId)) {
                                 replyHandler.cleanupResources(userId);
+                                replyHandler.cleanupWebRtc(session);
                             }
                         })
         );

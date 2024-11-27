@@ -16,7 +16,7 @@ public enum ResponseOperation implements Operation {
     PRESENTER_ACK(16, ""),
     VIEWER_ACK(17, ""),
     ICE_CANDIDATE_ACK(18, ""),
-    STOP_COMMUNICATION(19, ""),
+    STOP_ACK(19, ""),
     ;
 
     @JsonValue

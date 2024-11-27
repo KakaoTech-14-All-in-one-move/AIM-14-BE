@@ -22,12 +22,8 @@ public record ChannelEnterResponse(
         boolean isMuted,
         @JsonProperty("deafened")
         boolean isDeafened,
-        @JsonProperty("speaking")
-        boolean isSpeaking,
         @JsonProperty("camera_on")
-        boolean isCameraOn,
-        @JsonProperty("screen_sharing")
-        boolean isScreenSharing
+        boolean isCameraOn
 ) implements Data {
     public static ChannelEnterResponse from(VoiceState voiceState, String profileImage) {
         return new ChannelEnterResponse(
@@ -39,9 +35,7 @@ public record ChannelEnterResponse(
                 voiceState.channelType(),
                 voiceState.isMuted(),
                 voiceState.isDeafened(),
-                voiceState.isSpeaking(),
-                voiceState.isCameraOn(),
-                voiceState.isScreenSharing()
+                voiceState.isCameraOn()
         );
     }
 }
