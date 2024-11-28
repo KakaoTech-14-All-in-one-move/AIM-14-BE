@@ -1,11 +1,9 @@
 package com.example.pitching.auth.jwt;
 
-import com.example.pitching.auth.controller.AuthController;
-import com.example.pitching.auth.service.AuthService;
 import com.example.pitching.auth.userdetails.CustomUserDetailsService;
 import com.example.pitching.config.SecurityTestConfig;
-import com.example.pitching.user.controller.ChannelController;
-import com.example.pitching.user.service.ChannelService;
+import com.example.pitching.user.controller.UserController;
+import com.example.pitching.user.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,19 +17,18 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.server.ResponseStatusException;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import static org.mockito.Mockito.when;
 
-@WebFluxTest(AuthController.class)
+@WebFluxTest(UserController.class)
 @Import(SecurityTestConfig.class)
 class JwtAuthenticationTest {
     @Autowired
     private WebTestClient webTestClient;
 
     @MockBean
-    private AuthService authService;
+    private UserService userService;
 
     @MockBean
     private JwtTokenProvider jwtTokenProvider;
@@ -39,13 +36,10 @@ class JwtAuthenticationTest {
     @MockBean
     private CustomUserDetailsService userDetailsService;
 
-    private static final String BASE_URL = "/api/v1/auth";
+    private static final String BASE_URL = "/api/v1/users";
     private static final String VALID_TOKEN = "valid.test.token";
     private static final String TEST_EMAIL = "test@example.com";
     private static final String TEST_PASSWORD = "password";
-
-    @Autowired
-    private AuthController authController;
 
     @BeforeEach
     void setUp() {
@@ -64,21 +58,21 @@ class JwtAuthenticationTest {
     @Test
     @DisplayName("유효한 JWT 토큰으로 인증 성공")
     void authenticateWithValidToken() {
-        when(authService.authenticate(TEST_EMAIL, TEST_PASSWORD))
+        when(userService.withdrawUser(TEST_EMAIL))
                 .thenReturn(Mono.empty());
 
-        webTestClient.get()
-                .uri(BASE_URL + "/check?email=" + TEST_EMAIL)
+        webTestClient.delete()
+                .uri(BASE_URL + "/me")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + VALID_TOKEN)
                 .exchange()
-                .expectStatus().isOk();
+                .expectStatus().isNoContent();
     }
 
     @Test
     @DisplayName("JWT 토큰 없이 접근 시 인증 실패")
     void failsWithoutToken() {
-        webTestClient.get()
-                .uri(BASE_URL + "/check?email=" + TEST_EMAIL)
+        webTestClient.delete()
+                .uri(BASE_URL + "/me")
                 .exchange()
                 .expectStatus().isUnauthorized();
     }
@@ -90,8 +84,8 @@ class JwtAuthenticationTest {
         when(jwtTokenProvider.validateAndGetEmail(invalidToken))
                 .thenThrow(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token"));
 
-        webTestClient.get()
-                .uri(BASE_URL + "/check")
+        webTestClient.delete()
+                .uri(BASE_URL + "/me")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + invalidToken)
                 .exchange()
                 .expectStatus().isUnauthorized();
@@ -104,8 +98,8 @@ class JwtAuthenticationTest {
         when(jwtTokenProvider.validateAndGetEmail(expiredToken))
                 .thenThrow(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token has expired"));
 
-        webTestClient.get()
-                .uri(BASE_URL + "/check")
+        webTestClient.delete()
+                .uri(BASE_URL + "/me")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + expiredToken)
                 .exchange()
                 .expectStatus().isUnauthorized();
