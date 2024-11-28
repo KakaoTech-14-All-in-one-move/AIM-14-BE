@@ -2,6 +2,7 @@ package com.example.pitching.auth.userdetails;
 
 import com.example.pitching.auth.domain.User;
 import com.example.pitching.auth.repository.UserRepository;
+import com.example.pitching.common.error.ApiError;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -9,15 +10,16 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class CustomUserDetailsServiceTest {
@@ -38,7 +40,7 @@ class CustomUserDetailsServiceTest {
         @BeforeEach
         void setUp() {
                 user = User.createNewUser(TEST_EMAIL, TEST_USERNAME, null, TEST_PASSWORD);
-                when(userRepository.findByEmail(TEST_EMAIL)).thenReturn(Mono.just(user));
+                lenient().when(userRepository.findByEmail(TEST_EMAIL)).thenReturn(Mono.just(user));
         }
 
         @Test
@@ -76,7 +78,7 @@ class CustomUserDetailsServiceTest {
         }
 
         @Test
-        @DisplayName("존재하지 않는 이메일로 조회시 UsernameNotFoundException을 발생시킨다")
+        @DisplayName("존재하지 않는 이메일로 조회시 NotFoundException을 발생시킨다")
         void findByNonExistentEmail() {
                 // given
                 String nonExistentEmail = "nonexistent@example.com";
@@ -86,8 +88,10 @@ class CustomUserDetailsServiceTest {
                 StepVerifier.create(userDetailsService.findByUsername(nonExistentEmail))
                         .expectErrorSatisfies(error -> {
                                 assertThat(error)
-                                        .isInstanceOf(UsernameNotFoundException.class)
-                                        .hasMessageContaining("User not found with email");
+                                        .isInstanceOf(ResponseStatusException.class)
+                                        .hasMessageContaining("해당 이메일을 가진 사용자를 찾을 수 없습니다.")
+                                        .extracting(e -> ((ResponseStatusException) e).getStatusCode())
+                                        .isEqualTo(HttpStatus.NOT_FOUND);
                         })
                         .verify();
 
