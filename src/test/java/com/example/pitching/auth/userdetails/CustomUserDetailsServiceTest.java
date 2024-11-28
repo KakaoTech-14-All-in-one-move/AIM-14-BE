@@ -2,7 +2,6 @@ package com.example.pitching.auth.userdetails;
 
 import com.example.pitching.auth.domain.User;
 import com.example.pitching.auth.repository.UserRepository;
-import com.example.pitching.common.error.ApiError;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,7 +11,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
