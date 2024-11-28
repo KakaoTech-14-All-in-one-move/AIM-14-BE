@@ -6,8 +6,4 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 @SpringBootTest
 class PitchingApplicationTests {
-
-	@Test
-	void contextLoads() {
-	}
 }
