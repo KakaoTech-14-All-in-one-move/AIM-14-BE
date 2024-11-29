@@ -75,6 +75,7 @@ public class ReplyHandler {
 
     public void cleanupWebRtc(WebSocketSession session) {
         Long channelId = getChannelIdFromSession(session);
+        if (channelId == -1) return;
         String userId = getUserIdFromSession(session);
         if (presenterMap.get(channelId) != null && presenterMap.get(channelId).isSameSession(session)) {
             if (viewerMap.containsKey(channelId)) {
@@ -87,7 +88,7 @@ public class ReplyHandler {
             log.info("Releasing media pipeline : STOP OPERATION");
             presenterMap.get(channelId).releaseMediaPipeline();
             presenterMap.remove(channelId);
-        } else if (viewerMap.get(channelId).contains(userId)) {
+        } else if (viewerMap.containsKey(channelId) && viewerMap.get(channelId).contains(userId)) {
             userSessionMap.get(userId).releaseWebRtcEndpoint();
             viewerMap.get(channelId).remove(userId);
         }
@@ -445,6 +446,6 @@ public class ReplyHandler {
     private Long getChannelIdFromSession(WebSocketSession session) {
         return Optional.ofNullable(session.getAttributes().get("channelId"))
                 .map(id -> Long.valueOf(id.toString()))
-                .orElseThrow(() -> new WrongAccessException(ErrorCode.WRONG_ACCESS_INACTIVE_CHANNEL, "Enter channel first"));
+                .orElse(-1L);
     }
 }
