@@ -33,97 +33,92 @@ import java.util.Arrays;
 @RequiredArgsConstructor
 public class WebfluxSecurityConfig {
 
-    private final JwtTokenProvider jwtTokenProvider;
-    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
-    private final OAuth2SuccessHandler oAuth2SuccessHandler;
-    private final OAuth2FailureHandler oAuth2FailureHandler;
-    private final CustomUserDetailsService userDetailsService;
-    @Value("${front.url}")
-    private String frontURL;
+        private final JwtTokenProvider jwtTokenProvider;
+        private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+        private final OAuth2SuccessHandler oAuth2SuccessHandler;
+        private final OAuth2FailureHandler oAuth2FailureHandler;
+        private final CustomUserDetailsService userDetailsService;
+        @Value("${front.url}")
+        private String frontURL;
 
-    @Bean
-    public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
-        return http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.disable())
-                .httpBasic(httpBasic -> httpBasic.disable())
-                .formLogin(formLogin -> formLogin.disable())
-                .authorizeExchange(exchanges -> exchanges
-                        .pathMatchers("/api/v1/auth/**", "/oauth2/**", "/login/oauth2/code/**").permitAll()
-                        .pathMatchers("/api/**").authenticated()
-                        .anyExchange().permitAll()
-                )
-                .oauth2Login(oauth2 -> oauth2
-                        .authenticationSuccessHandler(oAuth2SuccessHandler)
-                        .authenticationFailureHandler(oAuth2FailureHandler)
-                )
-                .exceptionHandling(exceptionHandling ->
-                        exceptionHandling.authenticationEntryPoint(jwtAuthenticationEntryPoint)
-                )
-                .addFilterAt(jwtAuthenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
-                .build();
-    }
+        @Bean
+        public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
+                return http
+                                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                                .csrf(csrf -> csrf.disable())
+                                .httpBasic(httpBasic -> httpBasic.disable())
+                                .formLogin(formLogin -> formLogin.disable())
+                                .authorizeExchange(exchanges -> exchanges
+                                                .pathMatchers("/api/v1/auth/**", "/oauth2/**", "/login/oauth2/code/**")
+                                                .permitAll()
+                                                .pathMatchers("/api/**").authenticated()
+                                                .anyExchange().permitAll())
+                                .oauth2Login(oauth2 -> oauth2
+                                                .authenticationSuccessHandler(oAuth2SuccessHandler)
+                                                .authenticationFailureHandler(oAuth2FailureHandler))
+                                .exceptionHandling(exceptionHandling -> exceptionHandling
+                                                .authenticationEntryPoint(jwtAuthenticationEntryPoint))
+                                .addFilterAt(jwtAuthenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
+                                .build();
+        }
 
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(frontURL));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setAllowCredentials(true);
-        configuration.setExposedHeaders(Arrays.asList("Location")); // Location 헤더 노출
+        @Bean
+        public CorsConfigurationSource corsConfigurationSource() {
+                CorsConfiguration configuration = new CorsConfiguration();
+                configuration.setAllowedOrigins(Arrays.asList(frontURL));
+                configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+                configuration.setAllowedHeaders(Arrays.asList("*"));
+                configuration.setAllowCredentials(true);
+                configuration.setExposedHeaders(Arrays.asList("Location")); // Location 헤더 노출
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
+                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+                source.registerCorsConfiguration("/**", configuration);
+                return source;
+        }
 
-    private AuthenticationWebFilter jwtAuthenticationFilter() {
-        ReactiveAuthenticationManager authenticationManager = authentication -> {
-            String token = authentication.getCredentials().toString();
-            return Mono.just(token)
-                    .map(jwtTokenProvider::validateAndGetEmail)
-                    .flatMap(userDetailsService::findByUsername)
-                    .<Authentication>map(userDetails -> new UsernamePasswordAuthenticationToken(
-                            userDetails,
-                            null,
-                            userDetails.getAuthorities()
-                    ))
-                    .onErrorMap(e -> new ResponseStatusException(
-                            HttpStatus.UNAUTHORIZED,
-                            "인증에 실패했습니다: " + e.getMessage())
-                    );
-        };
+        private AuthenticationWebFilter jwtAuthenticationFilter() {
+                ReactiveAuthenticationManager authenticationManager = authentication -> {
+                        String token = authentication.getCredentials().toString();
+                        return Mono.just(token)
+                                        .map(jwtTokenProvider::validateAndGetEmail)
+                                        .flatMap(userDetailsService::findByUsername)
+                                        .<Authentication>map(userDetails -> new UsernamePasswordAuthenticationToken(
+                                                        userDetails,
+                                                        null,
+                                                        userDetails.getAuthorities()))
+                                        .onErrorMap(e -> new ResponseStatusException(
+                                                        HttpStatus.UNAUTHORIZED,
+                                                        "인증에 실패했습니다: " + e.getMessage()));
+                };
 
-        AuthenticationWebFilter filter = new AuthenticationWebFilter(authenticationManager);
+                AuthenticationWebFilter filter = new AuthenticationWebFilter(authenticationManager);
 
-        filter.setServerAuthenticationConverter(exchange -> {
-            String path = exchange.getRequest().getPath().value();
-            if (path.startsWith("/api/v1/auth/") ||
-                    path.startsWith("/oauth2/") ||
-                    path.startsWith("/login/oauth2/") ||
-                    !path.startsWith("/api")
-            ) {
-                return Mono.empty();
-            }
+                filter.setServerAuthenticationConverter(exchange -> {
+                        String path = exchange.getRequest().getPath().value();
+                        if (path.startsWith("/api/v1/auth/") ||
+                                        path.startsWith("/oauth2/") ||
+                                        path.startsWith("/login/oauth2/") ||
+                                        !path.startsWith("/api")) {
+                                return Mono.empty();
+                        }
 
-            return Mono.justOrEmpty(exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION))
-                    .switchIfEmpty(Mono.error(
-                            new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authorization 헤더가 없습니다.")
-                    ))
-                    .filter(authHeader -> authHeader.startsWith("Bearer "))
-                    .switchIfEmpty(Mono.error(
-                            new ResponseStatusException(HttpStatus.UNAUTHORIZED, "잘못된 Authorization 헤더 형식입니다.")
-                    ))
-                    .map(authHeader -> authHeader.substring(7))
-                    .map(token -> new UsernamePasswordAuthenticationToken(token, token));
-        });
+                        return Mono.justOrEmpty(exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION))
+                                        .switchIfEmpty(Mono.error(
+                                                        new ResponseStatusException(HttpStatus.UNAUTHORIZED,
+                                                                        "Authorization 헤더가 없습니다.")))
+                                        .filter(authHeader -> authHeader.startsWith("Bearer "))
+                                        .switchIfEmpty(Mono.error(
+                                                        new ResponseStatusException(HttpStatus.UNAUTHORIZED,
+                                                                        "잘못된 Authorization 헤더 형식입니다.")))
+                                        .map(authHeader -> authHeader.substring(7))
+                                        .map(token -> new UsernamePasswordAuthenticationToken(token, token));
+                });
 
-        return filter;
-    }
+                return filter;
+        }
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+        @Bean
+        public PasswordEncoder passwordEncoder() {
+                return new BCryptPasswordEncoder();
+        }
 }
