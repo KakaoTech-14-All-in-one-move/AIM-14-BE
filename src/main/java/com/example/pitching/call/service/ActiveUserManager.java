@@ -36,14 +36,18 @@ public class ActiveUserManager {
                 .flatMap(isActive -> {
                     if (!isActive) return valueOperations.setIfAbsent(getActiveUserRedisKey(userId), serverId);
                     return valueOperations.getAndSet(getActiveUserRedisKey(userId), serverId)
-                            .map(pastServerId -> validateServerDestination(serverId, pastServerId))
-                            .filter(Boolean.TRUE::equals)
-                            .doOnSuccess(ignored -> {
-                                log.info("ALREADY ACTIVE BUT NOT SAME SERVER ID");
-                                setSubscriptionRequired(userId, true);
-                            })
-                            .defaultIfEmpty(Boolean.FALSE);
+                            .map(pastServerId -> isSameServerDestination(serverId, pastServerId))
+                            .filter(Boolean.FALSE::equals)
+                            .flatMap(ignored -> moveToOtherServer(userId))
+                            .thenReturn(true);
                 });
+    }
+
+    private Mono<Void> moveToOtherServer(String userId) {
+        return Mono.fromRunnable(() -> {
+            log.info("ALREADY ACTIVE BUT NOT SAME SERVER ID");
+            setSubscriptionRequired(userId, true);
+        });
     }
 
     // 로그아웃
@@ -58,8 +62,8 @@ public class ActiveUserManager {
                 .switchIfEmpty(Mono.error(new WrongAccessException(ErrorCode.WRONG_ACCESS_INACTIVE_SERVER, String.valueOf(serverId))));
     }
 
-    private Boolean validateServerDestination(String serverId, String pastServerId) {
-        return !Objects.equals(pastServerId, serverId);
+    private Boolean isSameServerDestination(String serverId, String pastServerId) {
+        return Long.parseLong(serverId) == Long.parseLong(pastServerId);
     }
 
     private Mono<Boolean> isActiveUser(String userId) {

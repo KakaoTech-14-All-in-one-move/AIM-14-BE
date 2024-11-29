@@ -14,6 +14,8 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
 
+import java.util.Objects;
+
 @Slf4j
 @ToString
 @AllArgsConstructor
@@ -50,8 +52,15 @@ public class UserSession {
         this.webRtcEndpoint.addIceCandidate(candidate);
     }
 
-    public boolean isSameSession(WebSocketSession session) {
-        return this.session.getId().equals(session.getId());
+    public boolean isSameUser(WebSocketSession session) {
+        String userIdFromPastSession = session.getAttributes().get("userId").toString();
+        String userIdFromCurrentSession = this.session.getAttributes().get("userId").toString();
+        if (userIdFromPastSession != null && userIdFromCurrentSession != null) {
+            return Objects.equals(userIdFromPastSession, userIdFromCurrentSession);
+        } else {
+            log.error("pastUserId : {}, currentUserId : {}", userIdFromPastSession, userIdFromCurrentSession);
+            throw new RuntimeException();
+        }
     }
 
     public boolean isNullWebRtcEndpoint() {

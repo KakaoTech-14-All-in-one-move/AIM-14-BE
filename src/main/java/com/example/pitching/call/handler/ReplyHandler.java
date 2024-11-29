@@ -75,9 +75,12 @@ public class ReplyHandler {
 
     public void cleanupWebRtc(WebSocketSession session) {
         Long channelId = getChannelIdFromSession(session);
-        if (channelId == -1) return;
+        if (channelId == -1) {
+            log.info("No channelId in session");
+            return;
+        }
         String userId = getUserIdFromSession(session);
-        if (presenterMap.get(channelId) != null && presenterMap.get(channelId).isSameSession(session)) {
+        if (presenterMap.get(channelId) != null && presenterMap.get(channelId).isSameUser(session)) {
             if (viewerMap.containsKey(channelId)) {
                 for (String viewer : viewerMap.get(channelId)) {
                     String message = convertService.convertObjectToJson(
@@ -106,7 +109,7 @@ public class ReplyHandler {
             String userId = getUserIdFromSession(session);
             UserSession user = null;
             if (!presenterMap.containsKey(channelId)) {
-                if (presenterMap.get(channelId).isSameSession(session)) {
+                if (presenterMap.get(channelId).isSameUser(session)) {
                     user = presenterMap.get(channelId);
                 } else {
                     user = userSessionMap.get(userId);

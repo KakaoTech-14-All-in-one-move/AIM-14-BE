@@ -100,7 +100,6 @@ spring:
 
 logging:
   level:
-    reactor.netty.udp: DEBUG
     org.springframework.r2dbc: DEBUG
     # Swagger 관련 로깅 추가
     org.springdoc: DEBUG
