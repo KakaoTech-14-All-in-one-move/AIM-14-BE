@@ -72,8 +72,8 @@ class WebfluxSecurityConfigTest {
                 .getCorsConfiguration(corsExchange);
 
         // JWT 인증 필터 공통 설정
-        var filter = ReflectionTestUtils.invokeMethod(webfluxSecurityConfig, "jwtAuthenticationFilter");
-        authenticationWebFilter = (AuthenticationWebFilter) filter;
+        Object filterObject = ReflectionTestUtils.invokeMethod(webfluxSecurityConfig, "jwtAuthenticationFilter");
+        authenticationWebFilter = (AuthenticationWebFilter) filterObject;
     }
 
     @Test
@@ -120,7 +120,7 @@ class WebfluxSecurityConfigTest {
         when(userDetailsService.findByUsername(TEST_EMAIL)).thenReturn(Mono.just(userDetails));
 
         // when
-        var result = authenticationWebFilter.filter(exchange, chain -> Mono.empty())
+        Mono<MockServerWebExchange> result = authenticationWebFilter.filter(exchange, chain -> Mono.empty())
                 .then(Mono.just(exchange));
 
         // then
@@ -137,7 +137,7 @@ class WebfluxSecurityConfigTest {
         MockServerWebExchange exchange = MockServerWebExchange.from(request);
 
         // when
-        var result = authenticationWebFilter.filter(exchange, chain -> Mono.empty());
+        Mono<Void> result = authenticationWebFilter.filter(exchange, chain -> Mono.empty());
 
         // then
         StepVerifier.create(result)
@@ -154,7 +154,7 @@ class WebfluxSecurityConfigTest {
         MockServerWebExchange exchange = MockServerWebExchange.from(request);
 
         // when
-        var result = authenticationWebFilter.filter(exchange, chain -> Mono.empty());
+        Mono<Void> result = authenticationWebFilter.filter(exchange, chain -> Mono.empty());
 
         // then
         StepVerifier.create(result)
