@@ -221,7 +221,7 @@ public class ReplyHandler {
     private Mono<Void> sendServerEvent(String userId, WebSocketSession session) {
         return session.send(
                 getMessageFromUserSink(userId)
-                        .doOnNext(message -> log.info("[{}] Server Message : {}", userId, message))
+                        .doOnNext(message -> log.debug("[{}] Server Message : {}", userId, message))
                         .onErrorResume(this::handleServerErrors)
                         .map(session::textMessage)
         );
@@ -299,7 +299,7 @@ public class ReplyHandler {
     private Flux<String> createDataWithProfileImage(Map.Entry<String, String> mapEntry) {
         VoiceState voiceState = convertService.convertJsonToObject(mapEntry.getValue(), VoiceState.class);
         return userRepository.findByEmail(voiceState.userId())
-                .map(user -> ChannelEnterResponse.from(voiceState, user.getProfileImage()))
+                .map(user -> ServerResponse.from(voiceState, user.getProfileImage()))
                 .flatMapMany(this::createServerAckEvent);
     }
 
@@ -327,7 +327,7 @@ public class ReplyHandler {
                 .then(activeUserManager.isCorrectAccess(userId, channelRequest.serverId()))
                 .then(userRepository.findByEmail(userId))
                 .flatMap(user -> createUserAndVoiceStateTuple(userId, user, channelRequest))
-                .map(tuple -> ChannelEnterResponse.from(tuple.getT2(), tuple.getT1().getProfileImage()))
+                .map(tuple -> ChannelEnterResponse.from(tuple.getT1().getProfileImage(), tuple.getT2()))
                 .flatMapMany(this::putChannelEnterToStream);
     }
 
@@ -347,7 +347,7 @@ public class ReplyHandler {
         Event channelAck = Event.of(ResponseOperation.ENTER_CHANNEL_EVENT, channelEnterResponse, null);
         String jsonChannelAck = convertService.convertObjectToJson(channelAck);
         return serverStreamManager.addVoiceMessageToStream(channelEnterResponse.serverId(), jsonChannelAck)
-                .doOnSuccess(ignored -> log.info("[{}] entered the {} channel : id = {}",
+                .doOnSuccess(ignored -> log.info("[{}] entered the {} channel [ {} ]",
                         channelEnterResponse.userId(), channelEnterResponse.channelType(), channelEnterResponse.channelId()))
                 .then(Mono.empty());
     }
@@ -387,7 +387,7 @@ public class ReplyHandler {
         Event channelAck = Event.of(ResponseOperation.LEAVE_CHANNEL_EVENT, ChannelLeaveResponse.from(channelRequest, userId), null);
         String jsonChannelAck = convertService.convertObjectToJson(channelAck);
         return serverStreamManager.addVoiceMessageToStream(channelRequest.serverId(), jsonChannelAck)
-                .doOnSuccess(ignored -> log.info("[{}] leaved the {} channel : id = {}", userId, channelRequest.channelType(), channelRequest.channelId()))
+                .doOnSuccess(ignored -> log.info("[{}] leaved the {} channel [ {} ]", userId, channelRequest.channelType(), channelRequest.channelId()))
                 .then(Mono.empty());
     }
 
@@ -420,7 +420,7 @@ public class ReplyHandler {
         Event stateAck = Event.of(ResponseOperation.UPDATE_STATE_EVENT, StateResponse.from(voiceState), null);
         String jsonStateAck = convertService.convertObjectToJson(stateAck);
         return serverStreamManager.addVoiceMessageToStream(voiceState.serverId(), jsonStateAck)
-                .doOnSuccess(ignored -> log.info("[{}] updated the state : id = {}", userId, stateRequest))
+                .doOnSuccess(ignored -> log.info("[{}] updated the state : {}", userId, stateRequest))
                 .then(Mono.empty());
     }
 

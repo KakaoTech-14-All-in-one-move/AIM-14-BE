@@ -5,7 +5,7 @@ import com.example.pitching.call.dto.VoiceState;
 import com.example.pitching.call.operation.Data;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-public record ChannelEnterResponse(
+public record ServerResponse(
         @JsonProperty("user_id")
         String userId,
         @JsonProperty("username")
@@ -17,16 +17,25 @@ public record ChannelEnterResponse(
         @JsonProperty("channel_id")
         Long channelId,
         @JsonProperty("channel_type")
-        ChannelType channelType
+        ChannelType channelType,
+        @JsonProperty("muted")
+        boolean isMuted,
+        @JsonProperty("deafened")
+        boolean isDeafened,
+        @JsonProperty("camera_on")
+        boolean isCameraOn
 ) implements Data {
-    public static ChannelEnterResponse from(String profileImage, VoiceState voiceState) {
-        return new ChannelEnterResponse(
+    public static ServerResponse from(VoiceState voiceState, String profileImage) {
+        return new ServerResponse(
                 voiceState.userId(),
                 voiceState.username(),
                 profileImage,
                 voiceState.serverId(),
                 voiceState.channelId(),
-                voiceState.channelType()
+                voiceState.channelType(),
+                voiceState.isMuted(),
+                voiceState.isDeafened(),
+                voiceState.isCameraOn()
         );
     }
 }

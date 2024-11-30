@@ -7,6 +7,7 @@ import com.example.pitching.call.operation.code.RequestOperation;
 import com.example.pitching.call.operation.code.ResponseOperation;
 import com.example.pitching.call.operation.response.ChannelEnterResponse;
 import com.example.pitching.call.operation.response.ChannelLeaveResponse;
+import com.example.pitching.call.operation.response.StateResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -51,7 +52,7 @@ public class ConvertService {
                         return createResponseWithSequence(responseOperation, jsonMessage, ChannelLeaveResponse.class, sequence);
                     }
                     if (responseOperation == ResponseOperation.UPDATE_STATE_EVENT) {
-                        return createResponseWithSequence(responseOperation, jsonMessage, ChannelEnterResponse.class, sequence);
+                        return createResponseWithSequence(responseOperation, jsonMessage, StateResponse.class, sequence);
                     } else {
                         return Mono.error(new RuntimeException("Unsupported response operation: " + responseOperation));
                     }
