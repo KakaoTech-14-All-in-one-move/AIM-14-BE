@@ -1,5 +1,7 @@
 package com.example.pitching.auth.config;
 
+import com.example.pitching.auth.jwt.JwtAuthenticationEntryPoint;
+import com.example.pitching.auth.jwt.JwtTokenProvider;
 import com.example.pitching.auth.oauth2.handler.OAuth2FailureHandler;
 import com.example.pitching.auth.oauth2.handler.OAuth2SuccessHandler;
 import com.example.pitching.auth.userdetails.CustomUserDetailsService;
