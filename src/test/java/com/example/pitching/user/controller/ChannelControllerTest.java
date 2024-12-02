@@ -1,9 +1,8 @@
-package com.example.pitching.channel.controller;
+package com.example.pitching.user.controller;
 
 import com.example.pitching.auth.jwt.JwtTokenProvider;
 import com.example.pitching.auth.userdetails.CustomUserDetailsService;
 import com.example.pitching.config.SecurityTestConfig;
-import com.example.pitching.user.controller.ChannelController;
 import com.example.pitching.user.domain.Channel;
 import com.example.pitching.user.domain.utility.ChannelCategory;
 import com.example.pitching.user.dto.ChannelResponse;
