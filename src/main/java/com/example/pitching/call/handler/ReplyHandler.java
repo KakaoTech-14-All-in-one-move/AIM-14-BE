@@ -367,7 +367,7 @@ public class ReplyHandler {
                         Mono.empty() : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, String.valueOf(channelRequest.channelId()))))
                 .doOnSuccess(ignored -> session.getAttributes().remove("channelId"))
                 .then(activeUserManager.isCorrectAccess(userId, channelRequest.serverId()))
-                .then(deleteVoiceStateIfPresent(userId, channelRequest))
+                .then(voiceStateManager.removeVoiceState(channelRequest.serverId(), userId))
                 .thenMany(putChannelLeaveToStream(userId, channelRequest));
     }
 
@@ -375,12 +375,6 @@ public class ReplyHandler {
     private Mono<Boolean> isValidChannelId(Long ServerId, Long channelId) {
         List<Long> channalList = List.of(TEST_VIDEO_CHANNEL_ID, TEST_VOICE_CHANNEL_ID);
         return channalList.contains(channelId) ? Mono.just(true) : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, String.valueOf(channelId)));
-    }
-
-    private Mono<Long> deleteVoiceStateIfPresent(String userId, ChannelRequest channelRequest) {
-        return voiceStateManager.removeVoiceState(channelRequest.serverId(), userId)
-                .filter(result -> result == 1)
-                .switchIfEmpty(Mono.error(new DuplicateOperationException(ErrorCode.DUPLICATE_CHANNEL_EXIT, String.valueOf(channelRequest.channelId()))));
     }
 
     private Mono<String> putChannelLeaveToStream(String userId, ChannelRequest channelRequest) {
