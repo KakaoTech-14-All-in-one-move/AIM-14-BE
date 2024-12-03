@@ -13,6 +13,8 @@ public record StateRequest(
         @JsonProperty("deafened")
         boolean isDeafened,
         @JsonProperty("camera_on")
-        boolean isCameraOn
+        boolean isCameraOn,
+        @JsonProperty("screen_sharing")
+        boolean isScreenSharing
 ) implements Data {
 }

@@ -21,7 +21,9 @@ public record StateResponse(
         @JsonProperty("deafened")
         boolean isDeafened,
         @JsonProperty("camera_on")
-        boolean isCameraOn
+        boolean isCameraOn,
+        @JsonProperty("screen_sharing")
+        boolean isScreenSharing
 ) implements Data {
     public static StateResponse from(VoiceState voiceState) {
         return new StateResponse(
@@ -32,7 +34,8 @@ public record StateResponse(
                 voiceState.channelType(),
                 voiceState.isMuted(),
                 voiceState.isDeafened(),
-                voiceState.isCameraOn()
+                voiceState.isCameraOn(),
+                voiceState.isScreenSharing()
         );
     }
 }

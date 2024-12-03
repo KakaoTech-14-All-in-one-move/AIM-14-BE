@@ -21,7 +21,9 @@ public record VoiceState(
         @JsonProperty("deafened")
         boolean isDeafened,
         @JsonProperty("camera_on")
-        boolean isCameraOn
+        boolean isCameraOn,
+        @JsonProperty("screen_sharing")
+        boolean isScreenSharing
 ) {
     public static VoiceState from(ChannelRequest channelRequest, User user) {
         return new VoiceState(
@@ -30,6 +32,7 @@ public record VoiceState(
                 channelRequest.serverId(),
                 channelRequest.channelId(),
                 channelRequest.channelType(),
+                false,
                 false,
                 false,
                 false);
@@ -44,7 +47,8 @@ public record VoiceState(
                 channelType,
                 this.isMuted,
                 this.isDeafened,
-                this.isCameraOn);
+                this.isCameraOn,
+                this.isScreenSharing);
     }
 
     public VoiceState updateState(StateRequest stateRequest) {
@@ -56,6 +60,7 @@ public record VoiceState(
                 this.channelType,
                 stateRequest.isMuted(),
                 stateRequest.isDeafened(),
-                stateRequest.isCameraOn());
+                stateRequest.isCameraOn(),
+                stateRequest.isScreenSharing());
     }
 }
