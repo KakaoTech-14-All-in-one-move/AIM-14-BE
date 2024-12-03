@@ -4,8 +4,6 @@ import com.example.pitching.call.operation.Data;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public record CandidateRequest(
-        @JsonProperty("channel_id")
-        Long channelId,
         Object candidate,
         @JsonProperty("sdp_mid")
         String sdpMid,

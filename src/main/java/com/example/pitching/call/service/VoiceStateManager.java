@@ -1,7 +1,6 @@
 package com.example.pitching.call.service;
 
 import com.example.pitching.call.dto.VoiceState;
-import com.example.pitching.call.exception.DuplicateOperationException;
 import com.example.pitching.call.exception.ErrorCode;
 import com.example.pitching.call.exception.WrongAccessException;
 import com.example.pitching.call.operation.request.ChannelRequest;

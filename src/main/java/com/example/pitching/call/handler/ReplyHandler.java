@@ -6,27 +6,21 @@ import com.example.pitching.auth.repository.UserRepository;
 import com.example.pitching.call.dto.Subscription;
 import com.example.pitching.call.dto.VoiceState;
 import com.example.pitching.call.dto.properties.ServerProperties;
-import com.example.pitching.call.exception.*;
-import com.example.pitching.call.operation.Data;
-import com.example.pitching.call.operation.Event;
-import com.example.pitching.call.operation.UserSession;
+import com.example.pitching.call.exception.CommonException;
+import com.example.pitching.call.exception.ErrorCode;
+import com.example.pitching.call.exception.InvalidValueException;
+import com.example.pitching.call.exception.UnAuthorizedException;
+import com.example.pitching.call.operation.*;
 import com.example.pitching.call.operation.code.RequestOperation;
 import com.example.pitching.call.operation.code.ResponseOperation;
 import com.example.pitching.call.operation.request.*;
 import com.example.pitching.call.operation.response.*;
-import com.example.pitching.call.service.ActiveUserManager;
-import com.example.pitching.call.service.ConvertService;
-import com.example.pitching.call.service.ServerStreamManager;
-import com.example.pitching.call.service.VoiceStateManager;
+import com.example.pitching.call.service.*;
 import com.example.pitching.user.service.ServerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.kurento.client.IceCandidate;
-import org.kurento.client.IceCandidateFoundEvent;
-import org.kurento.client.KurentoClient;
-import org.kurento.client.WebRtcEndpoint;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.socket.WebSocketMessage;
 import org.springframework.web.reactive.socket.WebSocketSession;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
@@ -34,7 +28,9 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 import reactor.util.function.Tuple2;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
@@ -43,9 +39,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ReplyHandler {
     public static final Long TEST_VOICE_CHANNEL_ID = 1L;
     public static final Long TEST_VIDEO_CHANNEL_ID = 2L;
-    private final Map<String, UserSession> userSessionMap = new ConcurrentHashMap<>();
-    private final Map<Long, UserSession> presenterMap = new ConcurrentHashMap<>();
-    private final Map<Long, Set<String>> viewerMap = new ConcurrentHashMap<>();
+    private final Map<String, UserSink> userSinkMap = new ConcurrentHashMap<>();
     private final JwtTokenProvider jwtTokenProvider;
     private final ServerProperties serverProperties;
     private final ConvertService convertService;
@@ -53,8 +47,23 @@ public class ReplyHandler {
     private final VoiceStateManager voiceStateManager;
     private final ActiveUserManager activeUserManager;
     private final ServerService serverService;
-    private final KurentoClient kurento;
+    private final RoomManager roomManager;
+    private final UserRegistry registry;
     private final UserRepository userRepository;
+
+    public void cleanupResources(String userId) {
+        log.info("Clean up Resources in ReplyHandler");
+        disposeSubscriptionIfPresent(userId);
+        removeUserSink(userId);
+        removeActiveUserFromServer(userId)
+                .flatMap(serverId -> voiceStateManager.removeVoiceState(Long.valueOf(serverId), userId))
+                .subscribe();
+    }
+
+    public void cleanupSession(WebSocketSession session) {
+        UserSession user = registry.removeBySession(session);
+        roomManager.getRoom(user.getChannelId()).leave(user);
+    }
 
     public Flux<String> handleMessages(WebSocketSession session, String receivedMessage) {
         return convertService.readRequestOperationFromMessage(receivedMessage)
@@ -65,129 +74,34 @@ public class ReplyHandler {
                     case RequestOperation.ENTER_CHANNEL -> enterChannel(session, receivedMessage);
                     case RequestOperation.LEAVE_CHANNEL -> leaveChannel(session, receivedMessage);
                     case RequestOperation.UPDATE_STATE -> updateState(session, receivedMessage);
-                    case RequestOperation.PRESENTER -> presenter(session, receivedMessage);
-                    case RequestOperation.VIEWER -> viewer(session, receivedMessage);
                     case RequestOperation.ON_ICE_CANDIDATE -> onIceCandidate(session, receivedMessage);
-                    case RequestOperation.STOP -> stop(session);
+                    case RequestOperation.RECEIVE_VIDEO -> receiveVideoFrom(session, receivedMessage);
                 })
                 .doOnNext(requestOperation -> log.info("[{}] Send Message : {}", getUserIdFromSession(session), receivedMessage));
     }
 
-    public void cleanupWebRtc(WebSocketSession session) {
-        Long channelId = getChannelIdFromSession(session);
-        if (channelId == -1) {
-            log.info("No channelId in session");
-            return;
-        }
-        String userId = getUserIdFromSession(session);
-        if (presenterMap.get(channelId) != null && presenterMap.get(channelId).isSameUser(session)) {
-            if (viewerMap.containsKey(channelId)) {
-                for (String viewer : viewerMap.get(channelId)) {
-                    String message = convertService.convertObjectToJson(
-                            Event.of(ResponseOperation.STOP_ACK, null, null));
-                    userSessionMap.get(viewer).sendMessage(message);
-                }
-            }
-            log.info("Releasing media pipeline : STOP OPERATION");
-            presenterMap.get(channelId).releaseMediaPipeline();
-            presenterMap.remove(channelId);
-        } else if (viewerMap.containsKey(channelId) && viewerMap.get(channelId).contains(userId)) {
-            userSessionMap.get(userId).releaseWebRtcEndpoint();
-            viewerMap.get(channelId).remove(userId);
-        }
-    }
-
-    private Mono<String> stop(WebSocketSession session) {
-        return Mono.fromRunnable(() -> cleanupWebRtc(session))
-                .then(Mono.just(convertService.convertObjectToJson(Event.of(ResponseOperation.STOP_ACK, null, null))));
-    }
 
     private Mono<String> onIceCandidate(WebSocketSession session, String receivedMessage) {
         return Mono.fromRunnable(() -> {
+            final UserSession user = registry.getBySession(session);
             CandidateRequest candidateRequest = convertService.readDataFromMessage(receivedMessage, CandidateRequest.class);
-            Long channelId = candidateRequest.channelId();
-            String userId = getUserIdFromSession(session);
-            UserSession user = null;
-            if (!presenterMap.containsKey(channelId)) {
-                if (presenterMap.get(channelId).isSameUser(session)) {
-                    user = presenterMap.get(channelId);
-                } else {
-                    user = userSessionMap.get(userId);
-                }
-            }
+
             if (user != null) {
-                IceCandidate iceCandidate = new IceCandidate(candidateRequest.candidate().toString(),
+                IceCandidate candidate = new IceCandidate(candidateRequest.candidate().toString(),
                         candidateRequest.sdpMid(), candidateRequest.sdpMLineIndex());
-                user.addCandidate(iceCandidate);
+                user.addCandidate(candidate, user.getUserId());
             }
         });
     }
 
-    private Mono<String> viewer(WebSocketSession session, String receivedMessage) {
-        OfferRequest offerRequest = convertService.readDataFromMessage(receivedMessage, OfferRequest.class);
-        Long channelId = offerRequest.channelId();
-        String userId = getUserIdFromSession(session);
-        if (!presenterMap.containsKey(channelId) || presenterMap.get(channelId).isNullWebRtcEndpoint()) {
-            String message = "No active sender now. Become sender or . Try again later ...";
-            return Mono.just(convertService.convertObjectToJson(
-                    Event.of(ResponseOperation.VIEWER_ACK, AnswerResponse.ofRejected(message), null)));
-        }
-        if (viewerMap.containsKey(channelId) && viewerMap.get(channelId).contains(userId)) {
-            String message = "You are already viewing in this session. Use a different browser to add additional viewers.";
-            return Mono.just(convertService.convertObjectToJson(
-                    Event.of(ResponseOperation.VIEWER_ACK, AnswerResponse.ofRejected(message), null)));
-        }
-        Set<String> viewerSet = viewerMap.getOrDefault(channelId, new HashSet<>());
-        viewerSet.add(userId);
-        UserSession presenterSession = presenterMap.get(channelId);
-        WebRtcEndpoint nextWebRtc = presenterSession.createNextWebRtcEndpoint();
-        nextWebRtc.addIceCandidateFoundListener(event -> session.send(createIceCandidateAck(session, event)).subscribe());
-        UserSession userSession = userSessionMap.get(userId);
-        userSession.addWebRtcEndpoint(nextWebRtc);
-        presenterSession.connect(nextWebRtc);
-        String sdpAnswer = nextWebRtc.processOffer(offerRequest.sdpOffer());
-        return Mono.just(convertService.convertObjectToJson(
-                        Event.of(ResponseOperation.VIEWER_ACK, AnswerResponse.ofAccepted(sdpAnswer), null)
-                ))
-                .doOnSuccess(message -> nextWebRtc.gatherCandidates());
-    }
-
-    private Mono<String> presenter(WebSocketSession session, String receivedMessage) {
-        OfferRequest offerRequest = convertService.readDataFromMessage(receivedMessage, OfferRequest.class);
-        Long channelId = offerRequest.channelId();
-        String userId = getUserIdFromSession(session);
-        if (presenterMap.containsKey(channelId)) {
-            String message = "Another user is currently acting as sender. Try again later ...";
-            return Mono.just(convertService.convertObjectToJson(
-                    Event.of(ResponseOperation.PRESENTER_ACK, AnswerResponse.ofRejected(message), null)));
-        }
-        UserSession presenterSession = presenterMap.computeIfAbsent(channelId, ignored -> {
-            UserSession userSession = userSessionMap.get(userId);
-            userSession.addMediaPipeline(kurento.createMediaPipeline());
-            return userSession;
+    private Mono<String> receiveVideoFrom(WebSocketSession session, String receivedMessage) {
+        return Mono.fromRunnable(() -> {
+            OfferRequest offerRequest = convertService.readDataFromMessage(receivedMessage, OfferRequest.class);
+            final UserSession user = registry.getBySession(session);
+            final UserSession sender = registry.getByName(user.getUserId());
+            final String sdpOffer = offerRequest.sdpOffer();
+            user.receiveVideoFrom(sender, sdpOffer, convertService);
         });
-        WebRtcEndpoint presenterWebRtc = presenterSession.getWebRtcEndpoint();
-        presenterWebRtc.addIceCandidateFoundListener(event -> session.send(createIceCandidateAck(session, event)).subscribe());
-        String sdpAnswer = presenterWebRtc.processOffer(offerRequest.sdpOffer());
-        return Mono.just(convertService.convertObjectToJson(
-                        Event.of(ResponseOperation.PRESENTER_ACK, AnswerResponse.ofAccepted(sdpAnswer), null)
-                ))
-                .doOnSuccess(ignored -> presenterWebRtc.gatherCandidates());
-    }
-
-    private Mono<WebSocketMessage> createIceCandidateAck(WebSocketSession session, IceCandidateFoundEvent event) {
-        return Mono.just(session.textMessage(convertService.convertObjectToJson(
-                Event.of(ResponseOperation.ICE_CANDIDATE_ACK, CandidateResponse.of(event.getCandidate()), null)
-        )));
-    }
-
-    public void cleanupResources(String userId) {
-        log.info("Clean up Resources in ReplyHandler");
-        disposeSubscriptionIfPresent(userId);
-        removeUserSink(userId);
-        removeActiveUserFromServer(userId)
-                .flatMap(serverId -> voiceStateManager.removeVoiceState(Long.valueOf(serverId), userId))
-                .subscribe();
     }
 
     /**
@@ -208,12 +122,12 @@ public class ReplyHandler {
 
     private void initializeUserSink(String userId, WebSocketSession session) {
         session.getAttributes().put("userId", userId);
-        if (userSessionMap.containsKey(userId)) return;
-        userSessionMap.computeIfAbsent(userId, ignored -> {
+        if (userSinkMap.containsKey(userId)) return;
+        userSinkMap.computeIfAbsent(userId, ignored -> {
             Sinks.Many<String> userSink = Sinks.many().unicast().onBackpressureBuffer();
             activeUserManager.setSubscriptionRequired(userId, true);
             log.info("Create user sink : {}", userId);
-            return UserSession.of(session, userSink);
+            return UserSink.of(userSink);
         });
         Mono.defer(() -> sendServerEvent(userId, session)).subscribe();
     }
@@ -228,7 +142,7 @@ public class ReplyHandler {
     }
 
     private Flux<String> getMessageFromUserSink(String userId) {
-        return userSessionMap.get(userId).getUserSinkAsFlux();
+        return userSinkMap.get(userId).getUserSinkAsFlux();
     }
 
     private Flux<String> handleServerErrors(Throwable e) {
@@ -281,11 +195,11 @@ public class ReplyHandler {
             return;
         }
         disposeSubscriptionIfPresent(userId);
-        UserSession userSession = userSessionMap.get(userId);
+        UserSink userSink = userSinkMap.get(userId);
         Disposable disposable = serverStreamManager.getMessageFromServerSink(serverId)
-                .doOnNext(userSession::tryEmitNext)
+                .doOnNext(userSink::tryEmitNext)
                 .subscribe(serverEvent -> log.info("ServerEvent emitted to {}: {}", userId, serverEvent));
-        userSession.addSubscription(Subscription.of(serverId, disposable));
+        userSink.addSubscription(Subscription.of(serverId, disposable));
         log.info("[{}] subscribes server sink : {}", userId, serverId);
         activeUserManager.setSubscriptionRequired(userId, false);
     }
@@ -323,22 +237,24 @@ public class ReplyHandler {
         return isValidChannelId(channelRequest.serverId(), channelRequest.channelId())
                 .flatMap(isValid -> isValid ?
                         Mono.empty() : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, String.valueOf(channelRequest.channelId()))))
-                .doOnSuccess(ignored -> session.getAttributes().put("channelId", channelRequest.channelId()))
                 .then(activeUserManager.isCorrectAccess(userId, channelRequest.serverId()))
                 .then(userRepository.findByEmail(userId))
                 .flatMap(user -> createUserAndVoiceStateTuple(userId, user, channelRequest))
                 .map(tuple -> ChannelEnterResponse.from(tuple.getT1().getProfileImage(), tuple.getT2()))
-                .flatMapMany(this::putChannelEnterToStream);
+                .flatMapMany(this::putChannelEnterToStream)
+                .doOnComplete(() -> joinRoom(session, channelRequest.channelId()));
     }
 
-    private Mono<Tuple2<User, VoiceState>> createUserAndVoiceStateTuple(String userId, User user, ChannelRequest channelRequest) {
+    private Mono<Tuple2<User, VoiceState>> createUserAndVoiceStateTuple(String userId, User user, ChannelRequest
+            channelRequest) {
         return Mono.zip(
                 Mono.just(user),
                 Mono.just(VoiceState.from(channelRequest, user))
                         .flatMap(voiceState -> addOrChangeVoiceState(userId, channelRequest, voiceState)));
     }
 
-    private Mono<VoiceState> addOrChangeVoiceState(String userId, ChannelRequest channelRequest, VoiceState voiceState) {
+    private Mono<VoiceState> addOrChangeVoiceState(String userId, ChannelRequest channelRequest, VoiceState
+            voiceState) {
         return voiceStateManager.addIfAbsentOrChangeChannel(channelRequest, userId, convertService.convertObjectToJson(voiceState))
                 .thenReturn(voiceState);
     }
@@ -350,6 +266,15 @@ public class ReplyHandler {
                 .doOnSuccess(ignored -> log.info("[{}] entered the {} channel [ {} ]",
                         channelEnterResponse.userId(), channelEnterResponse.channelType(), channelEnterResponse.channelId()))
                 .then(Mono.empty());
+    }
+
+    private void joinRoom(WebSocketSession session, Long channelId) {
+        final String userId = getUserIdFromSession(session);
+        log.info("PARTICIPANT {}: trying to join room {}", userId, channelId);
+
+        Room room = roomManager.getRoom(channelId);
+        final UserSession user = room.join(userId, session, convertService);
+        registry.register(user);
     }
 
     /**
@@ -365,10 +290,10 @@ public class ReplyHandler {
         return isValidChannelId(channelRequest.serverId(), channelRequest.channelId())
                 .flatMap(isValid -> isValid ?
                         Mono.empty() : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, String.valueOf(channelRequest.channelId()))))
-                .doOnSuccess(ignored -> session.getAttributes().remove("channelId"))
                 .then(activeUserManager.isCorrectAccess(userId, channelRequest.serverId()))
                 .then(voiceStateManager.removeVoiceState(channelRequest.serverId(), userId))
-                .thenMany(putChannelLeaveToStream(userId, channelRequest));
+                .thenMany(putChannelLeaveToStream(userId, channelRequest))
+                .doOnComplete(() -> leaveRoom(session));
     }
 
     // TODO: DB 연결되면 로직 추가
@@ -383,6 +308,15 @@ public class ReplyHandler {
         return serverStreamManager.addVoiceMessageToStream(channelRequest.serverId(), jsonChannelAck)
                 .doOnSuccess(ignored -> log.info("[{}] leaved the {} channel [ {} ]", userId, channelRequest.channelType(), channelRequest.channelId()))
                 .then(Mono.empty());
+    }
+
+    private void leaveRoom(WebSocketSession session) {
+        final UserSession user = registry.getBySession(session);
+        final Room room = roomManager.getRoom(user.getChannelId());
+        room.leave(user);
+        if (room.getParticipants().isEmpty()) {
+            roomManager.removeRoom(room);
+        }
     }
 
     /**
@@ -419,15 +353,15 @@ public class ReplyHandler {
     }
 
     private void disposeSubscriptionIfPresent(String userId) {
-        UserSession userSession = userSessionMap.get(userId);
-        if (userSession != null && userSession.doesSubscriberExists()) {
-            userSession.dispose();
+        UserSink userSink = userSinkMap.get(userId);
+        if (userSink != null && userSink.doesSubscriberExists()) {
+            userSink.dispose();
             log.info("Dispose Subscription : {}", userId);
         }
     }
 
     private void removeUserSink(String userId) {
-        userSessionMap.remove(userId);
+        userSinkMap.remove(userId);
     }
 
     private Mono<String> removeActiveUserFromServer(String userId) {
@@ -438,11 +372,5 @@ public class ReplyHandler {
         return Optional.ofNullable(session.getAttributes().get("userId"))
                 .map(Object::toString)
                 .orElseThrow(() -> new UnAuthorizedException(ErrorCode.UNAUTHORIZED_USER, "Anonymous"));
-    }
-
-    private Long getChannelIdFromSession(WebSocketSession session) {
-        return Optional.ofNullable(session.getAttributes().get("channelId"))
-                .map(id -> Long.valueOf(id.toString()))
-                .orElse(-1L);
     }
 }
