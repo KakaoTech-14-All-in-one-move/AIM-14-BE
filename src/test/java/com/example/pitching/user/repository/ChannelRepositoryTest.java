@@ -8,6 +8,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.data.r2dbc.DataR2dbcTest;
+import org.springframework.r2dbc.core.DatabaseClient;
 import org.springframework.test.context.ActiveProfiles;
 import reactor.test.StepVerifier;
 
@@ -23,16 +24,21 @@ class ChannelRepositoryTest {
     @Autowired
     private ServerRepository serverRepository;
 
+    @Autowired
+    private DatabaseClient databaseClient;
+
     private Server testServer;
     private Long serverId;
 
     @BeforeEach
     void setUp() {
         // 기존 데이터 정리
-        serverRepository.deleteAll().block();
-        channelRepository.deleteAll().block();
+        databaseClient.sql("DELETE FROM channels").fetch().rowsUpdated().block();
+        databaseClient.sql("DELETE FROM user_server_memberships").fetch().rowsUpdated().block();
+        databaseClient.sql("DELETE FROM servers").fetch().rowsUpdated().block();
+        databaseClient.sql("DELETE FROM users").fetch().rowsUpdated().block();
 
-        // 테스트용 서버 생성 및 저장
+        // 서버 생성 및 저장
         testServer = Server.createNewServer("Test Server", null);
         testServer = serverRepository.save(testServer).block();
         serverId = testServer.getServerId();
@@ -89,6 +95,21 @@ class ChannelRepositoryTest {
                     assertThat(channel.getChannelPosition()).isEqualTo(3);
                 })
                 .verifyComplete();
+    }
+
+    @Test
+    @DisplayName("같은 서버에 같은 카테고리의 같은 채널명이 있으면 생성에 실패한다")
+    void createChannel_DuplicateName() {
+        // given
+        Channel channel1 = Channel.createNewChannel(serverId, "채널1", ChannelCategory.CHAT, 1);
+        Channel channel2 = Channel.createNewChannel(serverId, "채널1", ChannelCategory.CHAT, 2);
+
+        // when & then
+        channelRepository.save(channel1).block();
+
+        StepVerifier.create(channelRepository.save(channel2))
+                .expectError()
+                .verify();
     }
 
     @Test
