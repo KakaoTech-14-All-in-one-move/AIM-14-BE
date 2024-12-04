@@ -55,14 +55,6 @@ public class UserService {
                 ));
     }
 
-    private Mono<String> storeNewImage(FilePart file) {
-        return fileStorageService.store(file)
-                .onErrorMap(error -> error instanceof ResponseStatusException ? error :
-                        new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                                "이미지 저장 중 오류가 발생했습니다: " + error.getMessage())
-                );
-    }
-
     private Mono<User> updateUserUsername(User user, String newUsername) {
         user.setUsername(newUsername);
         return userRepository.save(user);
