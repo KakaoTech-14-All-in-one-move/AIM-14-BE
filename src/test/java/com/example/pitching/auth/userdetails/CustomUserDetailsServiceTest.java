@@ -76,6 +76,27 @@ class CustomUserDetailsServiceTest {
         }
 
         @Test
+        @DisplayName("데이터베이스 조회 중 예외 발생시 InternalServerError로 변환한다")
+        void whenDatabaseErrorOccurs_thenThrowsInternalServerError() {
+                // given
+                when(userRepository.findByEmail(TEST_EMAIL))
+                        .thenReturn(Mono.error(new RuntimeException("Database connection failed")));
+
+                // when & then
+                StepVerifier.create(userDetailsService.findByUsername(TEST_EMAIL))
+                        .expectErrorSatisfies(error -> {
+                                assertThat(error)
+                                        .isInstanceOf(ResponseStatusException.class)
+                                        .hasMessageContaining("사용자 정보 조회 중 오류가 발생했습니다.")
+                                        .extracting(e -> ((ResponseStatusException) e).getStatusCode())
+                                        .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+                        })
+                        .verify();
+
+                verify(userRepository).findByEmail(TEST_EMAIL);
+        }
+
+        @Test
         @DisplayName("존재하지 않는 이메일로 조회시 NotFoundException을 발생시킨다")
         void findByNonExistentEmail() {
                 // given
