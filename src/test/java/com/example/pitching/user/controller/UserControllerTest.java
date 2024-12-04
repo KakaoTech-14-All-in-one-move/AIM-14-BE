@@ -50,25 +50,15 @@ class UserControllerTest {
     static class TestUserBuilder {
         private String email = "test@example.com";
         private String username = "testUser";
-        private String password = "password123";
         private String profileImage = "profile.jpg";
-
-        public TestUserBuilder withEmail(String email) {
-            this.email = email;
-            return this;
-        }
 
         public TestUserBuilder withUsername(String username) {
             this.username = username;
             return this;
         }
 
-        public TestUserBuilder withProfileImage(String profileImage) {
-            this.profileImage = profileImage;
-            return this;
-        }
-
         public User build() {
+            String password = "password123";
             return User.createNewUser(email, username, profileImage, password);
         }
 

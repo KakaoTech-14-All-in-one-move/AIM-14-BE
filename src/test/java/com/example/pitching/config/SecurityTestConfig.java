@@ -4,7 +4,6 @@ import com.example.pitching.auth.jwt.JwtAuthenticationEntryPoint;
 import com.example.pitching.auth.jwt.JwtTokenProvider;
 import com.example.pitching.auth.userdetails.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
-import org.mockito.Mock;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpHeaders;
@@ -35,9 +34,9 @@ public class SecurityTestConfig {
     @Bean
     public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
         return http
-                .csrf(csrf -> csrf.disable())
-                .httpBasic(httpBasic -> httpBasic.disable())
-                .formLogin(formLogin -> formLogin.disable())
+                .csrf(ServerHttpSecurity.CsrfSpec::disable)
+                .httpBasic(ServerHttpSecurity.HttpBasicSpec::disable)
+                .formLogin(ServerHttpSecurity.FormLoginSpec::disable)
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers("/api/v1/auth/**", "/oauth2/**", "/login/oauth2/code/**").authenticated()
                         .pathMatchers("/api/**").authenticated()

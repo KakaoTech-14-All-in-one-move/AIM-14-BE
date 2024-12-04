@@ -47,13 +47,12 @@ class ServerServiceTest {
     private final Long SERVER_ID = 1L;
 
     private Server testServer;
-    private User testUser;
     private UserServerMembership testMembership;
 
     @BeforeEach
     void setUp() {
         testServer = Server.createNewServer(SERVER_NAME, SERVER_IMAGE);
-        testUser = User.createNewUser(TEST_EMAIL, "testUser", null, "password");
+        User testUser = User.createNewUser(TEST_EMAIL, "testUser", null, "password");
         testMembership = UserServerMembership.createMembership(TEST_EMAIL, SERVER_ID);
 
         lenient().when(serverRepository.save(any(Server.class))).thenReturn(Mono.just(testServer));

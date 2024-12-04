@@ -43,7 +43,6 @@ class AuthControllerTest {
     private SignupRequest signupRequest;
     private RefreshRequest refreshRequest;
     private TokenInfo tokenInfo;
-    private UserInfo userInfo;
 
     @BeforeEach
     void setUp() {
@@ -52,7 +51,7 @@ class AuthControllerTest {
 
     private void setupTestData() {
         tokenInfo = createTokenInfo(TEST_ACCESS_TOKEN, TEST_REFRESH_TOKEN);
-        userInfo = createUserInfo(TEST_EMAIL, TEST_USERNAME, TEST_PROFILE_IMAGE);
+        UserInfo userInfo = createUserInfo(TEST_EMAIL, TEST_USERNAME, TEST_PROFILE_IMAGE);
         loginRequest = createLoginRequest(TEST_EMAIL, TEST_PASSWORD);
         signupRequest = createSignupRequest(TEST_EMAIL, TEST_PASSWORD, TEST_USERNAME);
         refreshRequest = createRefreshRequest(TEST_REFRESH_TOKEN);

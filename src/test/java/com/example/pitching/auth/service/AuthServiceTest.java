@@ -2,7 +2,6 @@ package com.example.pitching.auth.service;
 
 import com.example.pitching.auth.domain.TokenStatus;
 import com.example.pitching.auth.domain.User;
-import com.example.pitching.auth.dto.LoginResponse;
 import com.example.pitching.auth.dto.TokenInfo;
 import com.example.pitching.auth.dto.SignupRequest;
 import com.example.pitching.auth.repository.UserRepository;
@@ -52,20 +51,17 @@ class AuthServiceTest {
     private final String TEST_EMAIL = "test@example.com";
     private final String TEST_PASSWORD = "password";
     private final String TEST_USERNAME = "testUser";
-    private final String ENCODED_PASSWORD = "encodedPassword";
     private final String ACCESS_TOKEN = "accessToken";
     private final String REFRESH_TOKEN = "refreshToken";
 
-    private User testUser;
-    private Server testServer;
-    private Channel testChannel;
     private TokenInfo tokenInfo;
 
     @BeforeEach
     void setUp() {
-        testUser = User.createNewUser(TEST_EMAIL, TEST_USERNAME, null, ENCODED_PASSWORD);
-        testServer = Server.createNewServer("Test Server", null);
-        testChannel = Channel.createNewChannel(1L, "Test Channel", ChannelCategory.CHAT, 1);
+        String ENCODED_PASSWORD = "encodedPassword";
+        User testUser = User.createNewUser(TEST_EMAIL, TEST_USERNAME, null, ENCODED_PASSWORD);
+        Server testServer = Server.createNewServer("Test Server", null);
+        Channel testChannel = Channel.createNewChannel(1L, "Test Channel", ChannelCategory.CHAT, 1);
         tokenInfo = new TokenInfo(ACCESS_TOKEN, REFRESH_TOKEN);
 
         lenient().when(passwordEncoder.matches(TEST_PASSWORD, ENCODED_PASSWORD)).thenReturn(true);

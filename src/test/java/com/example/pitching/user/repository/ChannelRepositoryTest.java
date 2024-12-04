@@ -27,7 +27,6 @@ class ChannelRepositoryTest {
     @Autowired
     private DatabaseClient databaseClient;
 
-    private Server testServer;
     private Long serverId;
 
     @BeforeEach
@@ -39,7 +38,7 @@ class ChannelRepositoryTest {
         databaseClient.sql("DELETE FROM users").fetch().rowsUpdated().block();
 
         // 서버 생성 및 저장
-        testServer = Server.createNewServer("Test Server", null);
+        Server testServer = Server.createNewServer("Test Server", null);
         testServer = serverRepository.save(testServer).block();
         serverId = testServer.getServerId();
     }

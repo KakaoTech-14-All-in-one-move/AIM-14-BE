@@ -1,6 +1,5 @@
 package com.example.pitching.auth.repository;
 
-import com.example.pitching.auth.domain.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

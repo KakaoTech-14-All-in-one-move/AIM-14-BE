@@ -1,7 +1,6 @@
 package com.example.pitching.user.repository;
 
 import com.example.pitching.user.domain.Server;
-import com.example.pitching.user.domain.UserServerMembership;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,7 +26,6 @@ class UserServerMembershipRepositoryTest {
     private DatabaseClient databaseClient;
 
     private final String TEST_EMAIL = "test@example.com";
-    private Server testServer;
     private Long serverId;
 
     @BeforeEach
@@ -48,7 +46,7 @@ class UserServerMembershipRepositoryTest {
                 .block();
 
         // 테스트용 서버 생성
-        testServer = serverRepository.save(Server.createNewServer("Test Server", null)).block();
+        Server testServer = serverRepository.save(Server.createNewServer("Test Server", null)).block();
         serverId = testServer.getServerId();
     }
 

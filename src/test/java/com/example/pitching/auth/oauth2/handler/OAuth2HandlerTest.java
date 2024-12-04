@@ -48,19 +48,16 @@ class OAuth2HandlerTest {
         @Mock private ServerRepository serverRepository;
         @Mock private ChannelRepository channelRepository;
 
-        private OAuth2SuccessHandler successHandler;
-        private WebFilterExchange webFilterExchange;
         private final String TEST_EMAIL = "test@example.com";
         private final String TEST_NAME = "TestUser";
         private final String FRONT_URL = "http://localhost:5173/";
         private MockServerWebExchange exchange;
-        private OAuth2AuthenticationToken authentication;
         private Mono<Void> result;
 
         @BeforeEach
         void setUp() {
             // 핸들러 및 기본 설정 준비
-            successHandler = new OAuth2SuccessHandler(
+            OAuth2SuccessHandler successHandler = new OAuth2SuccessHandler(
                     jwtTokenProvider,
                     userRepository,
                     serverRepository,
@@ -70,7 +67,7 @@ class OAuth2HandlerTest {
 
             MockServerHttpRequest request = MockServerHttpRequest.get("/").build();
             exchange = MockServerWebExchange.from(request);
-            webFilterExchange = new WebFilterExchange(exchange, chain -> Mono.empty());
+            WebFilterExchange webFilterExchange = new WebFilterExchange(exchange, chain -> Mono.empty());
 
             // OAuth2 인증 정보 준비
             Map<String, Object> attributes = new HashMap<>();
@@ -83,7 +80,7 @@ class OAuth2HandlerTest {
                     "email"
             );
 
-            authentication = new OAuth2AuthenticationToken(
+            OAuth2AuthenticationToken authentication = new OAuth2AuthenticationToken(
                     oauth2User,
                     Collections.emptyList(),
                     "google"

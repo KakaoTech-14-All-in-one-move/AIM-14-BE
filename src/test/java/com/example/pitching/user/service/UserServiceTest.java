@@ -2,7 +2,6 @@ package com.example.pitching.user.service;
 
 import com.example.pitching.auth.domain.User;
 import com.example.pitching.auth.repository.UserRepository;
-import com.example.pitching.user.dto.UserResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -10,7 +9,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.web.server.ResponseStatusException;
@@ -36,16 +34,14 @@ class UserServiceTest {
     private UserService userService;
 
     private final String TEST_EMAIL = "test@example.com";
-    private final String TEST_USERNAME = "testUser";
     private final String NEW_USERNAME = "newTestUser";
     private final String OLD_IMAGE_URL = "old-image.jpg";
     private final String NEW_IMAGE_URL = "new-image.jpg";
 
-    private User testUser;
-
     @BeforeEach
     void setUp() {
-        testUser = User.createNewUser(TEST_EMAIL, TEST_USERNAME, OLD_IMAGE_URL, "password");
+        String TEST_USERNAME = "testUser";
+        User testUser = User.createNewUser(TEST_EMAIL, TEST_USERNAME, OLD_IMAGE_URL, "password");
 
         lenient().when(userRepository.findByEmail(TEST_EMAIL))
                 .thenReturn(Mono.just(testUser));

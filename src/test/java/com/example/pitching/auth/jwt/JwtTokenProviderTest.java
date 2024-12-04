@@ -2,13 +2,11 @@ package com.example.pitching.auth.jwt;
 
 import com.example.pitching.auth.domain.TokenStatus;
 import com.example.pitching.auth.dto.TokenInfo;
-import com.example.pitching.config.SecurityTestConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.annotation.Import;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 

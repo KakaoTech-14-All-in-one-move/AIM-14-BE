@@ -24,20 +24,16 @@ class CustomUserDetailsServiceTest {
         @Mock
         private UserRepository userRepository;
 
-        @Mock
-        private PasswordEncoder passwordEncoder;
-
         @InjectMocks
         private CustomUserDetailsService userDetailsService;
 
         private final String TEST_EMAIL = "test@example.com";
-        private final String TEST_USERNAME = "testUser";
         private final String TEST_PASSWORD = "password";
-        private User user;
 
         @BeforeEach
         void setUp() {
-                user = User.createNewUser(TEST_EMAIL, TEST_USERNAME, null, TEST_PASSWORD);
+            String TEST_USERNAME = "testUser";
+        User user = User.createNewUser(TEST_EMAIL, TEST_USERNAME, null, TEST_PASSWORD);
                 lenient().when(userRepository.findByEmail(TEST_EMAIL)).thenReturn(Mono.just(user));
         }
 

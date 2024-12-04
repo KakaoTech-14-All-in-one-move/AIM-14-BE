@@ -13,7 +13,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -45,8 +44,6 @@ class WebfluxSecurityConfigTest {
     @Mock
     private UserDetails userDetails;
 
-    private WebfluxSecurityConfig webfluxSecurityConfig;
-    private MockServerWebExchange corsExchange;
     private CorsConfiguration corsConfig;
     private AuthenticationWebFilter authenticationWebFilter;
     @Value("${front.url}")
@@ -56,7 +53,7 @@ class WebfluxSecurityConfigTest {
 
     @BeforeEach
     void setUp() {
-        webfluxSecurityConfig = new WebfluxSecurityConfig(
+        WebfluxSecurityConfig webfluxSecurityConfig = new WebfluxSecurityConfig(
                 jwtTokenProvider,
                 jwtAuthenticationEntryPoint,
                 oAuth2SuccessHandler,
@@ -67,7 +64,7 @@ class WebfluxSecurityConfigTest {
 
         // CORS 테스트를 위한 공통 설정
         MockServerHttpRequest corsRequest = MockServerHttpRequest.get("/").build();
-        corsExchange = MockServerWebExchange.from(corsRequest);
+        MockServerWebExchange corsExchange = MockServerWebExchange.from(corsRequest);
         corsConfig = webfluxSecurityConfig.corsConfigurationSource()
                 .getCorsConfiguration(corsExchange);
 
