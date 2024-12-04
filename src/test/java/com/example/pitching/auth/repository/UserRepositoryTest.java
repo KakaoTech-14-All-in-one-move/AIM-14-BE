@@ -29,7 +29,6 @@ class UserRepositoryTest {
 
     @BeforeEach
     void setUp() {
-        // 기존 데이터 정리 (순서 중요: 외래 키 제약조건 고려)
         databaseClient.sql("DELETE FROM user_server_memberships").fetch().rowsUpdated().block();
         databaseClient.sql("DELETE FROM users").fetch().rowsUpdated().block();
     }
