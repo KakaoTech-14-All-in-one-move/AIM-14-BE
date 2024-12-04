@@ -9,8 +9,6 @@ import reactor.core.publisher.Mono;
 
 @Repository
 public interface ServerRepository extends ReactiveCrudRepository<Server, Long> {
-    Mono<Server> findByServerId(Long serverId);
-
     @Query("""
         SELECT s.* FROM servers s 
         INNER JOIN user_server_memberships usm ON s.server_id = usm.server_id 
