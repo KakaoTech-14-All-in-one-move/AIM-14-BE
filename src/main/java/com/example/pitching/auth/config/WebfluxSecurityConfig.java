@@ -49,11 +49,18 @@ public class WebfluxSecurityConfig {
                                 .httpBasic(httpBasic -> httpBasic.disable())
                                 .formLogin(formLogin -> formLogin.disable())
                                 .authorizeExchange(exchanges -> exchanges
-                                                .pathMatchers("/api/v1/auth/**", "/oauth2/**", "/login/oauth2/code/**", "/api-docs")
-                                                .permitAll()
-                                                .pathMatchers("/api/**").authenticated()
-                                                .anyExchange().permitAll())
-                                .oauth2Login(oauth2 -> oauth2
+                                        // Swagger UI v3 관련 경로들은 모두 허용
+                                        .pathMatchers(
+                                                "/v3/api-docs/**",
+                                                "/swagger-ui/**",
+                                                "/swagger-ui.html",
+                                                "/swagger-resources/**",
+                                                "/webjars/**"
+                                        ).permitAll()
+                                        .pathMatchers("/api/v1/auth/**", "/oauth2/**", "/login/oauth2/code/**").permitAll()
+                                        .pathMatchers("/api/**").authenticated()
+                                        .anyExchange().permitAll())
+                                        .oauth2Login(oauth2 -> oauth2
                                                 .authenticationSuccessHandler(oAuth2SuccessHandler)
                                                 .authenticationFailureHandler(oAuth2FailureHandler))
                                 .exceptionHandling(exceptionHandling -> exceptionHandling
