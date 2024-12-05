@@ -20,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -32,6 +33,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
+@ActiveProfiles("test")
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
     @Mock

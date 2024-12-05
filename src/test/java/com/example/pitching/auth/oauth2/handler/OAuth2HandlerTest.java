@@ -24,6 +24,7 @@ import org.springframework.security.oauth2.client.authentication.OAuth2Authentic
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.server.WebFilterExchange;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.util.ReflectionTestUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -37,6 +38,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
+@ActiveProfiles("test")
 @ExtendWith(MockitoExtension.class)
 class OAuth2HandlerTest {
 

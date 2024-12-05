@@ -11,7 +11,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
@@ -19,6 +19,7 @@ import reactor.test.StepVerifier;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
+@ActiveProfiles("test")
 @ExtendWith(MockitoExtension.class)
 class CustomUserDetailsServiceTest {
         @Mock

@@ -15,12 +15,14 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 
 import static org.mockito.Mockito.when;
 
+@ActiveProfiles("test")
 @WebFluxTest(UserController.class)
 @Import(SecurityTestConfig.class)
 class JwtAuthenticationTest {
