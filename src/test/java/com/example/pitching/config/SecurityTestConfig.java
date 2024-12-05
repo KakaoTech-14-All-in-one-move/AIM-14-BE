@@ -3,7 +3,6 @@ package com.example.pitching.config;
 import com.example.pitching.auth.jwt.JwtAuthenticationEntryPoint;
 import com.example.pitching.auth.jwt.JwtTokenProvider;
 import com.example.pitching.auth.userdetails.CustomUserDetailsService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpHeaders;
@@ -21,10 +20,17 @@ import reactor.core.publisher.Mono;
 
 @TestConfiguration
 @EnableWebFluxSecurity
-@RequiredArgsConstructor
 public class SecurityTestConfig {
     private final JwtTokenProvider jwtTokenProvider;
     private final CustomUserDetailsService userDetailsService;
+
+    public SecurityTestConfig(
+            JwtTokenProvider jwtTokenProvider,
+            CustomUserDetailsService userDetailsService
+    ) {
+        this.jwtTokenProvider = jwtTokenProvider;
+        this.userDetailsService = userDetailsService;
+    }
 
     @Bean
     public JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint() {
