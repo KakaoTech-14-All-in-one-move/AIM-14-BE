@@ -3,8 +3,8 @@ spring:
     name: pitching
   sql:
     init:
-      mode: always        # Execute schema.sql every time the application starts
-      schema-locations: classpath:schema.sql  # Specify the location of schema.sql file
+      mode: always
+      schema-locations: classpath:schema.sql
   security:
     oauth2:
       client:
@@ -28,7 +28,7 @@ spring:
             client-secret: ${KAKAO_CLIENT_SECRET}
             redirect-uri: "{baseUrl}/login/oauth2/code/kakao"
             authorization-grant-type: authorization_code
-            client-authentication-method: client_secret_post  # POST 방식으로 변경
+            client-authentication-method: client_secret_post
             scope:
               - profile
               - account_email
@@ -45,12 +45,30 @@ spring:
             user-info-uri: https://kapi.kakao.com/v2/user/me
             user-name-attribute: id
 
+# Springdoc OpenAPI 설정 추가
+springdoc:
+  swagger-ui:
+    path: /webjars/swagger-ui/index.html
+    enabled: true
+    groups-order: DESC
+    operationsSorter: method
+    disable-swagger-default-url: true
+    display-request-duration: true
+  api-docs:
+    enabled: true  # OpenAPI 문서 활성화
+    path: /v3/api-docs  # OpenAPI 문서 경로
+  show-actuator: true
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+  paths-to-match:
+    - /api/**
+
 jwt:
   secret: ${JWT_SECRET_KEY}
   access-token:
-    expiration: PT1H  # 1 hour
+    expiration: PT1H
   refresh-token:
-    expiration: P7D  # 7 day
+    expiration: P7D
 
 front:
   url: ${FRONT_URL}
@@ -65,7 +83,7 @@ redis:
   host: localhost
   port: 6379
   maxlen: 500
-  
+
 server:
   port: ${LOCAL_PORT:8080}
   call:
@@ -73,19 +91,17 @@ server:
     host: localhost
     websocket-path: /ws/v1/voice
     heartbeat-interval: 450s
-    
+
 spring:
   r2dbc:
     url: ${LOCAL_POSTGRESQL_URL}
     username: ${LOCAL_POSTGRESQL_USERNAME}
     password: ${LOCAL_POSTGRESQL_PASSWORD}
-#  TODO: 필요시
-#  초기 단계에서는 현재처럼 schema.sql 사용
-#  프로젝트가 커지고 복잡해지면 Liquibase 도입 검토
-#  liquibase:
-#    enabled: true # 선택: Liquibase를 사용해 자동 마이그레이션 관리 시
+
 logging:
   level:
     reactor.netty.udp: DEBUG
-    org.springframework.r2dbc: DEBUG # R2DBC 관련 로깅 활성화 (문제 파악에 유용
+    org.springframework.r2dbc: DEBUG
+    # Swagger 관련 로깅 추가
+    org.springdoc: DEBUG
 ---
