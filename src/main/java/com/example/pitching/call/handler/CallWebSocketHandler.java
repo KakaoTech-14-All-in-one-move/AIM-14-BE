@@ -58,14 +58,14 @@ public class CallWebSocketHandler implements WebSocketHandler {
         );
     }
 
-    private Flux<String> handleReplyErrors(String userId, Throwable e) {
+    private Mono<String> handleReplyErrors(String userId, Throwable e) {
         if (!(e instanceof CommonException ex)) {
             log.error("Exception occurs in handling replyMessages : ", e);
-            return Flux.error(e);
+            return Mono.error(e);
         }
         log.error("[{}] : {} -> ", userId, ex.getErrorCode().name(), ex);
         Event errorEvent = Event.error(ErrorResponse.from((CommonException) e));
-        return Flux.just(convertService.convertObjectToJson(errorEvent));
+        return Mono.just(convertService.convertObjectToJson(errorEvent));
     }
 
     private String getUserIdFromSession(WebSocketSession session) {

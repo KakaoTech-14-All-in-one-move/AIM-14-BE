@@ -66,9 +66,9 @@ public class ReplyHandler {
         roomManager.getRoom(user.getChannelId()).leave(user);
     }
 
-    public Flux<String> handleMessages(WebSocketSession session, String receivedMessage) {
+    public Mono<String> handleMessages(WebSocketSession session, String receivedMessage) {
         return convertService.readRequestOperationFromMessage(receivedMessage)
-                .flatMapMany(requestOperation -> switch (requestOperation) {
+                .flatMap(requestOperation -> switch (requestOperation) {
                     case RequestOperation.INIT -> sendHello(session, receivedMessage);
                     case RequestOperation.HEARTBEAT -> sendHeartbeatAck();
                     case RequestOperation.SERVER -> enterServer(session, receivedMessage);
@@ -111,14 +111,14 @@ public class ReplyHandler {
      * @return jsonMessage
      * 클라이언트가 처음 연결하면 토큰으로 인증과정을 거치고 Heartbeat_interval 을 담아서 응답
      */
-    private Flux<String> sendHello(WebSocketSession session, String receivedMessage) {
+    private Mono<String> sendHello(WebSocketSession session, String receivedMessage) {
         String token = convertService.readDataFromMessage(receivedMessage, WebsocketAuthRequest.class).token();
         Event hello = Event.of(ResponseOperation.INIT_ACK,
                 HelloResponse.of(serverProperties.getHeartbeatInterval()),
                 null);
         return jwtTokenProvider.validateAndGetUserId(token)
                 .doOnSuccess(userId -> initializeUserSink(userId, session))
-                .thenMany(Flux.just(convertService.convertObjectToJson(hello)));
+                .then(Mono.just(convertService.convertObjectToJson(hello)));
     }
 
     private void initializeUserSink(String userId, WebSocketSession session) {
@@ -146,23 +146,23 @@ public class ReplyHandler {
         return userSinkMap.get(userId).getUserSinkAsFlux();
     }
 
-    private Flux<String> handleServerErrors(Throwable e) {
+    private Mono<String> handleServerErrors(Throwable e) {
         if (!(e instanceof CommonException ex)) {
             log.error("Exception occurs in handling send server messages : ", e);
-            return Flux.error(e);
+            return Mono.error(e);
         }
         log.error("{} -> ", ex.getErrorCode().name(), ex);
         Event errorEvent = Event.error(ErrorResponse.from((CommonException) e));
-        return Flux.just(convertService.convertObjectToJson(errorEvent));
+        return Mono.just(convertService.convertObjectToJson(errorEvent));
     }
 
     /**
      * @return jsonMessage
      * 클라이언트가 Heartbeat 를 보내면 Heartbeat_ack 를 응답
      */
-    private Flux<String> sendHeartbeatAck() {
+    private Mono<String> sendHeartbeatAck() {
         Event heartbeatAck = Event.of(ResponseOperation.HEARTBEAT_ACK, null, null);
-        return Flux.just(convertService.convertObjectToJson(heartbeatAck));
+        return Mono.just(convertService.convertObjectToJson(heartbeatAck));
     }
 
     /**
@@ -172,15 +172,16 @@ public class ReplyHandler {
      * @apiNote 무조건 기존 서버 입장
      * 새로운 서버를 만들거나 새로운 서버에 초대된 경우 HTTP 를 사용하여 Server 참여 인원에 추가 (DB)
      */
-    private Flux<String> enterServer(WebSocketSession session, String receivedMessage) {
+    private Mono<String> enterServer(WebSocketSession session, String receivedMessage) {
         String userId = getUserIdFromSession(session);
         Long serverId = convertService.readDataFromMessage(receivedMessage, ServerRequest.class).serverId();
+        log.info("SERVER_ID : {}", serverId);
         return serverService.isValidServer(serverId)
                 .filter(Boolean.TRUE::equals)
                 .then(addActiveUser(userId, serverId))
                 .then(userRepository.findByEmail(userId))
-                .thenMany(createServerAck(serverId))
-                .switchIfEmpty(Flux.error(new InvalidValueException(ErrorCode.INVALID_SERVER_ID, String.valueOf(serverId))));
+                .then(createServerAck(serverId))
+                .switchIfEmpty(Mono.error(new InvalidValueException(ErrorCode.INVALID_SERVER_ID, String.valueOf(serverId))));
     }
 
     private Mono<Boolean> addActiveUser(String userId, Long serverId) {
@@ -205,22 +206,23 @@ public class ReplyHandler {
         activeUserManager.setSubscriptionRequired(userId, false);
     }
 
-    private Flux<String> createServerAck(Long serverId) {
+    private Mono<String> createServerAck(Long serverId) {
         return voiceStateManager.getAllVoiceState(serverId)
                 .flatMap(this::createDataWithProfileImage)
-                .switchIfEmpty(createServerAckEvent(EmptyResponse.of()));
+                .collectList()
+                .flatMap(this::createServerAckEvent)
+                .switchIfEmpty(createServerAckEvent(List.of(EmptyResponse.of())));
     }
 
-    private Flux<String> createDataWithProfileImage(Map.Entry<String, String> mapEntry) {
+    private Mono<Data> createDataWithProfileImage(Map.Entry<String, String> mapEntry) {
         VoiceState voiceState = convertService.convertJsonToObject(mapEntry.getValue(), VoiceState.class);
         return userRepository.findByEmail(voiceState.userId())
-                .map(user -> ServerResponse.from(voiceState, user.getProfileImage()))
-                .flatMapMany(this::createServerAckEvent);
+                .map(user -> ServerResponse.from(voiceState, user.getProfileImage()));
     }
 
-    private Flux<String> createServerAckEvent(Data response) {
-        Event serverAck = Event.of(ResponseOperation.SERVER_ACK, response, null);
-        return Flux.just(convertService.convertObjectToJson(serverAck));
+    private Mono<String> createServerAckEvent(List<Data> response) {
+        Events serverAck = Events.of(ResponseOperation.SERVER_ACK, response, null);
+        return Mono.just(convertService.convertObjectToJson(serverAck));
     }
 
     /**
@@ -231,7 +233,7 @@ public class ReplyHandler {
      * 직접 소켓에 응답하지 않고 server_event 로 등록
      * TODO: Channel list에 포함되어 있는지 검사 (DB)
      */
-    private Flux<String> enterChannel(WebSocketSession session, String receivedMessage) {
+    private Mono<String> enterChannel(WebSocketSession session, String receivedMessage) {
         String userId = getUserIdFromSession(session);
         ChannelRequest channelRequest = convertService.readDataFromMessage(receivedMessage, ChannelRequest.class);
 
@@ -242,8 +244,8 @@ public class ReplyHandler {
                 .then(userRepository.findByEmail(userId))
                 .flatMap(user -> createUserAndVoiceStateTuple(userId, user, channelRequest))
                 .map(tuple -> ChannelEnterResponse.from(tuple.getT1().getProfileImage(), tuple.getT2()))
-                .flatMapMany(this::putChannelEnterToStream)
-                .doOnComplete(() -> joinRoom(session, channelRequest.channelId()));
+                .flatMap(this::putChannelEnterToStream)
+                .doOnSuccess(ignored -> joinRoom(session, channelRequest.channelId()));
     }
 
     private Mono<Tuple2<User, VoiceState>> createUserAndVoiceStateTuple(String userId, User user, ChannelRequest
@@ -285,7 +287,7 @@ public class ReplyHandler {
      * @apiNote 음성/영상 채널 나가기 (채팅 제외)
      * 직접 소켓에 응답하지 않고 server_event 로 등록
      */
-    private Flux<String> leaveChannel(WebSocketSession session, String receivedMessage) {
+    private Mono<String> leaveChannel(WebSocketSession session, String receivedMessage) {
         String userId = getUserIdFromSession(session);
         ChannelRequest channelRequest = convertService.readDataFromMessage(receivedMessage, ChannelRequest.class);
         return isValidChannelId(channelRequest.serverId(), channelRequest.channelId())
@@ -293,8 +295,8 @@ public class ReplyHandler {
                         Mono.empty() : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, String.valueOf(channelRequest.channelId()))))
                 .then(activeUserManager.isCorrectAccess(userId, channelRequest.serverId()))
                 .then(voiceStateManager.removeVoiceState(channelRequest.serverId(), userId))
-                .thenMany(putChannelLeaveToStream(userId, channelRequest))
-                .doOnComplete(() -> leaveRoom(session));
+                .then(putChannelLeaveToStream(userId, channelRequest))
+                .doOnSuccess(ignored -> leaveRoom(session));
     }
 
     // TODO: DB 연결되면 로직 추가
@@ -327,7 +329,7 @@ public class ReplyHandler {
      * @apiNote 음성/영상 채널의 상태(옵션) 변경 (채팅 제외)
      * 직접 소켓에 응답하지 않고 server_event 로 등록
      */
-    private Flux<String> updateState(WebSocketSession session, String receivedMessage) {
+    private Mono<String> updateState(WebSocketSession session, String receivedMessage) {
         String userId = getUserIdFromSession(session);
         StateRequest stateRequest = convertService.readDataFromMessage(receivedMessage, StateRequest.class);
 
@@ -336,7 +338,7 @@ public class ReplyHandler {
                         Mono.empty() : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, String.valueOf(stateRequest.channelId()))))
                 .then(activeUserManager.isCorrectAccess(userId, stateRequest.serverId()))
                 .then(updateStateAndGetVoiceState(userId, stateRequest))
-                .flatMapMany(voiceState -> putUpdateStateToStream(userId, voiceState, stateRequest));
+                .flatMap(voiceState -> putUpdateStateToStream(userId, voiceState, stateRequest));
     }
 
     private Mono<VoiceState> updateStateAndGetVoiceState(String userId, StateRequest stateRequest) {
