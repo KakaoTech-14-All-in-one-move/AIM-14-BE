@@ -10,6 +10,9 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.security.SecurityScheme;
+import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
@@ -31,9 +34,16 @@ import java.util.Map;
 @RequestMapping("/api/v1/servers")
 @RequiredArgsConstructor
 @Validated
+@SecurityScheme(
+        name = "Bearer Authentication",
+        type = SecuritySchemeType.HTTP,
+        bearerFormat = "JWT",
+        scheme = "bearer"
+)
 public class ServerController {
     private final ServerService serverService;
 
+    @SecurityRequirement(name = "Bearer Authentication")
     @Operation(
             summary = "서버 생성",
             description = "새로운 서버를 생성합니다.",
@@ -67,6 +77,7 @@ public class ServerController {
         return serverService.createServer(request, user.getUsername());
     }
 
+    @SecurityRequirement(name = "Bearer Authentication")
     @Operation(
             summary = "서버 이름 수정",
             description = "서버의 이름을 수정합니다.",
@@ -106,6 +117,7 @@ public class ServerController {
         return serverService.updateServerName(serverId, request.server_name(), user.getUsername());
     }
 
+    @SecurityRequirement(name = "Bearer Authentication")
     @Operation(
             summary = "서버 이미지 수정",
             description = """
@@ -171,6 +183,7 @@ public class ServerController {
                 .map(imageUrl -> Map.of("serverImageUrl", imageUrl));
     }
 
+    @SecurityRequirement(name = "Bearer Authentication")
     @Operation(
             summary = "서버 멤버 초대",
             description = "새로운 멤버를 서버에 초대합니다.",
@@ -208,6 +221,7 @@ public class ServerController {
         return serverService.inviteMember(serverId, request.email());
     }
 
+    @SecurityRequirement(name = "Bearer Authentication")
     @Operation(
             summary = "서버 목록 조회",
             description = "사용자가 속한 모든 서버 목록을 조회합니다.",
@@ -231,6 +245,7 @@ public class ServerController {
         return serverService.getUserServers(user.getUsername());
     }
 
+    @SecurityRequirement(name = "Bearer Authentication")
     @Operation(
             summary = "서버 삭제",
             description = """
