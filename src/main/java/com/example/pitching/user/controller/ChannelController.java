@@ -10,6 +10,9 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.security.SecurityScheme;
+import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,9 +25,16 @@ import reactor.core.publisher.Mono;
 @RestController
 @RequestMapping("/api/v1/servers/{server_id}/channels")
 @RequiredArgsConstructor
+@SecurityScheme(
+        name = "Bearer Authentication",
+        type = SecuritySchemeType.HTTP,
+        bearerFormat = "JWT",
+        scheme = "bearer"
+)
 public class ChannelController {
     private final ChannelService channelService;
 
+    @SecurityRequirement(name = "Bearer Authentication")
     @Operation(
             summary = "채널 생성",
             description = "새로운 채널을 생성합니다.",
@@ -61,6 +71,7 @@ public class ChannelController {
                 .map(ChannelResponse::from);
     }
 
+    @SecurityRequirement(name = "Bearer Authentication")
     @Operation(
             summary = "채널 이름 수정",
             description = "채널의 이름을 수정합니다.",
@@ -98,6 +109,7 @@ public class ChannelController {
                 .map(ChannelResponse::from);
     }
 
+    @SecurityRequirement(name = "Bearer Authentication")
     @Operation(
             summary = "채널 삭제",
             description = "채널을 삭제합니다.",
@@ -122,6 +134,7 @@ public class ChannelController {
         return channelService.deleteChannel(channelId);
     }
 
+    @SecurityRequirement(name = "Bearer Authentication")
     @Operation(
             summary = "채널 목록 조회",
             description = "서버에 속한 모든 채널 목록을 조회합니다.",
