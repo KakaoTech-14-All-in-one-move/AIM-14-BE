@@ -1,9 +1,9 @@
 -- users 테이블 생성
 CREATE TABLE IF NOT EXISTS users (
-    email VARCHAR(100) PRIMARY KEY,
+    user_id BIGSERIAL PRIMARY KEY,
+    email VARCHAR(100) UNIQUE NOT NULL,
     username VARCHAR(50) NOT NULL,
     profile_image VARCHAR(100),
-    user_id SERIAL,
     password VARCHAR(100),
     role VARCHAR(20) NOT NULL
     );
@@ -15,11 +15,12 @@ CREATE TABLE IF NOT EXISTS servers (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
+
 CREATE TABLE IF NOT EXISTS user_server_memberships (
-    email VARCHAR(100) REFERENCES users(email),
+    user_id BIGINT REFERENCES users(user_id),
     server_id BIGINT REFERENCES servers(server_id),
     joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (email, server_id)
+    PRIMARY KEY (user_id, server_id)
     );
 
 -- channels 테이블 재정의 (ENUM 대신 VARCHAR 사용)
