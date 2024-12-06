@@ -108,7 +108,12 @@ public class ServerController {
 
     @Operation(
             summary = "서버 이미지 수정",
-            description = "서버의 이미지를 수정합니다.",
+            description = """
+                    서버의 이미지를 수정합니다.
+                    이미지 파일 형식만 업로드 가능하며, 파일 크기에 제한이 있습니다.
+                    기존 이미지가 있는 경우 자동으로 삭제되며, 새로운 이미지로 대체됩니다.
+                    업로드된 파일은 UUID와 타임스탬프가 포함된 고유한 파일명으로 저장됩니다.
+                    """,
             responses = {
                     @ApiResponse(
                             responseCode = "200",
@@ -119,7 +124,7 @@ public class ServerController {
                                             implementation = Map.class,
                                             example = """
                                                     {
-                                                        "serverImageUrl": "/uploads/server_uuid_20240206123456.jpg"
+                                                        "serverImageUrl": "/uploads/550e8400-e29b-41d4-a716-446655440000_20240206123456.jpg"
                                                     }
                                                     """
                                     )
@@ -127,7 +132,7 @@ public class ServerController {
                     ),
                     @ApiResponse(
                             responseCode = "400",
-                            description = "잘못된 이미지 파일",
+                            description = "잘못된 요청 (이미지 파일이 아닌 경우, 파일 확장자가 없는 경우)",
                             content = @Content(schema = @Schema(implementation = ApiError.BadRequest.class))
                     ),
                     @ApiResponse(
@@ -142,8 +147,13 @@ public class ServerController {
                     ),
                     @ApiResponse(
                             responseCode = "413",
-                            description = "파일 크기 초과",
+                            description = "파일 크기가 제한을 초과함(2MB 제한)",
                             content = @Content(schema = @Schema(implementation = ApiError.PayloadTooLarge.class))
+                    ),
+                    @ApiResponse(
+                            responseCode = "500",
+                            description = "서버 오류 (파일 저장/삭제 실패, 업로드 디렉토리 생성 실패 등)",
+                            content = @Content(schema = @Schema(implementation = ApiError.ServerError.class))
                     )
             }
     )
@@ -152,7 +162,7 @@ public class ServerController {
     public Mono<Map<String, String>> updateServerImage(
             @Parameter(description = "서버 ID") @PathVariable(name = "server_id") @Positive Long serverId,
             @RequestPart("file") @Parameter(
-                    description = "업로드할 서버 이미지 파일",
+                    description = "업로드할 서버 이미지 파일 (이미지 파일만 허용)",
                     required = true,
                     content = @Content(mediaType = MediaType.IMAGE_PNG_VALUE)
             ) Mono<FilePart> file,
@@ -223,7 +233,10 @@ public class ServerController {
 
     @Operation(
             summary = "서버 삭제",
-            description = "서버를 삭제합니다.",
+            description = """
+                    서버를 삭제합니다.
+                    서버와 관련된 모든 데이터(멤버십, 이미지 등)가 함께 삭제됩니다.
+                    """,
             responses = {
                     @ApiResponse(
                             responseCode = "204",
@@ -238,6 +251,11 @@ public class ServerController {
                             responseCode = "404",
                             description = "서버를 찾을 수 없음",
                             content = @Content(schema = @Schema(implementation = ApiError.NotFound.class))
+                    ),
+                    @ApiResponse(
+                            responseCode = "500",
+                            description = "서버 오류 (이미지 파일 삭제 실패 등)",
+                            content = @Content(schema = @Schema(implementation = ApiError.ServerError.class))
                     )
             }
     )
