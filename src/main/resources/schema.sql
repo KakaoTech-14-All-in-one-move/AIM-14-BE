@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(100) PRIMARY KEY,
     username VARCHAR(50) NOT NULL,
     profile_image VARCHAR(100),
+    user_id SERIAL,
     password VARCHAR(100),
     role VARCHAR(20) NOT NULL
     );
