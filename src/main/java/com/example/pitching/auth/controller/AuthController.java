@@ -2,6 +2,7 @@ package com.example.pitching.auth.controller;
 
 import com.example.pitching.auth.dto.*;
 import com.example.pitching.auth.service.AuthService;
+import com.example.pitching.common.error.ApiError;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -44,12 +45,12 @@ public class AuthController {
             @ApiResponse(
                     responseCode = "401",
                     description = "인증 실패",
-                    content = @Content(schema = @Schema(example = "{\"status\":401,\"message\":\"이메일 또는 비밀번호가 올바르지 않습니다.\"}"))
+                    content = @Content(schema = @Schema(implementation = ApiError.Unauthorized.class))
             ),
             @ApiResponse(
                     responseCode = "500",
                     description = "서버 오류",
-                    content = @Content(schema = @Schema(example = "{\"status\":500,\"message\":\"로그인 처리 중 오류가 발생했습니다.\"}"))
+                    content = @Content(schema = @Schema(implementation = ApiError.ServerError.class))
             )
     })
     @PostMapping("/login")
@@ -72,7 +73,7 @@ public class AuthController {
             @ApiResponse(
                     responseCode = "401",
                     description = "유효하지 않은 리프레시 토큰",
-                    content = @Content(schema = @Schema(example = "{\"status\":401,\"message\":\"리프레시 토큰이 유효하지 않거나 만료되었습니다. 다시 로그인해주세요.\"}"))
+                    content = @Content(schema = @Schema(implementation = ApiError.Unauthorized.class))
             )
     })
     @PostMapping("/refresh")
@@ -94,12 +95,12 @@ public class AuthController {
             @ApiResponse(
                     responseCode = "400",
                     description = "유효하지 않은 이메일 형식",
-                    content = @Content(schema = @Schema(example = "{\"status\":400,\"message\":\"올바른 이메일 형식이 아닙니다\"}"))
+                    content = @Content(schema = @Schema(implementation = ApiError.BadRequest.class))
             ),
             @ApiResponse(
                     responseCode = "500",
                     description = "서버 오류",
-                    content = @Content(schema = @Schema(example = "{\"status\":500,\"message\":\"이메일 중복 확인 중 오류가 발생했습니다.\"}"))
+                    content = @Content(schema = @Schema(implementation = ApiError.ServerError.class))
             )
     })
     @GetMapping("/check")
@@ -112,21 +113,24 @@ public class AuthController {
 
     @Operation(summary = "회원가입", description = "새로운 사용자 계정을 생성합니다")
     @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "회원가입 성공"),
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "회원가입 성공"
+            ),
             @ApiResponse(
                     responseCode = "400",
                     description = "유효하지 않은 요청 데이터",
-                    content = @Content(schema = @Schema(example = "{\"status\":400,\"message\":\"비밀번호는 최소 8자 이상이어야 합니다\"}"))
+                    content = @Content(schema = @Schema(implementation = ApiError.BadRequest.class))
             ),
             @ApiResponse(
                     responseCode = "409",
                     description = "이미 존재하는 이메일",
-                    content = @Content(schema = @Schema(example = "{\"status\":409,\"message\":\"이미 존재하는 이메일입니다\"}"))
+                    content = @Content(schema = @Schema(implementation = ApiError.Conflict.class))
             ),
             @ApiResponse(
                     responseCode = "500",
                     description = "서버 오류",
-                    content = @Content(schema = @Schema(example = "{\"status\":500,\"message\":\"회원가입 처리 중 오류가 발생했습니다\"}"))
+                    content = @Content(schema = @Schema(implementation = ApiError.ServerError.class))
             )
     })
     @PostMapping("/signup")
