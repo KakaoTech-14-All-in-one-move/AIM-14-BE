@@ -9,6 +9,9 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.security.SecurityScheme;
+import io.swagger.v3.oas.annotations.enums.SecuritySchemeType;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -28,9 +31,16 @@ import java.util.Map;
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/users")
 @Validated
+@SecurityScheme(
+        name = "Bearer Authentication",
+        type = SecuritySchemeType.HTTP,
+        bearerFormat = "JWT",
+        scheme = "bearer"
+)
 public class UserController {
     private final UserService userService;
 
+    @SecurityRequirement(name = "Bearer Authentication")
     @Operation(
             summary = "프로필 이미지 업데이트",
             description = "사용자의 프로필 이미지를 업데이트합니다.",
@@ -43,10 +53,10 @@ public class UserController {
                                     schema = @Schema(
                                             implementation = Map.class,
                                             example = """
-                        {
-                            "profileImageUrl": "/uploads/uuid_20240206123456.jpg"
-                        }
-                        """
+                                                    {
+                                                        "profileImageUrl": "/uploads/uuid_20240206123456.jpg"
+                                                    }
+                                                    """
                                     )
                             )
                     ),
@@ -77,6 +87,7 @@ public class UserController {
                 .map(imageUrl -> Map.of("profileImageUrl", imageUrl));
     }
 
+    @SecurityRequirement(name = "Bearer Authentication")
     @Operation(
             summary = "사용자 이름 업데이트",
             description = "사용자의 이름을 업데이트합니다.",
@@ -112,6 +123,7 @@ public class UserController {
         return userService.updateUsername(userDetails.getUsername(), request.username());
     }
 
+    @SecurityRequirement(name = "Bearer Authentication")
     @Operation(
             summary = "회원 탈퇴",
             description = "사용자 계정을 삭제합니다.",
