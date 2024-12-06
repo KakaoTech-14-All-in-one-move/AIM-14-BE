@@ -6,18 +6,18 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public record ServerResponse(
         @Schema(description = "서버 ID",
                 example = "1")
-        Long serverId,
+        Long server_id,
 
         @Schema(description = "서버 이름",
                 example = "나의 게임 서버")
-        String serverName,
+        String server_name,
 
         @Schema(
                 description = "서버 이미지 URL",
                 example = "/uploads/550e8400-e29b-41d4-a716-446655440000_20240206123456.jpg",
                 nullable = true
         )
-        String serverImage,
+        String server_image,
 
         @Schema(
                 description = "서버 생성일시",
