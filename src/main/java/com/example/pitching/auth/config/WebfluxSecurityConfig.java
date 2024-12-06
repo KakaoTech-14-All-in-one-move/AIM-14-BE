@@ -53,9 +53,7 @@ public class WebfluxSecurityConfig {
                                         .pathMatchers(
                                                 "/v3/api-docs/**",
                                                 "/swagger-ui/**",
-                                                "/swagger-ui.html",
-                                                "/swagger-resources/**",
-                                                "/webjars/**"
+                                                "/swagger-ui.html"
                                         ).permitAll()
                                         .pathMatchers("/api/v1/auth/**", "/oauth2/**", "/login/oauth2/code/**").permitAll()
                                         .pathMatchers("/api/**").authenticated()

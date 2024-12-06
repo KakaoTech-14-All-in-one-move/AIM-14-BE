@@ -48,7 +48,7 @@ spring:
 # Springdoc OpenAPI 설정 추가
 springdoc:
   swagger-ui:
-    path: /webjars/swagger-ui/index.html
+    path: /swagger-ui/index.html
     enabled: true
     groups-order: DESC
     operationsSorter: method
