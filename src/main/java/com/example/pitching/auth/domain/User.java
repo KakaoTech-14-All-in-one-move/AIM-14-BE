@@ -16,6 +16,9 @@ import java.util.List;
 @NoArgsConstructor
 public class User {
     @Id
+    @Column("user_id")
+    private Long userId;
+
     private String email;
     @Setter
     private String username;
@@ -30,6 +33,6 @@ public class User {
 
     public static User createNewUser(String email, String username,
                                      String profileImage, String password) {
-        return new User(email, username, profileImage, password, "USER", new ArrayList<>());
+        return new User(null, email, username, profileImage, password, "USER", new ArrayList<>());
     }
 }
