@@ -52,6 +52,7 @@ class OAuth2HandlerTest {
 
         private final String TEST_EMAIL = "test@example.com";
         private final String TEST_NAME = "TestUser";
+        private final Long TEST_USER_ID = 1L;
         private final String FRONT_URL = "http://localhost:5173/";
         private MockServerWebExchange exchange;
         private Mono<Void> result;
@@ -89,14 +90,14 @@ class OAuth2HandlerTest {
             );
 
             // 모의 응답 설정
-            User user = User.createNewUser("google@" + TEST_EMAIL, TEST_NAME, null, null);
+            User user = User.createNewUser("google@" + TEST_EMAIL, TEST_NAME, null, null, TEST_USER_ID);
             TokenInfo tokenInfo = new TokenInfo("accessToken", "refreshToken");
             Server server = Server.createNewServer("serverName", "serverImage");
             ReflectionTestUtils.setField(server, "serverId", 1L);
             Channel channel = Channel.createNewChannel(1L, "general", "TEXT", 0);
 
             when(userRepository.findByEmail("google@" + TEST_EMAIL)).thenReturn(Mono.just(user));
-            when(jwtTokenProvider.createTokenInfo("google@" + TEST_EMAIL)).thenReturn(tokenInfo);
+            when(jwtTokenProvider.createTokenInfo("google@" + TEST_EMAIL, TEST_USER_ID)).thenReturn(tokenInfo);
             when(serverRepository.findServersByUserEmail("google@" + TEST_EMAIL)).thenReturn(Flux.just(server));
             when(channelRepository.findByServerId(1L)).thenReturn(Flux.just(channel));
 
@@ -157,7 +158,8 @@ class OAuth2HandlerTest {
             String location = exchange.getResponse().getHeaders().getFirst(HttpHeaders.LOCATION);
             assertThat(URI.create(location).getQuery())
                     .contains("email=google@" + TEST_EMAIL)
-                    .contains("username=" + TEST_NAME);
+                    .contains("username=" + TEST_NAME)
+                    .contains("userId=" + TEST_USER_ID);  // userId 검증 추가
         }
 
         @Test
