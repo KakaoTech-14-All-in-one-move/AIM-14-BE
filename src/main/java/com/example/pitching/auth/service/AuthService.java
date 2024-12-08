@@ -45,6 +45,7 @@ public class AuthService {
                                 new UserInfo(
                                         user.getEmail(),
                                         user.getUsername(),
+                                        user.getUserId(),
                                         user.getProfileImage(),
                                         servers
                                 )
