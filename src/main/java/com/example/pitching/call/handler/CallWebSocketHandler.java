@@ -44,7 +44,7 @@ public class CallWebSocketHandler implements WebSocketHandler {
                         .map(WebSocketMessage::getPayloadAsText)
                         .flatMap(jsonMessage -> replyHandler.handleMessages(session, jsonMessage)
                                 .onErrorResume(e -> handleReplyErrors(getUserIdFromSession(session), e)))
-                        .doOnNext(message -> log.info("[{}] Reply Message : {}", getUserIdFromSession(session), message))
+                        .doOnNext(message -> log.debug("[{}] Reply Message : {}", getUserIdFromSession(session), message))
                         .map(session::textMessage)
                         .doFinally(signalType -> {
                             String userId = getUserIdFromSession(session);

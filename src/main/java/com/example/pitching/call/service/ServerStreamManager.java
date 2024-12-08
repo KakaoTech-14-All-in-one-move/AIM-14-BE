@@ -82,7 +82,7 @@ public class ServerStreamManager {
                     addSequenceBeforeEmit(serverId, sequence, message);
                 });
         serverStream.put(serverId, subscription);
-        log.info("Register server stream: {}", serverId);
+        log.debug("Register server stream: {}", serverId);
     }
 
     private void cleanupExistingResources(Long serverId) {
@@ -102,7 +102,7 @@ public class ServerStreamManager {
                 .subscribe(serverEvent -> {
                     Sinks.Many<String> serverSink = serverSinkMap.get(serverId);
                     serverSink.tryEmitNext(convertService.convertObjectToJson(serverEvent));
-                    log.info("ServerEvent emitted to {}: {}", serverId, jsonMessage);
+                    log.debug("ServerEvent emitted to {}: {}", serverId, jsonMessage);
                 });
     }
 

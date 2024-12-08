@@ -52,7 +52,7 @@ public class ReplyHandler {
     private final UserRepository userRepository;
 
     public void cleanupResources(String userId) {
-        log.info("Clean up Resources in ReplyHandler");
+        log.debug("Clean up Resources in ReplyHandler");
         disposeSubscriptionIfPresent(userId);
         removeUserSink(userId);
         removeActiveUserFromServer(userId)
@@ -78,7 +78,7 @@ public class ReplyHandler {
                     case RequestOperation.ON_ICE_CANDIDATE -> onIceCandidate(session, receivedMessage);
                     case RequestOperation.RECEIVE_VIDEO -> receiveVideoFrom(session, receivedMessage);
                 })
-                .doOnNext(requestOperation -> log.info("[{}] Send Message : {}", getUserIdFromSession(session), receivedMessage));
+                .doOnNext(requestOperation -> log.debug("[{}] Send Message : {}", getUserIdFromSession(session), receivedMessage));
     }
 
     /**
@@ -93,7 +93,10 @@ public class ReplyHandler {
                 HelloResponse.of(serverProperties.getHeartbeatInterval()),
                 null);
         return jwtTokenProvider.validateAndGetUserId(token)
-                .doOnSuccess(userId -> initializeUserSink(userId, session))
+                .doOnSuccess(userId -> {
+                    initializeUserSink(userId, session);
+                    log.info("[{}] Connected", userId);
+                })
                 .then(Mono.just(convertService.convertObjectToJson(hello)));
     }
 
@@ -103,7 +106,7 @@ public class ReplyHandler {
         userSinkMap.computeIfAbsent(userId, ignored -> {
             Sinks.Many<String> userSink = Sinks.many().unicast().onBackpressureBuffer();
             activeUserManager.setSubscriptionRequired(userId, true);
-            log.info("Create user sink : {}", userId);
+            log.debug("Create user sink : {}", userId);
             return UserSink.of(userSink);
         });
         Mono.defer(() -> sendServerEvent(userId, session)).subscribe();
@@ -151,12 +154,12 @@ public class ReplyHandler {
     private Mono<String> enterServer(WebSocketSession session, String receivedMessage) {
         String userId = getUserIdFromSession(session);
         Long serverId = convertService.readDataFromMessage(receivedMessage, ServerRequest.class).serverId();
-        log.info("SERVER_ID : {}", serverId);
         return serverService.isValidServer(serverId)
                 .filter(Boolean.TRUE::equals)
                 .then(addActiveUser(userId, serverId))
                 .then(userRepository.findByEmail(userId))
                 .then(createServerAck(serverId))
+                .doOnSuccess(ignored -> log.info("[{}] Enter server ({})", userId, serverId))
                 .switchIfEmpty(Mono.error(new InvalidValueException(ErrorCode.INVALID_SERVER_ID, String.valueOf(serverId))));
     }
 
@@ -176,9 +179,9 @@ public class ReplyHandler {
         UserSink userSink = userSinkMap.get(userId);
         Disposable disposable = serverStreamManager.getMessageFromServerSink(serverId)
                 .doOnNext(userSink::tryEmitNext)
-                .subscribe(serverEvent -> log.info("ServerEvent emitted to {}: {}", userId, serverEvent));
+                .subscribe(serverEvent -> log.debug("ServerEvent emitted to {}: {}", userId, serverEvent));
         userSink.addSubscription(Subscription.of(serverId, disposable));
-        log.info("[{}] subscribes server sink : {}", userId, serverId);
+        log.debug("[{}] subscribes server sink : {}", userId, serverId);
         activeUserManager.setSubscriptionRequired(userId, false);
     }
 
@@ -220,7 +223,10 @@ public class ReplyHandler {
                 .flatMap(user -> createUserAndVoiceStateTuple(userId, user, channelRequest))
                 .map(tuple -> ChannelEnterResponse.from(tuple.getT1().getProfileImage(), tuple.getT2()))
                 .flatMap(this::putChannelEnterToStream)
-                .doOnSuccess(ignored -> joinRoom(session, channelRequest.channelId()));
+                .doOnSuccess(ignored -> {
+                    joinRoom(session, channelRequest.channelId());
+                    log.info("[{}] Enter {} channel ({})", userId, channelRequest.channelType(), channelRequest.channelId());
+                });
     }
 
     private Mono<Tuple2<User, VoiceState>> createUserAndVoiceStateTuple(String userId, User user, ChannelRequest
@@ -241,8 +247,6 @@ public class ReplyHandler {
         Event channelAck = Event.of(ResponseOperation.ENTER_CHANNEL_EVENT, channelEnterResponse, null);
         String jsonChannelAck = convertService.convertObjectToJson(channelAck);
         return serverStreamManager.addVoiceMessageToStream(channelEnterResponse.serverId(), jsonChannelAck)
-                .doOnSuccess(ignored -> log.info("[{}] entered the {} channel [ {} ]",
-                        channelEnterResponse.userId(), channelEnterResponse.channelType(), channelEnterResponse.channelId()))
                 .then(Mono.empty());
     }
 
@@ -271,7 +275,10 @@ public class ReplyHandler {
                 .then(activeUserManager.isCorrectAccess(userId, channelRequest.serverId()))
                 .then(voiceStateManager.removeVoiceState(channelRequest.serverId(), userId))
                 .then(putChannelLeaveToStream(userId, channelRequest))
-                .doOnSuccess(ignored -> leaveRoom(session));
+                .doOnSuccess(ignored -> {
+                    leaveRoom(session);
+                    log.info("[{}] Leave {} channel ({})", userId, channelRequest.channelType(), channelRequest.channelId());
+                });
     }
 
 
@@ -279,7 +286,6 @@ public class ReplyHandler {
         Event channelAck = Event.of(ResponseOperation.LEAVE_CHANNEL_EVENT, ChannelLeaveResponse.from(channelRequest, userId), null);
         String jsonChannelAck = convertService.convertObjectToJson(channelAck);
         return serverStreamManager.addVoiceMessageToStream(channelRequest.serverId(), jsonChannelAck)
-                .doOnSuccess(ignored -> log.info("[{}] leaved the {} channel [ {} ]", userId, channelRequest.channelType(), channelRequest.channelId()))
                 .then(Mono.empty());
     }
 
@@ -308,7 +314,8 @@ public class ReplyHandler {
                         Mono.empty() : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, String.valueOf(stateRequest.channelId()))))
                 .then(activeUserManager.isCorrectAccess(userId, stateRequest.serverId()))
                 .then(updateStateAndGetVoiceState(userId, stateRequest))
-                .flatMap(voiceState -> putUpdateStateToStream(userId, voiceState, stateRequest));
+                .flatMap(voiceState -> putUpdateStateToStream(userId, voiceState, stateRequest))
+                .doOnSuccess(ignored -> log.info("[{}] Update state : {}", userId, stateRequest));
     }
 
     private Mono<VoiceState> updateStateAndGetVoiceState(String userId, StateRequest stateRequest) {
@@ -321,7 +328,6 @@ public class ReplyHandler {
         Event stateAck = Event.of(ResponseOperation.UPDATE_STATE_EVENT, StateResponse.from(voiceState), null);
         String jsonStateAck = convertService.convertObjectToJson(stateAck);
         return serverStreamManager.addVoiceMessageToStream(voiceState.serverId(), jsonStateAck)
-                .doOnSuccess(ignored -> log.info("[{}] updated the state : {}", userId, stateRequest))
                 .then(Mono.empty());
     }
 
@@ -362,7 +368,7 @@ public class ReplyHandler {
         UserSink userSink = userSinkMap.get(userId);
         if (userSink != null && userSink.doesSubscriberExists()) {
             userSink.dispose();
-            log.info("Dispose Subscription : {}", userId);
+            log.debug("Dispose Subscription : {}", userId);
         }
     }
 
