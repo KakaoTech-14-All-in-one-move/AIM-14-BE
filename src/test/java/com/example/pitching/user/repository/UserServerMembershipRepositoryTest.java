@@ -105,6 +105,35 @@ class UserServerMembershipRepositoryTest {
                 .verifyComplete();
     }
 
+    @Test
+    @DisplayName("사용자 생성 시 user_id가 자동으로 증가한다")
+    void userIdAutoIncrement() {
+        // when
+        databaseClient.sql("INSERT INTO users (email, username, role, user_id) VALUES ($1, $2, $3, DEFAULT)")
+                .bind(0, "first@example.com")
+                .bind(1, "First User")
+                .bind(2, "USER")
+                .fetch()
+                .rowsUpdated()
+                .block();
+
+        databaseClient.sql("INSERT INTO users (email, username, role, user_id) VALUES ($1, $2, $3, DEFAULT)")
+                .bind(0, "second@example.com")
+                .bind(1, "Second User")
+                .bind(2, "USER")
+                .fetch()
+                .rowsUpdated()
+                .block();
+
+        // then
+        StepVerifier.create(databaseClient.sql("SELECT user_id FROM users ORDER BY user_id DESC LIMIT 2")
+                        .map(row -> row.get("user_id", Long.class))
+                        .all()
+                        .collectList())
+                .assertNext(userIds -> assertThat(userIds.get(0)).isGreaterThan(userIds.get(1)))
+                .verifyComplete();
+    }
+
     private void createMembership(Long serverId, String email) {
         // 사용자가 없는 경우 생성
         if (!email.equals(TEST_EMAIL)) {
