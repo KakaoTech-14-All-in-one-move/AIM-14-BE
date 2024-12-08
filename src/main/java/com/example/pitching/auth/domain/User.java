@@ -16,12 +16,11 @@ import java.util.List;
 @NoArgsConstructor
 public class User {
     @Id
-    @Column("user_id")
-    private Long userId;
-
     private String email;
     @Setter
     private String username;
+    @Column("user_id")
+    private Long userId;
     @Setter
     @Column("profile_image")
     private String profileImage;
@@ -33,6 +32,11 @@ public class User {
 
     public static User createNewUser(String email, String username,
                                      String profileImage, String password) {
-        return new User(null, email, username, profileImage, password, "USER", new ArrayList<>());
+        return new User(email, username, null, profileImage, password, "USER", new ArrayList<>());
+    }
+
+    public static User createNewUser(String email, String username,
+                                     String profileImage, String password, Long userId) {
+        return new User(email, username, userId, profileImage, password, "USER", new ArrayList<>());
     }
 }
