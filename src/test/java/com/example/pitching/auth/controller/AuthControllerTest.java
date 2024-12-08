@@ -33,6 +33,7 @@ class AuthControllerTest {
     private static final String TEST_PROFILE_IMAGE = "profile.jpg";
     private static final String TEST_ACCESS_TOKEN = "accessToken123";
     private static final String TEST_REFRESH_TOKEN = "refreshToken123";
+    private static final Long TEST_USER_ID = 1L;
 
     @Autowired
     private WebTestClient webTestClient;
@@ -68,6 +69,7 @@ class AuthControllerTest {
         return new UserInfo(
                 email,
                 username,
+                TEST_USER_ID,
                 profileImage,
                 Collections.emptyList()
         );
@@ -215,5 +217,41 @@ class AuthControllerTest {
         // when & then
         performPost("/signup", invalidRequest)
                 .expectStatus().isBadRequest();
+    }
+
+    @Test
+    @DisplayName("로그인 응답에 userId가 포함되어 있다")
+    void loginResponseContainsUserId() {
+        // given
+        given(authService.authenticate(anyString(), anyString()))
+                .willReturn(Mono.just(loginResponse));
+
+        // when & then
+        performPost("/login", loginRequest)
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.userInfo.userId").isEqualTo(TEST_USER_ID);
+    }
+
+    @Test
+    @DisplayName("회원가입 후 로그인 시 동일한 userId를 반환한다")
+    void signupAndLoginReturnSameUserId() {
+        // given
+        given(authService.signup(any(SignupRequest.class)))
+                .willReturn(Mono.empty());
+
+        given(authService.authenticate(TEST_EMAIL, TEST_PASSWORD))
+                .willReturn(Mono.just(loginResponse));
+
+        // when & then
+        // 1. 회원가입
+        performPost("/signup", signupRequest)
+                .expectStatus().isCreated();
+
+        // 2. 로그인하여 userId 확인
+        performPost("/login", loginRequest)
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.userInfo.userId").isEqualTo(TEST_USER_ID);
     }
 }
