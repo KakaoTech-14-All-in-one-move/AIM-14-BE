@@ -45,7 +45,7 @@ public class Room implements Closeable {
 
     public void leave(UserSession user) {
         try {
-            log.debug("PARTICIPANT {}: Leaving room {}", user.getUserId(), this.channelId);
+            log.info("[{}]: Leaving room {}", user.getUserId(), this.channelId);
             this.removeParticipant(user.getUserId());
             user.close();
         } catch (IOException e) {

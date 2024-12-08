@@ -69,14 +69,14 @@ public class UserSession implements Closeable {
     }
 
     public void receiveVideoFrom(UserSession sender, String sdpOffer, ConvertService convertService) {
-        log.info("USER {}: connecting with {} in room {}", this.userId, sender.getUserId(), this.channelId);
+        log.info("[{}]: connecting with {} in room {}", this.userId, sender.getUserId(), this.channelId);
 
-        log.trace("USER {}: SdpOffer for {} is {}", this.userId, sender.getUserId(), sdpOffer);
+        log.trace("[{}]: SdpOffer for {} is {}", this.userId, sender.getUserId(), sdpOffer);
 
         final String ipSdpAnswer = this.getEndpointForUser(sender, convertService).processOffer(sdpOffer);
         Event response = Event.of(ResponseOperation.VIDEO_ANSWER, AnswerResponse.of(sender.userId, ipSdpAnswer), null);
 
-        log.trace("USER {}: SdpAnswer for {} is {}", this.userId, sender.getUserId(), ipSdpAnswer);
+        log.trace("[{}]: SdpAnswer for {} is {}", this.userId, sender.getUserId(), ipSdpAnswer);
         this.sendMessage(convertService.convertObjectToJson(response));
         log.debug("gather candidates");
         this.getEndpointForUser(sender, convertService).gatherCandidates();

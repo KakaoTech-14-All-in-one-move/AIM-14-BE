@@ -252,7 +252,7 @@ public class ReplyHandler {
 
     private void joinRoom(WebSocketSession session, Long channelId) {
         final String userId = getUserIdFromSession(session);
-        log.info("PARTICIPANT {}: trying to join room {}", userId, channelId);
+        log.info("[{}]: trying to join room {}", userId, channelId);
 
         Room room = roomManager.getRoom(channelId);
         final UserSession user = room.join(userId, session, convertService);
@@ -314,7 +314,7 @@ public class ReplyHandler {
                         Mono.empty() : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, String.valueOf(stateRequest.channelId()))))
                 .then(activeUserManager.isCorrectAccess(userId, stateRequest.serverId()))
                 .then(updateStateAndGetVoiceState(userId, stateRequest))
-                .flatMap(voiceState -> putUpdateStateToStream(userId, voiceState, stateRequest))
+                .flatMap(this::putUpdateStateToStream)
                 .doOnSuccess(ignored -> log.info("[{}] Update state : {}", userId, stateRequest));
     }
 
@@ -324,7 +324,7 @@ public class ReplyHandler {
                 .flatMap(convertService::convertJsonToVoiceState);
     }
 
-    private Mono<String> putUpdateStateToStream(String userId, VoiceState voiceState, StateRequest stateRequest) {
+    private Mono<String> putUpdateStateToStream(VoiceState voiceState) {
         Event stateAck = Event.of(ResponseOperation.UPDATE_STATE_EVENT, StateResponse.from(voiceState), null);
         String jsonStateAck = convertService.convertObjectToJson(stateAck);
         return serverStreamManager.addVoiceMessageToStream(voiceState.serverId(), jsonStateAck)
