@@ -68,6 +68,7 @@ class AuthControllerTest {
         return new UserInfo(
                 email,
                 username,
+                null,
                 profileImage,
                 Collections.emptyList()
         );

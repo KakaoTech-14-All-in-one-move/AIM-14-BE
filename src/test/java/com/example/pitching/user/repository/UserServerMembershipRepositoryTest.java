@@ -37,7 +37,7 @@ class UserServerMembershipRepositoryTest {
         databaseClient.sql("DELETE FROM users").fetch().rowsUpdated().block();
 
         // 테스트용 사용자 생성
-        databaseClient.sql("INSERT INTO users (email, username, role) VALUES ($1, $2, $3)")
+        databaseClient.sql("INSERT INTO users (email, username, role, user_id) VALUES ($1, $2, $3, DEFAULT)")
                 .bind(0, TEST_EMAIL)
                 .bind(1, "Test User")
                 .bind(2, "USER")
@@ -108,7 +108,7 @@ class UserServerMembershipRepositoryTest {
     private void createMembership(Long serverId, String email) {
         // 사용자가 없는 경우 생성
         if (!email.equals(TEST_EMAIL)) {
-            databaseClient.sql("INSERT INTO users (email, username, role) VALUES ($1, $2, $3)")
+            databaseClient.sql("INSERT INTO users (email, username, role, user_id) VALUES ($1, $2, $3, DEFAULT)")
                     .bind(0, email)
                     .bind(1, "Test User")
                     .bind(2, "USER")
