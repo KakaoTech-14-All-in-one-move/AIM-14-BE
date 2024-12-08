@@ -17,6 +17,8 @@ import static org.junit.jupiter.api.Assertions.*;
 @ExtendWith(MockitoExtension.class)
 class JwtTokenProviderTest {
     private JwtTokenProvider jwtTokenProvider;
+    private static final String TEST_EMAIL = "test@example.com";
+    private static final Long TEST_USER_ID = 1L;
 
     @BeforeEach
     void setUp() {
@@ -33,7 +35,7 @@ class JwtTokenProviderTest {
     @Test
     @DisplayName("액세스 토큰 생성 성공")
     void createAccessToken() {
-        TokenInfo tokenInfo = jwtTokenProvider.createTokenInfo("test@example.com");
+        TokenInfo tokenInfo = jwtTokenProvider.createTokenInfo(TEST_EMAIL, TEST_USER_ID);
 
         assertNotNull(tokenInfo.accessToken());
         assertNotNull(tokenInfo.refreshToken());
@@ -42,10 +44,10 @@ class JwtTokenProviderTest {
     @Test
     @DisplayName("유효한 토큰 검증 성공")
     void validateValidToken() {
-        String token = jwtTokenProvider.createTokenInfo("test@example.com").accessToken();
+        String token = jwtTokenProvider.createTokenInfo(TEST_EMAIL, TEST_USER_ID).accessToken();
         String email = jwtTokenProvider.validateAndGetEmail(token);
 
-        assertEquals("test@example.com", email);
+        assertEquals(TEST_EMAIL, email);
     }
 
     @Test
@@ -53,7 +55,7 @@ class JwtTokenProviderTest {
     void validateExpiredToken() {
         // accessTokenExpiration을 임시로 0으로 설정하여 만료된 토큰 생성
         ReflectionTestUtils.setField(jwtTokenProvider, "accessTokenExpiration", Duration.ZERO);
-        String token = jwtTokenProvider.createTokenInfo("test@example.com").accessToken();
+        String token = jwtTokenProvider.createTokenInfo(TEST_EMAIL, TEST_USER_ID).accessToken();
 
         assertThrows(ResponseStatusException.class, () -> {
             jwtTokenProvider.validateAndGetEmail(token);
@@ -63,7 +65,7 @@ class JwtTokenProviderTest {
     @Test
     @DisplayName("리프레시 토큰 검증")
     void validateRefreshToken() {
-        String refreshToken = jwtTokenProvider.createTokenInfo("test@example.com").refreshToken();
+        String refreshToken = jwtTokenProvider.createTokenInfo(TEST_EMAIL, TEST_USER_ID).refreshToken();
 
         assertEquals(TokenStatus.VALID, jwtTokenProvider.validateRefreshToken(refreshToken));
     }
@@ -71,10 +73,17 @@ class JwtTokenProviderTest {
     @Test
     @DisplayName("이메일 추출 성공")
     void extractEmailSuccess() {
-        String email = "test@example.com";
-        String token = jwtTokenProvider.createTokenInfo(email).accessToken();
+        String token = jwtTokenProvider.createTokenInfo(TEST_EMAIL, TEST_USER_ID).accessToken();
 
-        assertEquals(email, jwtTokenProvider.extractEmail(token));
+        assertEquals(TEST_EMAIL, jwtTokenProvider.extractEmail(token));
+    }
+
+    @Test
+    @DisplayName("userId 추출 성공")
+    void extractUserIdSuccess() {
+        String token = jwtTokenProvider.createTokenInfo(TEST_EMAIL, TEST_USER_ID).accessToken();
+
+        assertEquals(TEST_USER_ID, jwtTokenProvider.extractUserId(token));
     }
 
     @Test
