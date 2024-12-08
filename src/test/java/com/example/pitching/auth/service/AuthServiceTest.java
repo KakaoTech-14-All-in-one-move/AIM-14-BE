@@ -55,13 +55,14 @@ class AuthServiceTest {
     private final String TEST_USERNAME = "testUser";
     private final String ACCESS_TOKEN = "accessToken";
     private final String REFRESH_TOKEN = "refreshToken";
+    private final Long TEST_USER_ID = 1L;
 
     private TokenInfo tokenInfo;
 
     @BeforeEach
     void setUp() {
         String ENCODED_PASSWORD = "encodedPassword";
-        User testUser = User.createNewUser(TEST_EMAIL, TEST_USERNAME, null, ENCODED_PASSWORD);
+        User testUser = User.createNewUser(TEST_EMAIL, TEST_USERNAME, null, ENCODED_PASSWORD, TEST_USER_ID);
         Server testServer = Server.createNewServer("Test Server", null);
         Channel testChannel = Channel.createNewChannel(1L, "Test Channel", ChannelCategory.CHAT, 1);
         tokenInfo = new TokenInfo(ACCESS_TOKEN, REFRESH_TOKEN);
@@ -70,7 +71,7 @@ class AuthServiceTest {
         lenient().when(userRepository.findByEmail(TEST_EMAIL)).thenReturn(Mono.just(testUser));
         lenient().when(serverRepository.findServersByUserEmail(TEST_EMAIL)).thenReturn(Flux.just(testServer));
         lenient().when(channelRepository.findByServerId(any())).thenReturn(Flux.just(testChannel));
-        lenient().when(jwtTokenProvider.createTokenInfo(TEST_EMAIL)).thenReturn(tokenInfo);
+        lenient().when(jwtTokenProvider.createTokenInfo(TEST_EMAIL, TEST_USER_ID)).thenReturn(tokenInfo);
     }
 
     @Test
@@ -107,7 +108,8 @@ class AuthServiceTest {
         // given
         when(jwtTokenProvider.validateRefreshToken(REFRESH_TOKEN)).thenReturn(TokenStatus.VALID);
         when(jwtTokenProvider.extractEmail(REFRESH_TOKEN)).thenReturn(TEST_EMAIL);
-        when(jwtTokenProvider.recreateAccessToken(TEST_EMAIL)).thenReturn(tokenInfo);
+        when(jwtTokenProvider.extractUserId(REFRESH_TOKEN)).thenReturn(TEST_USER_ID);
+        when(jwtTokenProvider.recreateAccessToken(TEST_EMAIL, TEST_USER_ID)).thenReturn(tokenInfo);
 
         // when & then
         StepVerifier.create(authService.refreshToken(REFRESH_TOKEN))
