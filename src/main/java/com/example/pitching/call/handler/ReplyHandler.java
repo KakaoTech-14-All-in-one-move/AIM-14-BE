@@ -16,6 +16,7 @@ import com.example.pitching.call.operation.code.ResponseOperation;
 import com.example.pitching.call.operation.request.*;
 import com.example.pitching.call.operation.response.*;
 import com.example.pitching.call.service.*;
+import com.example.pitching.user.service.ChannelService;
 import com.example.pitching.user.service.ServerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +48,7 @@ public class ReplyHandler {
     private final VoiceStateManager voiceStateManager;
     private final ActiveUserManager activeUserManager;
     private final ServerService serverService;
+    private final ChannelService channelService;
     private final RoomManager roomManager;
     private final UserRegistry registry;
     private final UserRepository userRepository;
@@ -231,13 +233,12 @@ public class ReplyHandler {
      * @return empty
      * @apiNote 음성/영상 채널 입장 (채팅 제외)
      * 직접 소켓에 응답하지 않고 server_event 로 등록
-     * TODO: Channel list에 포함되어 있는지 검사 (DB)
      */
     private Mono<String> enterChannel(WebSocketSession session, String receivedMessage) {
         String userId = getUserIdFromSession(session);
         ChannelRequest channelRequest = convertService.readDataFromMessage(receivedMessage, ChannelRequest.class);
 
-        return isValidChannelId(channelRequest.serverId(), channelRequest.channelId())
+        return channelService.isValidChannel(channelRequest.serverId(), channelRequest.channelId())
                 .flatMap(isValid -> isValid ?
                         Mono.empty() : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, String.valueOf(channelRequest.channelId()))))
                 .then(activeUserManager.isCorrectAccess(userId, channelRequest.serverId()))
@@ -290,7 +291,7 @@ public class ReplyHandler {
     private Mono<String> leaveChannel(WebSocketSession session, String receivedMessage) {
         String userId = getUserIdFromSession(session);
         ChannelRequest channelRequest = convertService.readDataFromMessage(receivedMessage, ChannelRequest.class);
-        return isValidChannelId(channelRequest.serverId(), channelRequest.channelId())
+        return channelService.isValidChannel(channelRequest.serverId(), channelRequest.channelId())
                 .flatMap(isValid -> isValid ?
                         Mono.empty() : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, String.valueOf(channelRequest.channelId()))))
                 .then(activeUserManager.isCorrectAccess(userId, channelRequest.serverId()))
@@ -299,11 +300,6 @@ public class ReplyHandler {
                 .doOnSuccess(ignored -> leaveRoom(session));
     }
 
-    // TODO: DB 연결되면 로직 추가
-    private Mono<Boolean> isValidChannelId(Long ServerId, Long channelId) {
-        List<Long> channalList = List.of(TEST_VIDEO_CHANNEL_ID, TEST_VOICE_CHANNEL_ID);
-        return channalList.contains(channelId) ? Mono.just(true) : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, String.valueOf(channelId)));
-    }
 
     private Mono<String> putChannelLeaveToStream(String userId, ChannelRequest channelRequest) {
         Event channelAck = Event.of(ResponseOperation.LEAVE_CHANNEL_EVENT, ChannelLeaveResponse.from(channelRequest, userId), null);
@@ -333,7 +329,7 @@ public class ReplyHandler {
         String userId = getUserIdFromSession(session);
         StateRequest stateRequest = convertService.readDataFromMessage(receivedMessage, StateRequest.class);
 
-        return isValidChannelId(stateRequest.serverId(), stateRequest.channelId())
+        return channelService.isValidChannel(stateRequest.serverId(), stateRequest.channelId())
                 .flatMap(isValid -> isValid ?
                         Mono.empty() : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, String.valueOf(stateRequest.channelId()))))
                 .then(activeUserManager.isCorrectAccess(userId, stateRequest.serverId()))

@@ -1,8 +1,8 @@
 -- 필요 시 사용
---DROP TABLE IF EXISTS user_server_memberships;
---DROP TABLE IF EXISTS channels;
---DROP TABLE IF EXISTS servers;
---DROP TABLE IF EXISTS users;
+-- DROP TABLE IF EXISTS user_server_memberships;
+-- DROP TABLE IF EXISTS channels;
+-- DROP TABLE IF EXISTS servers;
+-- DROP TABLE IF EXISTS users;
 
 -- users 테이블 생성
 CREATE TABLE IF NOT EXISTS users (

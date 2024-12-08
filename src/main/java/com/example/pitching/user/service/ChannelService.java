@@ -27,6 +27,12 @@ public class ChannelService {
                 );
     }
 
+    public Mono<Boolean> isValidChannel(Long serverId, Long channelId) {
+        return channelRepository.findById(channelId)
+                .map(channel -> serverId.equals(channel.getServerId()))
+                .defaultIfEmpty(false);
+    }
+
     private Mono<Server> validateServer(Long serverId) {
         return serverRepository.findById(serverId)
                 .switchIfEmpty(Mono.error(() ->
