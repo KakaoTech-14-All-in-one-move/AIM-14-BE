@@ -114,10 +114,23 @@ public class UserSession implements Closeable {
     }
 
     public void cancelVideoFrom(final String senderName) {
-        log.debug("PARTICIPANT {}: canceling video reception from {}", this.userId, senderName);
+        log.debug("PARTICIPANT {}: canceling video reception from {} (current endpoints: {})",
+                this.userId,
+                senderName,
+                incomingMedia.keySet()  // 현재 저장된 모든 키를 로그로 출력
+        );
+
         final WebRtcEndpoint incoming = incomingMedia.remove(senderName);
 
-        log.debug("PARTICIPANT {}: removing endpoint for {}", this.userId, senderName);
+        if (incoming == null) { // TODO : http 에서 연결하여 생기는 문제인지 확인
+            log.warn("PARTICIPANT {}: no incoming endpoint found for {} (remaining endpoints: {})",
+                    this.userId,
+                    senderName,
+                    incomingMedia.keySet()  // 제거 후 남은 키들을 로그로 출력
+            );
+            return;
+        }
+
         incoming.release(new Continuation<Void>() {
             @Override
             public void onSuccess(Void result) throws Exception {
