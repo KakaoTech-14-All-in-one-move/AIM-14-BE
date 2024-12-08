@@ -72,7 +72,7 @@ public class OAuth2SuccessHandler implements ServerAuthenticationSuccessHandler 
                         )
                         .collectList()
                         .map(servers -> {
-                            TokenInfo tokenInfo = jwtTokenProvider.createTokenInfo(email);
+                            TokenInfo tokenInfo = jwtTokenProvider.createTokenInfo(email, user.getUserId());
                             UserInfo userInfo = new UserInfo(
                                     user.getEmail(),
                                     user.getUsername(),
