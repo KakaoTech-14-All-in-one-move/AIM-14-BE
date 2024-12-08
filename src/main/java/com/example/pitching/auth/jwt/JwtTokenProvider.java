@@ -29,35 +29,36 @@ public class JwtTokenProvider {
     @Value("${jwt.refresh-token.expiration}")
     private Duration refreshTokenExpiration;
 
-    public TokenInfo createTokenInfo(String email) {
+    public TokenInfo createTokenInfo(String email, Long userId) {
         return new TokenInfo(
-                createAccessToken(email),
-                createRefreshToken(email)
+                createAccessToken(email, userId),
+                createRefreshToken(email, userId)
         );
     }
 
-    public TokenInfo recreateAccessToken(String email) {
+    public TokenInfo recreateAccessToken(String email, Long userId) {
         return new TokenInfo(
-                createAccessToken(email),
+                createAccessToken(email, userId),
                 null
         );
     }
 
-    private String createAccessToken(String email) {
-        return createToken(email, accessTokenExpiration, "access");
+    private String createAccessToken(String email, Long userId) {
+        return createToken(email, userId, accessTokenExpiration, "access");
     }
 
-    private String createRefreshToken(String email) {
-        return createToken(email, refreshTokenExpiration, "refresh");
+    private String createRefreshToken(String email, Long userId) {
+        return createToken(email, userId, refreshTokenExpiration, "refresh");
     }
 
-    private String createToken(String email, Duration expiration, String tokenType) {
+    private String createToken(String email, Long userId, Duration expiration, String tokenType) {
         Date now = new Date();
         Date validity = new Date(now.getTime() + expiration.toMillis());
 
         return Jwts.builder()
                 .setSubject(email)
                 .claim("type", tokenType)
+                .claim("userId", userId)
                 .setIssuedAt(now)
                 .setExpiration(validity)
                 .signWith(getSecretKey(), SignatureAlgorithm.HS256)
@@ -97,8 +98,6 @@ public class JwtTokenProvider {
                 return TokenStatus.EXPIRED;
             }
 
-            // TODO: 필요한 경우 검증 로직 추가
-
             return TokenStatus.VALID;
 
         } catch (ExpiredJwtException e) {
@@ -115,6 +114,15 @@ public class JwtTokenProvider {
                 .parseClaimsJws(token)
                 .getBody();
         return claims.getSubject();
+    }
+
+    public Long extractUserId(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(getSecretKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+        return claims.get("userId", Long.class);
     }
 
     private SecretKey getSecretKey() {
