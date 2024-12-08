@@ -53,8 +53,8 @@ public class OAuth2SuccessHandler implements ServerAuthenticationSuccessHandler 
 
         return userRepository.findByEmail(email)
                 .switchIfEmpty(
-                        Mono.defer(() -> userRepository.insertUser(email, name, null, "USER")
-                                .then(Mono.just(User.createNewUser(email, name, null, null)))
+                        Mono.defer(() -> userRepository.insertUserAndGetId(email, name, null, "USER")
+                                .map(userId -> User.createNewUser(email, name, null, null, userId))
                                 .onErrorMap(e -> new ResponseStatusException(
                                         HttpStatus.INTERNAL_SERVER_ERROR, "OAuth2 회원가입 처리 중 오류가 발생했습니다."))
                         )
@@ -76,6 +76,7 @@ public class OAuth2SuccessHandler implements ServerAuthenticationSuccessHandler 
                             UserInfo userInfo = new UserInfo(
                                     user.getEmail(),
                                     user.getUsername(),
+                                    user.getUserId(),
                                     user.getProfileImage(),
                                     servers
                             );
@@ -95,6 +96,7 @@ public class OAuth2SuccessHandler implements ServerAuthenticationSuccessHandler 
                                 .queryParam("refreshToken", tokenInfo.refreshToken())
                                 .queryParam("email", URLEncoder.encode(userInfo.email(), StandardCharsets.UTF_8))
                                 .queryParam("username", URLEncoder.encode(userInfo.username(), StandardCharsets.UTF_8))
+                                .queryParam("userId", userInfo.userId())  // userId 추가
                                 .queryParam("profile_image", userInfo.profile_image())
                                 .queryParam("servers", URLEncoder.encode(serversJson, StandardCharsets.UTF_8))
                                 .build()
