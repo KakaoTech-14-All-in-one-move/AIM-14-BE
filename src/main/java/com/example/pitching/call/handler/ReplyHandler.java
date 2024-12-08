@@ -38,8 +38,6 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 @RequiredArgsConstructor
 public class ReplyHandler {
-    public static final Long TEST_VOICE_CHANNEL_ID = 1L;
-    public static final Long TEST_VIDEO_CHANNEL_ID = 2L;
     private final Map<String, UserSink> userSinkMap = new ConcurrentHashMap<>();
     private final JwtTokenProvider jwtTokenProvider;
     private final ServerProperties serverProperties;
@@ -81,30 +79,6 @@ public class ReplyHandler {
                     case RequestOperation.RECEIVE_VIDEO -> receiveVideoFrom(session, receivedMessage);
                 })
                 .doOnNext(requestOperation -> log.info("[{}] Send Message : {}", getUserIdFromSession(session), receivedMessage));
-    }
-
-
-    private Mono<String> onIceCandidate(WebSocketSession session, String receivedMessage) {
-        return Mono.fromRunnable(() -> {
-            final UserSession user = registry.getBySession(session);
-            CandidateRequest candidateRequest = convertService.readDataFromMessage(receivedMessage, CandidateRequest.class);
-
-            if (user != null) {
-                IceCandidate candidate = new IceCandidate(candidateRequest.candidate().toString(),
-                        candidateRequest.sdpMid(), candidateRequest.sdpMLineIndex());
-                user.addCandidate(candidate, user.getUserId());
-            }
-        });
-    }
-
-    private Mono<String> receiveVideoFrom(WebSocketSession session, String receivedMessage) {
-        return Mono.fromRunnable(() -> {
-            OfferRequest offerRequest = convertService.readDataFromMessage(receivedMessage, OfferRequest.class);
-            final UserSession user = registry.getBySession(session);
-            final UserSession sender = registry.getByName(user.getUserId());
-            final String sdpOffer = offerRequest.sdpOffer();
-            user.receiveVideoFrom(sender, sdpOffer, convertService);
-        });
     }
 
     /**
@@ -349,6 +323,39 @@ public class ReplyHandler {
         return serverStreamManager.addVoiceMessageToStream(voiceState.serverId(), jsonStateAck)
                 .doOnSuccess(ignored -> log.info("[{}] updated the state : {}", userId, stateRequest))
                 .then(Mono.empty());
+    }
+
+    /**
+     * @param session
+     * @param receivedMessage
+     * @return runnable
+     */
+    private Mono<String> onIceCandidate(WebSocketSession session, String receivedMessage) {
+        return Mono.fromRunnable(() -> {
+            final UserSession user = registry.getBySession(session);
+            CandidateRequest candidateRequest = convertService.readDataFromMessage(receivedMessage, CandidateRequest.class);
+
+            if (user != null) {
+                IceCandidate candidate = new IceCandidate(candidateRequest.candidate().toString(),
+                        candidateRequest.sdpMid(), candidateRequest.sdpMLineIndex());
+                user.addCandidate(candidate, user.getUserId());
+            }
+        });
+    }
+
+    /**
+     * @param session
+     * @param receivedMessage
+     * @return runnable
+     */
+    private Mono<String> receiveVideoFrom(WebSocketSession session, String receivedMessage) {
+        return Mono.fromRunnable(() -> {
+            OfferRequest offerRequest = convertService.readDataFromMessage(receivedMessage, OfferRequest.class);
+            final UserSession user = registry.getBySession(session);
+            final UserSession sender = registry.getByName(user.getUserId());
+            final String sdpOffer = offerRequest.sdpOffer();
+            user.receiveVideoFrom(sender, sdpOffer, convertService);
+        });
     }
 
     private void disposeSubscriptionIfPresent(String userId) {
