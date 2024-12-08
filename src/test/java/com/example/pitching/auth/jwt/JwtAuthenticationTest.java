@@ -42,11 +42,15 @@ class JwtAuthenticationTest {
     private static final String VALID_TOKEN = "valid.test.token";
     private static final String TEST_EMAIL = "test@example.com";
     private static final String TEST_PASSWORD = "password";
+    private static final Long TEST_USER_ID = 1L;
 
     @BeforeEach
     void setUp() {
         when(jwtTokenProvider.validateAndGetEmail(VALID_TOKEN))
                 .thenReturn(TEST_EMAIL);
+
+        when(jwtTokenProvider.extractUserId(VALID_TOKEN))
+                .thenReturn(TEST_USER_ID);
 
         UserDetails userDetails = User.builder()
                 .username(TEST_EMAIL)
