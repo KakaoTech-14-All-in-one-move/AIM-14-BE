@@ -13,8 +13,9 @@ public enum ResponseOperation implements Operation {
     ENTER_CHANNEL_EVENT(13, "Success to enter voice/video channel."),
     LEAVE_CHANNEL_EVENT(14, "Success to leave voice/video channel."),
     UPDATE_STATE_EVENT(15, "Success to update state."),
-    ICE_CANDIDATE(16, ""),
-    VIDEO_ANSWER(17, ""),
+    ICE_CANDIDATE(16, "Received ICE candidate from the remote peer for WebRTC connection"),
+    VIDEO_ANSWER(17, "Response to video offer containing session description for WebRTC"),
+    ;
     ;
 
     @JsonValue

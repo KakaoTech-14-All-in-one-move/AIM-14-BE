@@ -14,8 +14,8 @@ public enum RequestOperation implements Operation {
     ENTER_CHANNEL(3, "Enter the voice/video channel."),
     LEAVE_CHANNEL(4, "Leave the voice/video channel."),
     UPDATE_STATE(5, "Change the voice/video channel state"),
-    ON_ICE_CANDIDATE(6, ""),
-    RECEIVE_VIDEO(7, ""),
+    ON_ICE_CANDIDATE(6, "Send ICE candidate for WebRTC peer connection setup"),
+    RECEIVE_VIDEO(7, "Receive video stream from remote peer"),
     ;
 
     @JsonValue
