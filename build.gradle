@@ -59,11 +59,11 @@ dependencies {
 	// SpringDoc OpenAPI (Swagger)
 	implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.3.0'
 
-	// websocket
-	implementation 'org.springframework.boot:spring-boot-starter-websocket'
-
 	// dynamodb
-	implementation 'software.amazon.awssdk:dynamodb:2.21.33'
+	//implementation 'software.amazon.awssdk:dynamodb:2.21.33'
+	implementation platform('software.amazon.awssdk:bom:2.21.33')
+	implementation 'software.amazon.awssdk:dynamodb-enhanced'
+	implementation 'software.amazon.awssdk:dynamodb'
 }
 
 jacoco {
