@@ -3,6 +3,7 @@ package com.example.pitching.call.config;
 import com.example.pitching.call.dto.properties.ServerProperties;
 import com.example.pitching.call.handler.CallWebSocketHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.kurento.client.KurentoClient;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.reactive.handler.SimpleUrlHandlerMapping;
@@ -23,5 +24,10 @@ public class HandlerMappingConfig {
     @Bean
     public ObjectMapper objectMapper() {
         return new ObjectMapper();
+    }
+
+    @Bean
+    public KurentoClient kurentoClient() {
+        return KurentoClient.create();
     }
 }

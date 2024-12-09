@@ -1,11 +1,11 @@
 package com.example.pitching.call.service;
 
 import com.example.pitching.call.dto.VoiceState;
-import com.example.pitching.call.exception.DuplicateOperationException;
 import com.example.pitching.call.exception.ErrorCode;
 import com.example.pitching.call.exception.WrongAccessException;
 import com.example.pitching.call.operation.request.ChannelRequest;
 import com.example.pitching.call.operation.request.StateRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.ReactiveHashOperations;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -15,6 +15,7 @@ import reactor.core.publisher.Mono;
 import java.util.Map;
 import java.util.Objects;
 
+@Slf4j
 @Component
 public class VoiceStateManager {
     private final ReactiveHashOperations<String, String, String> hashOperations;
@@ -25,15 +26,15 @@ public class VoiceStateManager {
         this.convertService = convertService;
     }
 
-    public Mono<String> getVoiceState(String serverId, String userId) {
+    public Mono<String> getVoiceState(Long serverId, String userId) {
         return hashOperations.get(getVoiceStateRedisKey(serverId), userId);
     }
 
-    public Mono<Long> removeVoiceState(String serverId, String userId) {
+    public Mono<Long> removeVoiceState(Long serverId, String userId) {
         return hashOperations.remove(getVoiceStateRedisKey(serverId), userId);
     }
 
-    public Flux<Map.Entry<String, String>> getAllVoiceState(String serverId) {
+    public Flux<Map.Entry<String, String>> getAllVoiceState(Long serverId) {
         return hashOperations.entries(getVoiceStateRedisKey(serverId));
     }
 
@@ -49,7 +50,7 @@ public class VoiceStateManager {
         return existsVoiceState(stateRequest.serverId(), userId)
                 .filter(Boolean.TRUE::equals)
                 .then(updateAndGetVoiceState(stateRequest, userId))
-                .switchIfEmpty(Mono.error(new WrongAccessException(ErrorCode.WRONG_ACCESS_INACTIVE_CHANNEL, stateRequest.channelId())));
+                .switchIfEmpty(Mono.error(new WrongAccessException(ErrorCode.WRONG_ACCESS_INACTIVE_CHANNEL, String.valueOf(stateRequest.channelId()))));
     }
 
     private Mono<Boolean> changeChannelAndSave(ChannelRequest channelRequest, String userId) {
@@ -69,21 +70,21 @@ public class VoiceStateManager {
     }
 
     private Mono<Boolean> changeChannelId(ChannelRequest channelRequest, String userId, VoiceState oldVoiceState) {
-        if (Objects.equals(oldVoiceState.channelId(), channelRequest.channelId()))
-            return Mono.error(new DuplicateOperationException(ErrorCode.DUPLICATE_CHANNEL_ENTRY, channelRequest.channelId()));
+        if (Objects.equals(oldVoiceState.channelId(), channelRequest.channelId())) return Mono.just(true);
+//            return Mono.error(new DuplicateOperationException(ErrorCode.DUPLICATE_CHANNEL_ENTRY, String.valueOf(channelRequest.channelId())));
         VoiceState newVoiceState = oldVoiceState.changeChannelId(channelRequest.channelId(), channelRequest.channelType());
         return addVoiceState(userId, channelRequest.serverId(), convertService.convertObjectToJson(newVoiceState));
     }
 
-    private Mono<Boolean> addVoiceState(String userId, String serverId, String jsonVoiceState) {
+    private Mono<Boolean> addVoiceState(String userId, Long serverId, String jsonVoiceState) {
         return hashOperations.put(getVoiceStateRedisKey(serverId), userId, jsonVoiceState);
     }
 
-    private Mono<Boolean> existsVoiceState(String serverId, String userId) {
+    private Mono<Boolean> existsVoiceState(Long serverId, String userId) {
         return hashOperations.hasKey(getVoiceStateRedisKey(serverId), userId);
     }
 
-    private String getVoiceStateRedisKey(String serverId) {
-        return String.format("server:%s:call", serverId);
+    private String getVoiceStateRedisKey(Long serverId) {
+        return String.format("server:%d:call", serverId);
     }
 }

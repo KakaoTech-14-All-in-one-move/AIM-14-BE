@@ -7,6 +7,7 @@ import reactor.core.publisher.Mono;
 
 public interface UserRepository extends ReactiveCrudRepository<User, String> {
     Mono<User> findByEmail(String email);
+    Mono<User> findByUserId(Long userId);
     Mono<Boolean> existsByEmail(String email);
     @Query("INSERT INTO users (email, username, password, role) VALUES (:email, :username, :password, :role)")
     Mono<Void> insertUser(String email, String username, String password, String role);

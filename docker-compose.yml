@@ -3,3 +3,24 @@ services:
     image: redis:latest
     ports:
       - 6379:6379
+
+  postgres:
+    image: postgres:latest
+    container_name: postgres_r2dbc
+    environment:
+      POSTGRES_DB: test
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+    ports:
+      - "5432:5432"
+
+  kms:
+    image: kurento/kurento-media-server:latest
+    platform: linux/amd64
+    container_name: kms
+    ports:
+      - "8888:8888"
+    restart: always
+    environment:
+      - KMS_MIN_PORT=40000
+      - KMS_MAX_PORT=40050
