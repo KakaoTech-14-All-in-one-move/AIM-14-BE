@@ -27,7 +27,7 @@ public record VoiceState(
 ) {
     public static VoiceState from(ChannelRequest channelRequest, User user) {
         return new VoiceState(
-                user.getEmail(),
+                String.valueOf(user.getUserId()),
                 user.getUsername(),
                 channelRequest.serverId(),
                 channelRequest.channelId(),

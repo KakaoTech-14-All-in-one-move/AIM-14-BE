@@ -157,7 +157,6 @@ public class ReplyHandler {
         return serverService.isValidServer(serverId)
                 .filter(Boolean.TRUE::equals)
                 .then(addActiveUser(userId, serverId))
-                .then(userRepository.findByUserId(Long.parseLong(userId)))
                 .then(createServerAck(serverId))
                 .doOnSuccess(ignored -> log.info("USER [{}] Enter server ({})", userId, serverId))
                 .switchIfEmpty(Mono.error(new InvalidValueException(ErrorCode.INVALID_SERVER_ID, String.valueOf(serverId))));
