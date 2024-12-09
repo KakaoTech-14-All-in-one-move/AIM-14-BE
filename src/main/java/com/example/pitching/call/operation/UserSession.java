@@ -69,9 +69,9 @@ public class UserSession implements Closeable {
     }
 
     public void receiveVideoFrom(UserSession sender, String sdpOffer, ConvertService convertService) {
-        log.info("[{}]: connecting with {} in room {}", this.userId, sender.getUserId(), this.channelId);
+        log.info("USER [{}]: connecting with {} in room {}", this.userId, sender.getUserId(), this.channelId);
 
-        log.trace("[{}]: SdpOffer for {} is {}", this.userId, sender.getUserId(), sdpOffer);
+        log.trace("USER [{}]: SdpOffer for {} is {}", this.userId, sender.getUserId(), sdpOffer);
 
         final String ipSdpAnswer = this.getEndpointForUser(sender, convertService).processOffer(sdpOffer);
         Event response = Event.of(ResponseOperation.VIDEO_ANSWER, AnswerResponse.of(sender.userId, ipSdpAnswer), null);

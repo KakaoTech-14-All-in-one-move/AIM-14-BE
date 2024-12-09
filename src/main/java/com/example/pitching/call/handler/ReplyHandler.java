@@ -95,7 +95,7 @@ public class ReplyHandler {
         return jwtTokenProvider.validateAndGetUserId(token)
                 .doOnSuccess(userId -> {
                     initializeUserSink(userId, session);
-                    log.info("[{}] Connected", userId);
+                    log.info("USER [{}] Connected", userId);
                 })
                 .then(Mono.just(convertService.convertObjectToJson(hello)));
     }
@@ -157,9 +157,9 @@ public class ReplyHandler {
         return serverService.isValidServer(serverId)
                 .filter(Boolean.TRUE::equals)
                 .then(addActiveUser(userId, serverId))
-                .then(userRepository.findByEmail(userId))
+                .then(userRepository.findByUserId(Long.parseLong(userId)))
                 .then(createServerAck(serverId))
-                .doOnSuccess(ignored -> log.info("[{}] Enter server ({})", userId, serverId))
+                .doOnSuccess(ignored -> log.info("USER [{}] Enter server ({})", userId, serverId))
                 .switchIfEmpty(Mono.error(new InvalidValueException(ErrorCode.INVALID_SERVER_ID, String.valueOf(serverId))));
     }
 
@@ -195,7 +195,7 @@ public class ReplyHandler {
 
     private Mono<Data> createDataWithProfileImage(Map.Entry<String, String> mapEntry) {
         VoiceState voiceState = convertService.convertJsonToObject(mapEntry.getValue(), VoiceState.class);
-        return userRepository.findByEmail(voiceState.userId())
+        return userRepository.findByUserId(Long.parseLong(voiceState.userId()))
                 .map(user -> ServerResponse.from(voiceState, user.getProfileImage()));
     }
 
@@ -219,13 +219,13 @@ public class ReplyHandler {
                 .flatMap(isValid -> isValid ?
                         Mono.empty() : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, String.valueOf(channelRequest.channelId()))))
                 .then(activeUserManager.isCorrectAccess(userId, channelRequest.serverId()))
-                .then(userRepository.findByEmail(userId))
+                .then(userRepository.findByUserId(Long.parseLong(userId)))
                 .flatMap(user -> createUserAndVoiceStateTuple(userId, user, channelRequest))
                 .map(tuple -> ChannelEnterResponse.from(tuple.getT1().getProfileImage(), tuple.getT2()))
                 .flatMap(this::putChannelEnterToStream)
                 .doOnSuccess(ignored -> {
                     joinRoom(session, channelRequest.channelId());
-                    log.info("[{}] Enter {} channel ({})", userId, channelRequest.channelType(), channelRequest.channelId());
+                    log.info("USER [{}] Enter {} channel ({})", userId, channelRequest.channelType(), channelRequest.channelId());
                 });
     }
 
@@ -252,7 +252,7 @@ public class ReplyHandler {
 
     private void joinRoom(WebSocketSession session, Long channelId) {
         final String userId = getUserIdFromSession(session);
-        log.info("[{}]: trying to join room {}", userId, channelId);
+        log.info("USER [{}]: trying to join room {}", userId, channelId);
 
         Room room = roomManager.getRoom(channelId);
         final UserSession user = room.join(userId, session, convertService);
@@ -277,7 +277,7 @@ public class ReplyHandler {
                 .then(putChannelLeaveToStream(userId, channelRequest))
                 .doOnSuccess(ignored -> {
                     leaveRoom(session);
-                    log.info("[{}] Leave {} channel ({})", userId, channelRequest.channelType(), channelRequest.channelId());
+                    log.info("USER [{}] Leave {} channel ({})", userId, channelRequest.channelType(), channelRequest.channelId());
                 });
     }
 
@@ -315,7 +315,7 @@ public class ReplyHandler {
                 .then(activeUserManager.isCorrectAccess(userId, stateRequest.serverId()))
                 .then(updateStateAndGetVoiceState(userId, stateRequest))
                 .flatMap(this::putUpdateStateToStream)
-                .doOnSuccess(ignored -> log.info("[{}] Update state : {}", userId, stateRequest));
+                .doOnSuccess(ignored -> log.info("USER [{}] Update state : {}", userId, stateRequest));
     }
 
     private Mono<VoiceState> updateStateAndGetVoiceState(String userId, StateRequest stateRequest) {

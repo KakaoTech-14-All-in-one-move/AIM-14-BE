@@ -10,6 +10,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -20,6 +21,7 @@ import javax.crypto.SecretKey;
 import java.time.Duration;
 import java.util.Date;
 
+@Slf4j
 @Component
 public class JwtTokenProvider {
 
@@ -90,8 +92,12 @@ public class JwtTokenProvider {
                                 .build()
                                 .parseClaimsJws(token)
                                 .getBody()
-                                .getSubject())
-                .onErrorMap(throwable -> new UnAuthorizedException(ErrorCode.UNAUTHORIZED_ACCESS_TOKEN, token));
+                                .get("userId", Long.class))
+                                .map(String::valueOf)
+                .onErrorMap(throwable -> {
+                    log.error("ERROR : {}", throwable.getMessage());
+                    return new UnAuthorizedException(ErrorCode.UNAUTHORIZED_ACCESS_TOKEN, token);
+                });
     }
 
     public TokenStatus validateRefreshToken(String token) {

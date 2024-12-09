@@ -36,7 +36,7 @@ public class Room implements Closeable {
     }
 
     public UserSession join(String userName, WebSocketSession session, ConvertService convertService) {
-        log.info("ROOM {}: adding participant {}", this.channelId, userName);
+        log.info("ROOM {}: adding USER [{}]", this.channelId, userName);
         final UserSession participant = UserSession.of(userName, this.channelId, session, this.pipeline);
         participant.addIceCandidateFoundListener(convertService);
         participants.put(participant.getUserId(), participant);
@@ -45,7 +45,7 @@ public class Room implements Closeable {
 
     public void leave(UserSession user) {
         try {
-            log.info("[{}]: Leaving room {}", user.getUserId(), this.channelId);
+            log.info("USER [{}]: Leaving room {}", user.getUserId(), this.channelId);
             this.removeParticipant(user.getUserId());
             user.close();
         } catch (IOException e) {

@@ -5,6 +5,7 @@ import com.example.pitching.call.exception.ErrorCode;
 import com.example.pitching.call.exception.WrongAccessException;
 import com.example.pitching.call.operation.request.ChannelRequest;
 import com.example.pitching.call.operation.request.StateRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.ReactiveHashOperations;
 import org.springframework.data.redis.core.ReactiveStringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -14,6 +15,7 @@ import reactor.core.publisher.Mono;
 import java.util.Map;
 import java.util.Objects;
 
+@Slf4j
 @Component
 public class VoiceStateManager {
     private final ReactiveHashOperations<String, String, String> hashOperations;
