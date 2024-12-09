@@ -63,7 +63,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-websocket'
 
 	// dynamodb
-	implementation 'com.amazonaws:aws-java-sdk-dynamodb'
+	implementation 'software.amazon.awssdk:dynamodb:2.21.33'
 }
 
 jacoco {
