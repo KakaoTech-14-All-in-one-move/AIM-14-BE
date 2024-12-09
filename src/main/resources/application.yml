@@ -45,6 +45,9 @@ spring:
             user-info-uri: https://kapi.kakao.com/v2/user/me
             user-name-attribute: id
 aws:
+  region: ap-northeast-2
+  dynamodb:
+    endpoint: dynamodb.ap-northeast-2.amazonaws.com
   accessKey: ${AWS_ACCESS_KEY}
   secretKey: ${AWS_SECRET_KEY}
 
