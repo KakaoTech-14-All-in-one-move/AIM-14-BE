@@ -78,7 +78,7 @@ app:
     dir: ./uploads
     max-file-size: 2MB
 ---
-# local
+# default
 redis:
   host: localhost
   port: 6379
@@ -104,3 +104,29 @@ logging:
     # Swagger 관련 로깅 추가
     org.springdoc: DEBUG
 ---
+# prod
+spring:
+  config:
+    activate:
+      on-profile: prod
+  r2dbc:
+    url: ${PROD_POSTGRESQL_URL}
+    username: ${PROD_POSTGRESQL_USERNAME}
+    password: ${PROD_POSTGRESQL_PASSWORD}
+
+redis:
+  host: ${PROD_REDIS_HOST}
+  port: ${PROD_REDIS_PORT:6379}
+  maxlen: 500
+
+server:
+  port: ${PROD_BE_PORT:8080}
+  call:
+    protocol: ws
+    host: ${PROD_BE_HOST}
+    websocket-path: /ws/v1/voice
+    heartbeat-interval: 450s
+
+logging:
+  level:
+    root: info
