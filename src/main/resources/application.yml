@@ -92,6 +92,11 @@ server:
     websocket-path: /ws/v1/voice
     heartbeat-interval: 450s
 
+kms:
+  protocol: ws
+  host: localhost
+  port: 8888
+
 spring:
   r2dbc:
     url: ${LOCAL_POSTGRESQL_URL}
@@ -118,6 +123,11 @@ redis:
   host: ${PROD_REDIS_HOST}
   port: ${PROD_REDIS_PORT:6379}
   maxlen: 500
+
+kms:
+  protocol: ws
+  host: ${PROD_KMS_HOST}
+  port: ${PROD_KMS_PORT:8888}
 
 server:
   port: ${PROD_BE_PORT:8080}
