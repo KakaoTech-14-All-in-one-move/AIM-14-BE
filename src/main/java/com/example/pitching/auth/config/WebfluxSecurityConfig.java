@@ -50,6 +50,15 @@ public class WebfluxSecurityConfig {
                                 .csrf(csrf -> csrf.disable())
                                 .httpBasic(httpBasic -> httpBasic.disable())
                                 .formLogin(formLogin -> formLogin.disable())
+                                .headers(headers -> headers
+                                        .contentSecurityPolicy(csp -> csp
+                                                .policyDirectives("default-src 'self'; " +
+                                                        "connect-src 'self' *.amazonaws.com; " +
+                                                        "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+                                                        "style-src 'self' 'unsafe-inline'; " +
+                                                        "img-src 'self' data: https:;")
+                                        )
+                                )
                                 .authorizeExchange(exchanges -> exchanges
                                         // Swagger UI v3 관련 경로들은 모두 허용
                                         .pathMatchers(
