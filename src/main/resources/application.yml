@@ -132,7 +132,7 @@ kms:
 server:
   port: ${PROD_BE_PORT:8080}
   call:
-    protocol: ws
+    protocol: wss
     host: ${PROD_BE_HOST}
     websocket-path: /ws/v1/voice
     heartbeat-interval: 450s
