@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
@@ -53,7 +54,8 @@ class OAuth2HandlerTest {
         private final String TEST_EMAIL = "test@example.com";
         private final String TEST_NAME = "TestUser";
         private final Long TEST_USER_ID = 1L;
-        private final String FRONT_URL = "http://localhost:5173/";
+        @Value("${front.url}")
+        private String FRONT_URL;
         private MockServerWebExchange exchange;
         private Mono<Void> result;
 
@@ -178,13 +180,14 @@ class OAuth2HandlerTest {
     @Nested
     @DisplayName("OAuth2 실패 핸들러 테스트")
     class FailureHandlerTest {
-
+        private static final String TEST_FRONT_URL = "http://localhost:5173/";
         private OAuth2FailureHandler failureHandler;
         private WebFilterExchange webFilterExchange;
 
         @BeforeEach
         void setUp() {
             failureHandler = new OAuth2FailureHandler();
+            ReflectionTestUtils.setField(failureHandler, "frontURL", TEST_FRONT_URL);
             MockServerHttpRequest request = MockServerHttpRequest.get("/").build();
             MockServerWebExchange exchange = MockServerWebExchange.from(request);
             webFilterExchange = new WebFilterExchange(exchange, chain -> Mono.empty());
@@ -204,7 +207,7 @@ class OAuth2HandlerTest {
                     .verifyComplete();
 
             assertThat(webFilterExchange.getExchange().getResponse().getHeaders().getLocation())
-                    .isEqualTo(URI.create("http://localhost:5173/"));
+                    .isEqualTo(URI.create(TEST_FRONT_URL));
         }
     }
 }
