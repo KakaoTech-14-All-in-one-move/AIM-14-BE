@@ -92,6 +92,27 @@ public class ChatWebSocketHandler implements WebSocketHandler {
         removeSession(sessionId);
     }
 
+
+    public Mono<Void> closeChannelConnections(Long channelId) {
+        Map<String, WebSocketSession> sessions = channelSubscriptions.get(channelId);
+        if (sessions == null || sessions.isEmpty()) {
+            return Mono.empty();
+        }
+
+        return Flux.fromIterable(sessions.values())
+                .flatMap(session -> session.close()
+                        .doOnError(e -> log.error("Error closing websocket session: {}", e.getMessage()))
+                )
+                .doFinally(signalType -> {
+                    // 채널의 모든 세션 정보 정리
+                    sessions.keySet().forEach(sessionId -> {
+                        sessionSubscriptions.remove(sessionId);
+                    });
+                    channelSubscriptions.remove(channelId);
+                })
+                .then();
+    }
+
     private void removeSession(String sessionId) {
         Long channelId = sessionSubscriptions.remove(sessionId);
         if (channelId != null) {
