@@ -53,7 +53,8 @@ public class WebfluxSecurityConfig {
                                 .pathMatchers(
                                         "/v3/api-docs/**",
                                         "/swagger-ui/**",
-                                        "/swagger-ui.html"
+                                        "/swagger-ui.html",
+                                        "/health"  // ALB 헬스 체크 용
                                 ).permitAll()
                                 .pathMatchers("/ws/**", "/sub/**", "/pub/**").permitAll()
                                 .pathMatchers("/api/v1/auth/**", "/oauth2/**", "/login/oauth2/code/**").permitAll()
