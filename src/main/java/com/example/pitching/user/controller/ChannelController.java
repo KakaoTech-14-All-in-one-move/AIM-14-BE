@@ -1,5 +1,6 @@
 package com.example.pitching.user.controller;
 
+import com.example.pitching.chat.handler.ChatWebSocketHandler;
 import com.example.pitching.common.error.ApiError;
 import com.example.pitching.user.dto.ChannelResponse;
 import com.example.pitching.user.dto.CreateChannelRequest;
@@ -40,6 +41,7 @@ import java.time.Duration;
 public class ChannelController {
     private final ChannelService channelService;
     private final ChatService chatService;
+    private final ChatWebSocketHandler chatWebSocketHandler;
 
     @SecurityRequirement(name = "Bearer Authentication")
     @Operation(
@@ -135,10 +137,11 @@ public class ChannelController {
     @DeleteMapping("/{channel_id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public Mono<Void> deleteChannel(
-            @Parameter(description = "서버 ID") @PathVariable(name = "server_id") Long serverId,
-            @Parameter(description = "채널 ID") @PathVariable(name = "channel_id") Long channelId
+            @PathVariable(name = "server_id") Long serverId,
+            @PathVariable(name = "channel_id") Long channelId
     ) {
         return channelService.deleteChannel(channelId)
+                .then(chatWebSocketHandler.closeChannelConnections(channelId))
                 .then(chatService.deleteChannelMessages(channelId))
                 .retryWhen(Retry.backoff(3, Duration.ofSeconds(1)))
                 .doOnError(e -> log.error("Failed to delete channel {}: {}", channelId, e.getMessage()));
