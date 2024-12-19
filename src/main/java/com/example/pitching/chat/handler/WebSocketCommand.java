@@ -19,18 +19,14 @@ public class WebSocketCommand {
     public static class ChatMessagePayload {
         private Long channelId;
         private String message;
-        private String id;        // 프론트엔드에서 보내는 user.id (email)
-        private String username;  // 프론트엔드에서 보내는 user.username
-        private String profile_image;
+        private String id;        // email을 sender로 사용
         private String type;
 
         public ChatMessage toChatMessage() {
             return ChatMessage.createTalkMessage(
                     this.channelId,
-                    this.id,          // email을 sender로 사용
-                    this.username,    // username을 senderName으로 사용
-                    this.message,
-                    this.profile_image
+                    this.id,      // email만 저장
+                    this.message
             );
         }
     }
