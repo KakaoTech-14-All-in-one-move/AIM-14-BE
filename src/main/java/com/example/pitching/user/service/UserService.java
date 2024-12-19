@@ -2,6 +2,8 @@ package com.example.pitching.user.service;
 
 import com.example.pitching.auth.repository.UserRepository;
 import com.example.pitching.user.dto.UserResponse;
+import com.example.pitching.chat.handler.ChatWebSocketHandler;
+import com.example.pitching.chat.dto.UserUpdateMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -18,6 +20,7 @@ import com.example.pitching.auth.domain.User;
 public class UserService {
     private final UserRepository userRepository;
     private final FileStorageService fileStorageService;
+    private final ChatWebSocketHandler chatWebSocketHandler;
 
     private <T> Mono<T> mapCommonError(Mono<T> mono) {
         return mono
@@ -30,14 +33,41 @@ public class UserService {
     public Mono<String> updateProfileImage(String email, FilePart file) {
         System.out.println("User Service update profile image");
         return findUser(email)
-                .flatMap(user -> fileStorageService.store(file)  // validateFile이 store 메서드 내부에서 실행됨
+                .flatMap(user -> fileStorageService.store(file)
                         .flatMap(newImageUrl -> updateUserAndHandleOldImage(user, newImageUrl)))
+                .doOnSuccess(newImageUrl ->
+                        findUser(email)
+                                .subscribe(user -> {
+                                    UserUpdateMessage updateMessage = new UserUpdateMessage(
+                                            email,
+                                            user.getUsername(),
+                                            newImageUrl
+                                    );
+                                    chatWebSocketHandler.broadcastUserUpdate(updateMessage)
+                                            .subscribe(
+                                                    null,
+                                                    error -> log.error("Error broadcasting profile update: {}", error.getMessage())
+                                            );
+                                })
+                )
                 .transform(this::mapCommonError);
     }
 
     public Mono<UserResponse> updateUsername(String email, String newUsername) {
         return findUser(email)
                 .flatMap(user -> updateUserUsername(user, newUsername))
+                .doOnSuccess(user -> {
+                    UserUpdateMessage updateMessage = new UserUpdateMessage(
+                            user.getEmail(),
+                            user.getUsername(),
+                            user.getProfileImage()
+                    );
+                    chatWebSocketHandler.broadcastUserUpdate(updateMessage)
+                            .subscribe(
+                                    null,
+                                    error -> log.error("Error broadcasting username update: {}", error.getMessage())
+                            );
+                })
                 .map(UserResponse::from)
                 .transform(this::mapCommonError);
     }
