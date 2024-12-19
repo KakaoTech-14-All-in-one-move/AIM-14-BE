@@ -1,11 +1,7 @@
 package com.example.pitching.chat.controller;
 
-import com.example.pitching.auth.jwt.JwtAuthenticationEntryPoint;
-import com.example.pitching.auth.jwt.JwtTokenProvider;
-import com.example.pitching.auth.oauth2.handler.OAuth2FailureHandler;
-import com.example.pitching.auth.oauth2.handler.OAuth2SuccessHandler;
-import com.example.pitching.auth.userdetails.CustomUserDetailsService;
 import com.example.pitching.chat.domain.ChatMessage;
+import com.example.pitching.chat.dto.ChatMessageDTO;
 import com.example.pitching.chat.service.ChatService;
 import com.example.pitching.config.PermitAllConfig;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,19 +42,29 @@ class ChatControllerTest {
     private static final String TEST_PROFILE_IMAGE = "test-profile-image.jpg";
 
     private ChatMessage testMessage;
-    private List<ChatMessage> testMessages;
+    private ChatMessageDTO testMessageDTO;
+    private List<ChatMessageDTO> testMessages;
 
     @BeforeEach
     void setUp() {
-        // Given
         testMessage = ChatMessage.createTalkMessage(
                 CHANNEL_ID,
+                TEST_EMAIL,
+                TEST_MESSAGE
+        );
+
+        testMessageDTO = new ChatMessageDTO(
+                CHANNEL_ID,
+                testMessage.getTimestamp(),
+                testMessage.getMessageId(),
+                ChatMessage.MessageType.TALK,
                 TEST_EMAIL,
                 TEST_USERNAME,
                 TEST_MESSAGE,
                 TEST_PROFILE_IMAGE
         );
-        testMessages = List.of(testMessage);
+
+        testMessages = List.of(testMessageDTO);
 
         // Default responses
         when(chatService.getChannelMessages(any()))
@@ -82,7 +88,7 @@ class ChatControllerTest {
                 .uri(BASE_URL, CHANNEL_ID)
                 .exchange()
                 .expectStatus().isOk()
-                .expectBodyList(ChatMessage.class)
+                .expectBodyList(ChatMessageDTO.class)
                 .value(messageList -> assertThat(messageList).hasSize(1));
     }
 
@@ -93,10 +99,13 @@ class ChatControllerTest {
                 .uri(BASE_URL, CHANNEL_ID)
                 .exchange()
                 .expectStatus().isOk()
-                .expectBodyList(ChatMessage.class)
-                .value(messageList ->
-                        assertThat(messageList.get(0).getMessage()).isEqualTo(TEST_MESSAGE)
-                );
+                .expectBodyList(ChatMessageDTO.class)
+                .value(messageList -> {
+                    ChatMessageDTO message = messageList.get(0);
+                    assertThat(message.getMessage()).isEqualTo(TEST_MESSAGE);
+                    assertThat(message.getSenderName()).isEqualTo(TEST_USERNAME);
+                    assertThat(message.getProfileImage()).isEqualTo(TEST_PROFILE_IMAGE);
+                });
     }
 
     @Test
@@ -106,10 +115,12 @@ class ChatControllerTest {
                 .uri(BASE_URL, CHANNEL_ID)
                 .exchange()
                 .expectStatus().isOk()
-                .expectBodyList(ChatMessage.class)
-                .value(messageList ->
-                        assertThat(messageList.get(0).getSender()).isEqualTo(TEST_EMAIL)
-                );
+                .expectBodyList(ChatMessageDTO.class)
+                .value(messageList -> {
+                    ChatMessageDTO message = messageList.get(0);
+                    assertThat(message.getSender()).isEqualTo(TEST_EMAIL);
+                    assertThat(message.getSenderName()).isEqualTo(TEST_USERNAME);
+                });
     }
 
     @Test
@@ -133,10 +144,12 @@ class ChatControllerTest {
                 .uri(BASE_URL + "?timestamp=" + timestamp, CHANNEL_ID)
                 .exchange()
                 .expectStatus().isOk()
-                .expectBodyList(ChatMessage.class)
-                .value(messageList ->
-                        assertThat(messageList.get(0).getChannelId()).isEqualTo(CHANNEL_ID)
-                );
+                .expectBodyList(ChatMessageDTO.class)
+                .value(messageList -> {
+                    ChatMessageDTO message = messageList.get(0);
+                    assertThat(message.getChannelId()).isEqualTo(CHANNEL_ID);
+                    assertThat(message.getTimestamp()).isGreaterThanOrEqualTo(timestamp);
+                });
     }
 
     @Test
