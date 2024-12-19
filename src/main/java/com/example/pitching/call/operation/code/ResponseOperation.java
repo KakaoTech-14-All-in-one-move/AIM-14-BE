@@ -6,13 +6,17 @@ import lombok.Getter;
 @Getter
 public enum ResponseOperation implements Operation {
     ERROR(-1, "Send message when error occurs."),
-    INIT_ACK(0, "Sent immediately after connecting, contains the heartbeat_interval to use."),
-    HEARTBEAT(1, "Fired periodically by the client to keep the connection alive."),
-    HEARTBEAT_ACK(2, "Sent in response to receiving a heartbeat to acknowledge that it has been received."),
-    SERVER_ACK(3, "Send current state of the server."),
-    ENTER_CHANNEL_EVENT(4, "Success to enter voice/video channel."),
-    LEAVE_CHANNEL_EVENT(5, "Success to leave voice/video channel."),
-    UPDATE_STATE_EVENT(6, "Success to update state.");
+    INIT_ACK(10, "Sent immediately after connecting, contains the heartbeat_interval to use."),
+    //    HEARTBEAT(11, "Fired periodically by the client to keep the connection alive."),
+    HEARTBEAT_ACK(11, "Sent in response to receiving a heartbeat to acknowledge that it has been received."),
+    SERVER_ACK(12, "Send current state of the server."),
+    ENTER_CHANNEL_EVENT(13, "Success to enter voice/video channel."),
+    LEAVE_CHANNEL_EVENT(14, "Success to leave voice/video channel."),
+    UPDATE_STATE_EVENT(15, "Success to update state."),
+    ICE_CANDIDATE(16, "Received ICE candidate from the remote peer for WebRTC connection"),
+    VIDEO_ANSWER(17, "Response to video offer containing session description for WebRTC"),
+    ;
+    ;
 
     @JsonValue
     private final int code;

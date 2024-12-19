@@ -92,6 +92,10 @@ public class ServerService {
                 .transform(this::mapCommonError);
     }
 
+    public Mono<Boolean> isValidServer(Long serverId) {
+        return serverRepository.existsById(serverId);
+    }
+
     private Mono<Server> findServer(Long serverId) {
         return serverRepository.findById(serverId)
                 .switchIfEmpty(Mono.error(
