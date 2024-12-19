@@ -5,8 +5,9 @@ import com.example.pitching.call.operation.Data;
 import com.example.pitching.call.operation.Event;
 import com.example.pitching.call.operation.code.RequestOperation;
 import com.example.pitching.call.operation.code.ResponseOperation;
+import com.example.pitching.call.operation.response.ChannelEnterResponse;
 import com.example.pitching.call.operation.response.ChannelLeaveResponse;
-import com.example.pitching.call.operation.response.ChannelResponse;
+import com.example.pitching.call.operation.response.StateResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,11 +26,11 @@ public class ConvertService {
         }
     }
 
-    public <T> T convertJsonToData(String jsonMessage, Class<T> dataClass) {
+    public <T> T convertJsonToObject(String jsonMessage, Class<T> targetClass) {
         try {
-            return objectMapper.readValue(jsonMessage, dataClass);
+            return objectMapper.readValue(jsonMessage, targetClass);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to deserialize JSON to " + dataClass.getSimpleName(), e);
+            throw new RuntimeException("Failed to deserialize JSON to " + targetClass.getSimpleName(), e);
         }
     }
 
@@ -45,13 +46,13 @@ public class ConvertService {
         return readResponseOperationFromMessage(jsonMessage)
                 .flatMap(responseOperation -> {
                     if (responseOperation == ResponseOperation.ENTER_CHANNEL_EVENT) {
-                        return createResponseWithSequence(responseOperation, jsonMessage, ChannelResponse.class, sequence);
+                        return createResponseWithSequence(responseOperation, jsonMessage, ChannelEnterResponse.class, sequence);
                     }
                     if (responseOperation == ResponseOperation.LEAVE_CHANNEL_EVENT) {
                         return createResponseWithSequence(responseOperation, jsonMessage, ChannelLeaveResponse.class, sequence);
                     }
                     if (responseOperation == ResponseOperation.UPDATE_STATE_EVENT) {
-                        return createResponseWithSequence(responseOperation, jsonMessage, ChannelResponse.class, sequence);
+                        return createResponseWithSequence(responseOperation, jsonMessage, StateResponse.class, sequence);
                     } else {
                         return Mono.error(new RuntimeException("Unsupported response operation: " + responseOperation));
                     }

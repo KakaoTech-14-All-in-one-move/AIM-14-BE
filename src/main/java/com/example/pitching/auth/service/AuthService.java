@@ -41,10 +41,11 @@ public class AuthService {
                         )
                         .collectList()
                         .map(servers -> new LoginResponse(
-                                jwtTokenProvider.createTokenInfo(user.getEmail()),
+                                jwtTokenProvider.createTokenInfo(user.getEmail(), user.getUserId()),
                                 new UserInfo(
                                         user.getEmail(),
                                         user.getUsername(),
+                                        user.getUserId(),
                                         user.getProfileImage(),
                                         servers
                                 )
@@ -59,7 +60,10 @@ public class AuthService {
 
     public Mono<TokenInfo> refreshToken(String refreshToken) {
         return validateRefreshToken(refreshToken)
-                .flatMap(email -> Mono.just(jwtTokenProvider.recreateAccessToken(email)))
+                .flatMap(email -> {
+                    Long userId = jwtTokenProvider.extractUserId(refreshToken);
+                    return Mono.just(jwtTokenProvider.recreateAccessToken(email, userId));
+                })
                 .onErrorMap(e -> new ResponseStatusException(
                         HttpStatus.UNAUTHORIZED,
                         "리프레시 토큰이 유효하지 않거나 만료되었습니다. 다시 로그인해주세요.")

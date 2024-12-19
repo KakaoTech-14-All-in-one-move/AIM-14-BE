@@ -5,15 +5,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public record StateRequest(
         @JsonProperty("server_id")
-        String serverId,
+        Long serverId,
         @JsonProperty("channel_id")
-        String channelId,
+        Long channelId,
         @JsonProperty("muted")
         boolean isMuted,
         @JsonProperty("deafened")
         boolean isDeafened,
-        @JsonProperty("speaking")
-        boolean isSpeaking,
         @JsonProperty("camera_on")
         boolean isCameraOn,
         @JsonProperty("screen_sharing")

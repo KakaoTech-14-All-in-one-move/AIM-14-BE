@@ -44,28 +44,29 @@ public class WebfluxSecurityConfig {
         @Bean
         public SecurityWebFilterChain springSecurityFilterChain(ServerHttpSecurity http) {
                 return http
-                                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                                .csrf(csrf -> csrf.disable())
-                                .httpBasic(httpBasic -> httpBasic.disable())
-                                .formLogin(formLogin -> formLogin.disable())
-                                .authorizeExchange(exchanges -> exchanges
-                                        // Swagger UI v3 관련 경로들은 모두 허용
-                                        .pathMatchers(
-                                                "/v3/api-docs/**",
-                                                "/swagger-ui/**",
-                                                "/swagger-ui.html"
+                        .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                        .csrf(csrf -> csrf.disable())
+                        .httpBasic(httpBasic -> httpBasic.disable())
+                        .formLogin(formLogin -> formLogin.disable())
+                        .authorizeExchange(exchanges -> exchanges
+                                // Swagger UI v3 관련 경로들은 모두 허용
+                                .pathMatchers(
+                                        "/v3/api-docs/**",
+                                        "/swagger-ui/**",
+                                        "/swagger-ui.html",
+                                        "/health"  // ALB 헬스 체크 용
                                         ).permitAll()
-                                        .pathMatchers("/ws/**", "/sub/**", "/pub/**").permitAll()
-                                        .pathMatchers("/api/v1/auth/**", "/oauth2/**", "/login/oauth2/code/**").permitAll()
-                                        .pathMatchers("/api/**").authenticated()
-                                        .anyExchange().permitAll())
-                                        .oauth2Login(oauth2 -> oauth2
-                                                .authenticationSuccessHandler(oAuth2SuccessHandler)
-                                                .authenticationFailureHandler(oAuth2FailureHandler))
-                                .exceptionHandling(exceptionHandling -> exceptionHandling
-                                                .authenticationEntryPoint(jwtAuthenticationEntryPoint))
-                                .addFilterAt(jwtAuthenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
-                                .build();
+                                .pathMatchers("/ws/**", "/sub/**", "/pub/**").permitAll()
+                                .pathMatchers("/api/v1/auth/**", "/oauth2/**", "/login/oauth2/code/**").permitAll()
+                                .pathMatchers("/api/**").authenticated()
+                                .anyExchange().permitAll())
+                        .oauth2Login(oauth2 -> oauth2
+                                .authenticationSuccessHandler(oAuth2SuccessHandler)
+                                .authenticationFailureHandler(oAuth2FailureHandler))
+                        .exceptionHandling(exceptionHandling -> exceptionHandling
+                                .authenticationEntryPoint(jwtAuthenticationEntryPoint))
+                        .addFilterAt(jwtAuthenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
+                        .build();
         }
 
         @Bean
@@ -86,15 +87,15 @@ public class WebfluxSecurityConfig {
                 ReactiveAuthenticationManager authenticationManager = authentication -> {
                         String token = authentication.getCredentials().toString();
                         return Mono.just(token)
-                                        .map(jwtTokenProvider::validateAndGetEmail)
-                                        .flatMap(userDetailsService::findByUsername)
-                                        .<Authentication>map(userDetails -> new UsernamePasswordAuthenticationToken(
-                                                        userDetails,
-                                                        null,
-                                                        userDetails.getAuthorities()))
-                                        .onErrorMap(e -> new ResponseStatusException(
-                                                        HttpStatus.UNAUTHORIZED,
-                                                        "인증에 실패했습니다: " + e.getMessage()));
+                                .map(jwtTokenProvider::validateAndGetEmail)
+                                .flatMap(userDetailsService::findByUsername)
+                                .<Authentication>map(userDetails -> new UsernamePasswordAuthenticationToken(
+                                        userDetails,
+                                        null,
+                                        userDetails.getAuthorities()))
+                                .onErrorMap(e -> new ResponseStatusException(
+                                        HttpStatus.UNAUTHORIZED,
+                                        "인증에 실패했습니다: " + e.getMessage()));
                 };
 
                 AuthenticationWebFilter filter = new AuthenticationWebFilter(authenticationManager);
@@ -102,22 +103,22 @@ public class WebfluxSecurityConfig {
                 filter.setServerAuthenticationConverter(exchange -> {
                         String path = exchange.getRequest().getPath().value();
                         if (path.startsWith("/api/v1/auth/") ||
-                                        path.startsWith("/oauth2/") ||
-                                        path.startsWith("/login/oauth2/") ||
-                                        !path.startsWith("/api")) {
+                                path.startsWith("/oauth2/") ||
+                                path.startsWith("/login/oauth2/") ||
+                                !path.startsWith("/api")) {
                                 return Mono.empty();
                         }
 
                         return Mono.justOrEmpty(exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION))
-                                        .switchIfEmpty(Mono.error(
-                                                        new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                                                                        "Authorization 헤더가 없습니다.")))
-                                        .filter(authHeader -> authHeader.startsWith("Bearer "))
-                                        .switchIfEmpty(Mono.error(
-                                                        new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                                                                        "잘못된 Authorization 헤더 형식입니다.")))
-                                        .map(authHeader -> authHeader.substring(7))
-                                        .map(token -> new UsernamePasswordAuthenticationToken(token, token));
+                                .switchIfEmpty(Mono.error(
+                                        new ResponseStatusException(HttpStatus.UNAUTHORIZED,
+                                                "Authorization 헤더가 없습니다.")))
+                                .filter(authHeader -> authHeader.startsWith("Bearer "))
+                                .switchIfEmpty(Mono.error(
+                                        new ResponseStatusException(HttpStatus.UNAUTHORIZED,
+                                                "잘못된 Authorization 헤더 형식입니다.")))
+                                .map(authHeader -> authHeader.substring(7))
+                                .map(token -> new UsernamePasswordAuthenticationToken(token, token));
                 });
 
                 return filter;
