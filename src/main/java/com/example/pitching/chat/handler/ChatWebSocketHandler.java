@@ -1,6 +1,8 @@
 package com.example.pitching.chat.handler;
 
 import com.example.pitching.chat.domain.ChatMessage;
+import com.example.pitching.chat.dto.UserUpdateMessage;
+import com.example.pitching.chat.dto.ChatMessageDTO;
 import com.example.pitching.chat.service.ChatService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -55,6 +57,28 @@ public class ChatWebSocketHandler implements WebSocketHandler {
         }
     }
 
+    public Mono<Void> broadcastUserUpdate(UserUpdateMessage updateMessage) {
+        try {
+            String payload = objectMapper.writeValueAsString(updateMessage);
+
+            return Flux.fromIterable(channelSubscriptions.values())
+                    .flatMap(channelSessions ->
+                            Flux.fromIterable(channelSessions.values())
+                                    .flatMap(session ->
+                                            session.send(Mono.just(session.textMessage(payload)))
+                                                    .onErrorResume(e -> {
+                                                        log.error("Error sending user update to session: {}", e.getMessage());
+                                                        return Mono.empty();
+                                                    })
+                                    )
+                    )
+                    .then();
+        } catch (JsonProcessingException e) {
+            log.error("Error serializing user update message: {}", e.getMessage());
+            return Mono.empty();
+        }
+    }
+
     private Mono<Void> handleSubscribe(WebSocketSession session, WebSocketCommand command) {
         Long channelId = command.getChannelId();
         String sessionId = session.getId();
@@ -74,11 +98,9 @@ public class ChatWebSocketHandler implements WebSocketHandler {
         return chatService.saveTalkMessage(
                         chatMessage.getChannelId(),
                         chatMessage.getSender(),
-                        chatMessage.getSenderName(),
-                        chatMessage.getMessage(),
-                        chatMessage.getProfile_image()
+                        chatMessage.getMessage()
                 )
-                .flatMap(saved -> broadcastToChannel(saved.getChannelId(), saved));
+                .flatMap(messageDTO -> broadcastToChannel(messageDTO.getChannelId(), messageDTO));
     }
 
     private Mono<Void> handleUnsubscribe(WebSocketSession session) {
@@ -92,7 +114,6 @@ public class ChatWebSocketHandler implements WebSocketHandler {
         removeSession(sessionId);
     }
 
-
     public Mono<Void> closeChannelConnections(Long channelId) {
         Map<String, WebSocketSession> sessions = channelSubscriptions.get(channelId);
         if (sessions == null || sessions.isEmpty()) {
@@ -104,7 +125,6 @@ public class ChatWebSocketHandler implements WebSocketHandler {
                         .doOnError(e -> log.error("Error closing websocket session: {}", e.getMessage()))
                 )
                 .doFinally(signalType -> {
-                    // 채널의 모든 세션 정보 정리
                     sessions.keySet().forEach(sessionId -> {
                         sessionSubscriptions.remove(sessionId);
                     });
@@ -126,14 +146,14 @@ public class ChatWebSocketHandler implements WebSocketHandler {
         }
     }
 
-    private Mono<Void> broadcastToChannel(Long channelId, ChatMessage message) {
+    private Mono<Void> broadcastToChannel(Long channelId, ChatMessageDTO messageDTO) {
         Map<String, WebSocketSession> sessions = channelSubscriptions.get(channelId);
         if (sessions == null || sessions.isEmpty()) {
             return Mono.empty();
         }
 
         try {
-            String payload = objectMapper.writeValueAsString(message);
+            String payload = objectMapper.writeValueAsString(messageDTO);
             return Flux.fromIterable(sessions.values())
                     .flatMap(session -> session.send(Mono.just(session.textMessage(payload))))
                     .onErrorContinue((e, obj) -> log.error("Failed to send message: {}", e.getMessage()))
