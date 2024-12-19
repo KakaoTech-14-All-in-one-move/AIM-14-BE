@@ -8,7 +8,6 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSortK
 import java.time.Instant;
 import java.util.UUID;
 
-// ChatMessage.java
 @Getter
 @Setter
 @DynamoDbBean
@@ -19,10 +18,8 @@ public class ChatMessage {
     private Long timestamp;
     private String messageId;
     private MessageType type;
-    private String sender;
-    private String senderName;
+    private String sender;    // email
     private String message;
-    private String profile_image;  // 추가
 
     @DynamoDbPartitionKey
     public Long getChannelId() {
@@ -35,48 +32,39 @@ public class ChatMessage {
     }
 
     public enum MessageType {
-        ENTER, TALK, LEAVE
+        ENTER, TALK, LEAVE, USER_UPDATE  // USER_UPDATE 추가
     }
 
-    // 새로운 TALK 메시지 생성
-    public static ChatMessage createTalkMessage(Long channelId, String sender, String senderName, String message, String profileImage) {
+    public static ChatMessage createTalkMessage(Long channelId, String sender, String message) {
         return new ChatMessage(
                 channelId,
                 Instant.now().toEpochMilli(),
                 UUID.randomUUID().toString(),
                 MessageType.TALK,
                 sender,
-                senderName,
-                message,
-                profileImage
+                message
         );
     }
 
-    // 입장 메시지 생성
-    public static ChatMessage createEnterMessage(Long channelId, String sender, String senderName, String profileImage) {
+    public static ChatMessage createEnterMessage(Long channelId, String sender) {
         return new ChatMessage(
                 channelId,
                 Instant.now().toEpochMilli(),
                 UUID.randomUUID().toString(),
                 MessageType.ENTER,
                 sender,
-                senderName,
-                senderName + "님이 입장하셨습니다.",
-                profileImage
+                "님이 입장하셨습니다."
         );
     }
 
-    // 퇴장 메시지 생성
-    public static ChatMessage createLeaveMessage(Long channelId, String sender, String senderName, String profileImage) {
+    public static ChatMessage createLeaveMessage(Long channelId, String sender) {
         return new ChatMessage(
                 channelId,
                 Instant.now().toEpochMilli(),
                 UUID.randomUUID().toString(),
                 MessageType.LEAVE,
                 sender,
-                senderName,
-                senderName + "님이 퇴장하셨습니다.",
-                profileImage
+                "님이 퇴장하셨습니다."
         );
     }
 }
