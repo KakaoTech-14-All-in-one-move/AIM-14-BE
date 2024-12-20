@@ -38,19 +38,20 @@ public class CallWebSocketHandler implements WebSocketHandler {
     }
 
     private Mono<Void> replyMessages(WebSocketSession session) {
+        String userIdFromSession = getUserIdFromSession(session);
         return session.send(
                 session.receive()
                         .timeout(serverProperties.getTimeout())
                         .map(WebSocketMessage::getPayloadAsText)
                         .flatMap(jsonMessage -> replyHandler.handleMessages(session, jsonMessage)
-                                .onErrorResume(e -> handleReplyErrors(getUserIdFromSession(session), e)))
-                        .doOnNext(message -> log.debug("[{}] Reply Message : {}", getUserIdFromSession(session), message))
+                                .onErrorResume(e -> handleReplyErrors(userIdFromSession, e)))
+                        .doOnNext(message -> log.debug("[{}] Reply Message : {}", userIdFromSession, message))
                         .map(session::textMessage)
+                        .doOnError(e -> handleGlobalErrors(userIdFromSession, e))
                         .doFinally(signalType -> {
-                            String userId = getUserIdFromSession(session);
-                            log.info("[{}] Disconnected: {}", userId, signalType);
-                            if (!ANONYMOUS.equals(userId)) {
-                                replyHandler.cleanupResources(userId);
+                            log.info("[{}] Disconnected: {}", userIdFromSession, signalType);
+                            if (!ANONYMOUS.equals(userIdFromSession)) {
+                                replyHandler.cleanupResources(userIdFromSession);
                                 replyHandler.cleanupSession(session);
                             }
                         })
@@ -65,6 +66,14 @@ public class CallWebSocketHandler implements WebSocketHandler {
         log.error("[{}] : {} -> ", userId, ex.getErrorCode().name(), ex);
         Event errorEvent = Event.error(ErrorResponse.from((CommonException) e));
         return Mono.just(convertService.convertObjectToJson(errorEvent));
+    }
+
+    private void handleGlobalErrors(String userId, Throwable e) {
+        if (!(e instanceof CommonException ex)) {
+            log.error("Exception occurs : ", e);
+            return;
+        }
+        log.error("[{}] : {} -> ", userId, ex.getErrorCode().name(), ex);
     }
 
     private String getUserIdFromSession(WebSocketSession session) {
