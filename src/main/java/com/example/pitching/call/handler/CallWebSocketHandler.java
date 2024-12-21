@@ -1,6 +1,5 @@
 package com.example.pitching.call.handler;
 
-import com.example.pitching.call.dto.properties.ServerProperties;
 import com.example.pitching.call.exception.CommonException;
 import com.example.pitching.call.operation.Event;
 import com.example.pitching.call.operation.response.ErrorResponse;
@@ -23,7 +22,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class CallWebSocketHandler implements WebSocketHandler {
     public static final String ANONYMOUS = "Anonymous";
-    private final ServerProperties serverProperties;
+    //    private final ServerProperties serverProperties;
     private final ConvertService convertService;
     private final ReplyHandler replyHandler;
 
@@ -41,7 +40,7 @@ public class CallWebSocketHandler implements WebSocketHandler {
         String userIdFromSession = getUserIdFromSession(session);
         return session.send(
                 session.receive()
-                        .timeout(serverProperties.getTimeout())
+//                        .timeout(serverProperties.getTimeout())
                         .map(WebSocketMessage::getPayloadAsText)
                         .flatMap(jsonMessage -> replyHandler.handleMessages(session, jsonMessage)
                                 .onErrorResume(e -> handleReplyErrors(userIdFromSession, e)))
