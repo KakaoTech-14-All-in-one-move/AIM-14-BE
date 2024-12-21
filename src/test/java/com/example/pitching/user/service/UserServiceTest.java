@@ -2,6 +2,8 @@ package com.example.pitching.user.service;
 
 import com.example.pitching.auth.domain.User;
 import com.example.pitching.auth.repository.UserRepository;
+import com.example.pitching.chat.handler.ChatWebSocketHandler;
+import com.example.pitching.chat.dto.UserUpdateMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -30,20 +32,24 @@ class UserServiceTest {
     private FileStorageService fileStorageService;
 
     @Mock
+    private ChatWebSocketHandler chatWebSocketHandler;
+
+    @Mock
     private FilePart filePart;
 
     @InjectMocks
     private UserService userService;
 
     private final String TEST_EMAIL = "test@example.com";
+    private final String TEST_USERNAME = "testUser";
     private final String NEW_USERNAME = "newTestUser";
     private final String OLD_IMAGE_URL = "old-image.jpg";
     private final String NEW_IMAGE_URL = "new-image.jpg";
+    private User testUser;
 
     @BeforeEach
     void setUp() {
-        String TEST_USERNAME = "testUser";
-        User testUser = User.createNewUser(TEST_EMAIL, TEST_USERNAME, OLD_IMAGE_URL, "password");
+        testUser = User.createNewUser(TEST_EMAIL, TEST_USERNAME, OLD_IMAGE_URL, "password");
 
         lenient().when(userRepository.findByEmail(TEST_EMAIL))
                 .thenReturn(Mono.just(testUser));
@@ -53,16 +59,25 @@ class UserServiceTest {
                 .thenReturn(Mono.just(testUser));
         lenient().when(fileStorageService.delete(any(String.class)))
                 .thenReturn(Mono.empty());
+        lenient().when(chatWebSocketHandler.broadcastUserUpdate(any(UserUpdateMessage.class)))
+                .thenReturn(Mono.empty());
     }
 
     @Test
-    @DisplayName("프로필 이미지 업데이트에 성공하면 새로운 이미지 URL을 반환한다")
+    @DisplayName("프로필 이미지 업데이트에 성공하면 새로운 이미지 URL을 반환하고 WebSocket으로 브로드캐스트한다")
     void updateProfileImage_Success() {
+        // given
+        User updatedUser = User.createNewUser(TEST_EMAIL, TEST_USERNAME, NEW_IMAGE_URL, "password");
+        when(userRepository.save(any(User.class))).thenReturn(Mono.just(updatedUser));
+
         // when & then
         StepVerifier.create(userService.updateProfileImage(TEST_EMAIL, filePart))
-                .assertNext(url ->
-                        assertThat(url).isEqualTo(NEW_IMAGE_URL)
-                )
+                .assertNext(url -> {
+                    assertThat(url).isEqualTo(NEW_IMAGE_URL);
+                    verify(chatWebSocketHandler).broadcastUserUpdate(
+                            new UserUpdateMessage(TEST_EMAIL, TEST_USERNAME, NEW_IMAGE_URL)
+                    );
+                })
                 .verifyComplete();
     }
 
@@ -75,23 +90,31 @@ class UserServiceTest {
 
         // when & then
         StepVerifier.create(userService.updateProfileImage("nonexistent@email.com", filePart))
-                .expectErrorSatisfies(error ->
-                        assertThat(error)
-                                .isInstanceOf(ResponseStatusException.class)
-                                .extracting(e -> ((ResponseStatusException) e).getStatusCode())
-                                .isEqualTo(HttpStatus.NOT_FOUND)
-                )
+                .expectErrorSatisfies(error -> {
+                    assertThat(error)
+                            .isInstanceOf(ResponseStatusException.class)
+                            .extracting(e -> ((ResponseStatusException) e).getStatusCode())
+                            .isEqualTo(HttpStatus.NOT_FOUND);
+                    verify(chatWebSocketHandler, never()).broadcastUserUpdate(any());
+                })
                 .verify();
     }
 
     @Test
-    @DisplayName("사용자명 업데이트에 성공하면 업데이트된 UserResponse를 반환한다")
+    @DisplayName("사용자명 업데이트에 성공하면 업데이트된 UserResponse를 반환하고 WebSocket으로 브로드캐스트한다")
     void updateUsername_Success() {
+        // given
+        User updatedUser = User.createNewUser(TEST_EMAIL, NEW_USERNAME, OLD_IMAGE_URL, "password");
+        when(userRepository.save(any(User.class))).thenReturn(Mono.just(updatedUser));
+
         // when & then
         StepVerifier.create(userService.updateUsername(TEST_EMAIL, NEW_USERNAME))
-                .assertNext(response ->
-                        assertThat(response.username()).isEqualTo(NEW_USERNAME)
-                )
+                .assertNext(response -> {
+                    assertThat(response.username()).isEqualTo(NEW_USERNAME);
+                    verify(chatWebSocketHandler).broadcastUserUpdate(
+                            new UserUpdateMessage(TEST_EMAIL, NEW_USERNAME, OLD_IMAGE_URL)
+                    );
+                })
                 .verifyComplete();
     }
 
@@ -104,12 +127,13 @@ class UserServiceTest {
 
         // when & then
         StepVerifier.create(userService.updateUsername("nonexistent@email.com", NEW_USERNAME))
-                .expectErrorSatisfies(error ->
-                        assertThat(error)
-                                .isInstanceOf(ResponseStatusException.class)
-                                .extracting(e -> ((ResponseStatusException) e).getStatusCode())
-                                .isEqualTo(HttpStatus.NOT_FOUND)
-                )
+                .expectErrorSatisfies(error -> {
+                    assertThat(error)
+                            .isInstanceOf(ResponseStatusException.class)
+                            .extracting(e -> ((ResponseStatusException) e).getStatusCode())
+                            .isEqualTo(HttpStatus.NOT_FOUND);
+                    verify(chatWebSocketHandler, never()).broadcastUserUpdate(any());
+                })
                 .verify();
     }
 
@@ -146,6 +170,10 @@ class UserServiceTest {
     @Test
     @DisplayName("프로필 이미지 업데이트 시 이전 이미지가 삭제된다")
     void updateProfileImage_DeletesOldImage() {
+        // given
+        User updatedUser = User.createNewUser(TEST_EMAIL, TEST_USERNAME, NEW_IMAGE_URL, "password");
+        when(userRepository.save(any(User.class))).thenReturn(Mono.just(updatedUser));
+
         // when
         userService.updateProfileImage(TEST_EMAIL, filePart).block();
 
