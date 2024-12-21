@@ -62,6 +62,7 @@ public class ReplyHandler {
     }
 
     public void cleanupSession(WebSocketSession session) {
+        log.debug("Clean up Session in ReplyHandler");
         UserSession user = registry.removeBySession(session);
         if (user == null) return;
         roomManager.getRoom(user.getChannelId()).leave(user);

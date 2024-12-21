@@ -37,20 +37,19 @@ public class CallWebSocketHandler implements WebSocketHandler {
     }
 
     private Mono<Void> replyMessages(WebSocketSession session) {
-        String userIdFromSession = getUserIdFromSession(session);
         return session.send(
                 session.receive()
 //                        .timeout(serverProperties.getTimeout())
                         .map(WebSocketMessage::getPayloadAsText)
                         .flatMap(jsonMessage -> replyHandler.handleMessages(session, jsonMessage)
-                                .onErrorResume(e -> handleReplyErrors(userIdFromSession, e)))
-                        .doOnNext(message -> log.debug("[{}] Reply Message : {}", userIdFromSession, message))
+                                .onErrorResume(e -> handleReplyErrors(getUserIdFromSession(session), e)))
+                        .doOnNext(message -> log.debug("[{}] Reply Message : {}", getUserIdFromSession(session), message))
                         .map(session::textMessage)
-                        .doOnError(e -> handleGlobalErrors(userIdFromSession, e))
+                        .doOnError(e -> handleGlobalErrors(getUserIdFromSession(session), e))
                         .doFinally(signalType -> {
-                            log.info("[{}] Disconnected: {}", userIdFromSession, signalType);
-                            if (!ANONYMOUS.equals(userIdFromSession)) {
-                                replyHandler.cleanupResources(userIdFromSession);
+                            log.info("[{}] Disconnected: {}", getUserIdFromSession(session), signalType);
+                            if (!ANONYMOUS.equals(getUserIdFromSession(session))) {
+                                replyHandler.cleanupResources(getUserIdFromSession(session));
                                 replyHandler.cleanupSession(session);
                             }
                         })
