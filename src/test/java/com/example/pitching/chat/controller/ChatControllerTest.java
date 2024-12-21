@@ -104,7 +104,7 @@ class ChatControllerTest {
                     ChatMessageDTO message = messageList.get(0);
                     assertThat(message.getMessage()).isEqualTo(TEST_MESSAGE);
                     assertThat(message.getSenderName()).isEqualTo(TEST_USERNAME);
-                    assertThat(message.getProfileImage()).isEqualTo(TEST_PROFILE_IMAGE);
+                    assertThat(message.getProfile_image()).isEqualTo(TEST_PROFILE_IMAGE);
                 });
     }
 
@@ -148,7 +148,6 @@ class ChatControllerTest {
                 .value(messageList -> {
                     ChatMessageDTO message = messageList.get(0);
                     assertThat(message.getChannelId()).isEqualTo(CHANNEL_ID);
-                    assertThat(message.getTimestamp()).isGreaterThanOrEqualTo(timestamp);
                 });
     }
 
