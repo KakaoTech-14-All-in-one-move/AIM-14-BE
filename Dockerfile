@@ -8,7 +8,7 @@ WORKDIR /app
 COPY . .
 
 # Gradle 캐시를 활용해 의존성 설치
-RUN ./gradlew --no-daemon build -x test
+RUN ./gradlew --no-daemon bootJar -x test
 
 # Runtime 단계: 더 작은 JRE 이미지를 사용
 FROM eclipse-temurin:21-jre-alpine
