@@ -230,7 +230,7 @@ class AuthControllerTest {
         performPost("/login", loginRequest)
                 .expectStatus().isOk()
                 .expectBody()
-                .jsonPath("$.userInfo.userId").isEqualTo(TEST_USER_ID);
+                .jsonPath("$.userInfo.user_id").isEqualTo(TEST_USER_ID);
     }
 
     @Test
@@ -252,6 +252,6 @@ class AuthControllerTest {
         performPost("/login", loginRequest)
                 .expectStatus().isOk()
                 .expectBody()
-                .jsonPath("$.userInfo.userId").isEqualTo(TEST_USER_ID);
+                .jsonPath("$.userInfo.user_id").isEqualTo(TEST_USER_ID);
     }
 }

@@ -161,7 +161,7 @@ class OAuth2HandlerTest {
             assertThat(URI.create(location).getQuery())
                     .contains("email=google@" + TEST_EMAIL)
                     .contains("username=" + TEST_NAME)
-                    .contains("userId=" + TEST_USER_ID);  // userId 검증 추가
+                    .contains("user_id=" + TEST_USER_ID);  // userId 검증 추가
         }
 
         @Test
