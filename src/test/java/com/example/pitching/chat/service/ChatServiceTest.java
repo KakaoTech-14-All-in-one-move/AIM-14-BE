@@ -60,7 +60,7 @@ class ChatServiceTest {
         StepVerifier.create(chatService.saveTalkMessage(channelId, sender, message))
                 .expectNextMatches(dto ->
                         dto.getMessage().equals(message) &&
-                                dto.getProfileImage().equals(profileImage) &&
+                                dto.getProfile_image().equals(profileImage) &&
                                 dto.getSenderName().equals(username))
                 .verifyComplete();
 
@@ -77,7 +77,7 @@ class ChatServiceTest {
         StepVerifier.create(chatService.createEnterMessage(channelId, sender))
                 .expectNextMatches(dto ->
                         dto.getMessage().equals(username + "님이 입장하셨습니다.") &&
-                                dto.getProfileImage().equals(profileImage) &&
+                                dto.getProfile_image().equals(profileImage) &&
                                 dto.getSenderName().equals(username))
                 .verifyComplete();
 
@@ -93,7 +93,7 @@ class ChatServiceTest {
         StepVerifier.create(chatService.getChannelMessages(channelId))
                 .expectNextMatches(dto ->
                         dto.getMessage().equals(message) &&
-                                dto.getProfileImage().equals(profileImage) &&
+                                dto.getProfile_image().equals(profileImage) &&
                                 dto.getSenderName().equals(username))
                 .verifyComplete();
 
