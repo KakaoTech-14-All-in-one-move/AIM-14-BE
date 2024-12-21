@@ -65,7 +65,7 @@ class ChatServiceTest {
                         verify(userRepository, times(1)).findById(sender);
                     }
                     return matches;
-                }
+                })
                 .verifyComplete();
     }
 
