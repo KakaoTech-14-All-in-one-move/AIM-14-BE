@@ -69,6 +69,9 @@ dependencies {
 	implementation 'software.amazon.awssdk:dynamodb-enhanced'
 	implementation 'software.amazon.awssdk:dynamodb'
 
+	// s3
+	implementation 'software.amazon.awssdk:s3'
+
 	implementation("org.springframework:spring-websocket")
 }
 
