@@ -29,7 +29,7 @@ class UserServiceTest {
     private UserRepository userRepository;
 
     @Mock
-    private FileStorageService fileStorageService;
+    private S3FileStorageService fileStorageService;
 
     @Mock
     private ChatWebSocketHandler chatWebSocketHandler;
