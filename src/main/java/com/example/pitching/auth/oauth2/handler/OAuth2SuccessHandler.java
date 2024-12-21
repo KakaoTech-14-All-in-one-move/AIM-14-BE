@@ -96,7 +96,7 @@ public class OAuth2SuccessHandler implements ServerAuthenticationSuccessHandler 
                                 .queryParam("refreshToken", tokenInfo.refreshToken())
                                 .queryParam("email", URLEncoder.encode(userInfo.email(), StandardCharsets.UTF_8))
                                 .queryParam("username", URLEncoder.encode(userInfo.username(), StandardCharsets.UTF_8))
-                                .queryParam("userId", userInfo.userId())  // userId 추가
+                                .queryParam("user_id", userInfo.user_id())  // userId 추가
                                 .queryParam("profile_image", userInfo.profile_image())
                                 .queryParam("servers", URLEncoder.encode(serversJson, StandardCharsets.UTF_8))
                                 .build()
