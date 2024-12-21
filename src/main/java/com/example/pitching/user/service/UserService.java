@@ -19,7 +19,7 @@ import com.example.pitching.auth.domain.User;
 @RequiredArgsConstructor
 public class UserService {
     private final UserRepository userRepository;
-    private final FileStorageService fileStorageService;
+    private final S3FileStorageService fileStorageService;
     private final ChatWebSocketHandler chatWebSocketHandler;
 
     private <T> Mono<T> mapCommonError(Mono<T> mono) {
@@ -31,7 +31,6 @@ public class UserService {
     }
 
     public Mono<String> updateProfileImage(String email, FilePart file) {
-        System.out.println("User Service update profile image");
         return findUser(email)
                 .flatMap(user -> fileStorageService.store(file)
                         .flatMap(newImageUrl -> updateUserAndHandleOldImage(user, newImageUrl)))
@@ -46,7 +45,7 @@ public class UserService {
                                     chatWebSocketHandler.broadcastUserUpdate(updateMessage)
                                             .subscribe(
                                                     null,
-                                                    error -> log.error("Error broadcasting profile update: {}", error.getMessage())
+                                                    error -> log.error("Error broadcasting profile update", error)
                                             );
                                 })
                 )
@@ -65,7 +64,7 @@ public class UserService {
                     chatWebSocketHandler.broadcastUserUpdate(updateMessage)
                             .subscribe(
                                     null,
-                                    error -> log.error("Error broadcasting username update: {}", error.getMessage())
+                                    error -> log.error("Error broadcasting username update", error)
                             );
                 })
                 .map(UserResponse::from)
@@ -94,23 +93,18 @@ public class UserService {
         String oldImageUrl = user.getProfileImage();
         user.setProfileImage(newImageUrl);
 
-        return userRepository.save(user)
-                .map(User::getProfileImage)
-                .doOnNext(__ -> deleteOldImageIfExists(oldImageUrl));
+        Mono<Void> deleteOldImage = oldImageUrl != null && !oldImageUrl.isEmpty()
+                ? fileStorageService.delete(oldImageUrl)
+                : Mono.empty();
+
+        return deleteOldImage
+                .then(userRepository.save(user))
+                .map(User::getProfileImage);
     }
 
     private Mono<Void> deleteUserData(User user) {
         return Mono.justOrEmpty(user.getProfileImage())
                 .flatMap(fileStorageService::delete)
                 .then(userRepository.delete(user));
-    }
-
-    private void deleteOldImageIfExists(String oldImageUrl) {
-        if (oldImageUrl != null && !oldImageUrl.isEmpty()) {
-            fileStorageService.delete(oldImageUrl)
-                    .doOnError(error -> log.error("Failed to delete old profile image: {}", oldImageUrl, error))
-                    .onErrorMap(e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "이전 이미지 삭제 중 오류가 발생했습니다."))
-                    .subscribe();
-        }
     }
 }
