@@ -50,6 +50,11 @@ aws:
     endpoint: dynamodb.ap-northeast-2.amazonaws.com
   accessKey: ${AWS_ACCESS_KEY}
   secretKey: ${AWS_SECRET_KEY}
+  s3:
+    bucket: pitching-bucket
+app:
+  upload:
+    max-file-size: 2MB
 
 # Springdoc OpenAPI 설정 추가
 springdoc:
@@ -80,10 +85,6 @@ jwt:
 front:
   url: ${FRONT_URL}
 
-app:
-  upload:
-    dir: ./uploads
-    max-file-size: 2MB
 ---
 # default
 redis:

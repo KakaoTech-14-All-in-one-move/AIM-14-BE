@@ -3,16 +3,17 @@ package com.example.pitching.user.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.stereotype.Service;
 import org.springframework.util.unit.DataSize;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
+import software.amazon.awssdk.core.async.AsyncRequestBody;
+import software.amazon.awssdk.services.s3.S3AsyncClient;
+import software.amazon.awssdk.services.s3.model.*;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Optional;
@@ -21,20 +22,23 @@ import java.util.UUID;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class FileStorageService {
+public class S3FileStorageService {
+    private final S3AsyncClient s3AsyncClient;
 
-    @Value("${app.upload.dir}")
-    private String uploadDir;
+    @Value("${aws.s3.bucket}")
+    private String bucketName;
+
+    @Value("${aws.region}")
+    private String region;
 
     @Value("${app.upload.max-file-size}")
     private DataSize maxFileSize;
 
     public Mono<String> store(FilePart file) {
         return validateFile(file)
-                .then(generateFilePath(file))
-                .flatMap(path -> saveFile(file, path))
+                .then(generateKey(file))
+                .flatMap(key -> uploadToS3(file, key))
                 .map(this::generateFileUrl)
-                .doOnSuccess(url -> log.info("File stored successfully: {}", url))
                 .onErrorMap(e -> !(e instanceof ResponseStatusException),
                         e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "파일 저장 중 오류가 발생했습니다."));
     }
@@ -42,9 +46,8 @@ public class FileStorageService {
     public Mono<Void> delete(String fileUrl) {
         return Mono.just(fileUrl)
                 .filter(url -> url != null && !url.isEmpty())
-                .map(this::extractFilenameFromUrl)
-                .map(filename -> Path.of(uploadDir, filename))
-                .flatMap(this::deleteFile)
+                .map(this::extractKeyFromUrl)
+                .flatMap(this::deleteFromS3)
                 .onErrorMap(e -> !(e instanceof ResponseStatusException),
                         e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "파일 삭제 중 오류가 발생했습니다."));
     }
@@ -73,24 +76,11 @@ public class FileStorageService {
                 .then();
     }
 
-    private Mono<Path> generateFilePath(FilePart file) {
+    private Mono<String> generateKey(FilePart file) {
         return Mono.just(file)
                 .map(FilePart::filename)
                 .map(this::generateUniqueFilename)
-                .map(filename -> createUploadPath().resolve(filename))
-                .onErrorMap(e -> new ResponseStatusException(
-                        HttpStatus.INTERNAL_SERVER_ERROR, "파일 경로 생성 중 오류가 발생했습니다."));
-    }
-
-    private Path createUploadPath() {
-        Path uploadPath = Path.of(uploadDir);
-        try {
-            Files.createDirectories(uploadPath);
-            return uploadPath;
-        } catch (IOException e) {
-            throw new ResponseStatusException(
-                    HttpStatus.INTERNAL_SERVER_ERROR, "업로드 디렉토리 생성 중 오류가 발생했습니다.");
-        }
+                .map(filename -> "uploads/" + filename);
     }
 
     private String generateUniqueFilename(String originalFilename) {
@@ -107,40 +97,48 @@ public class FileStorageService {
                         HttpStatus.BAD_REQUEST, "파일 확장자가 없습니다."));
     }
 
-    private Mono<Path> saveFile(FilePart file, Path path) {
-        return file.transferTo(path)
-                .then(Mono.just(path))
-                .doOnSuccess(__ -> log.info("File saved successfully: {}", path.getFileName()))
-                .onErrorMap(e -> new ResponseStatusException(
-                        HttpStatus.INTERNAL_SERVER_ERROR, "파일 저장 중 오류가 발생했습니다."));
+    private Mono<String> uploadToS3(FilePart file, String key) {
+        return DataBufferUtils.join(file.content())
+                .flatMap(dataBuffer -> {
+                    byte[] bytes = new byte[dataBuffer.readableByteCount()];
+                    dataBuffer.read(bytes);
+                    DataBufferUtils.release(dataBuffer);
+
+                    PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                            .bucket(bucketName)
+                            .key(key)
+                            .contentType(file.headers().getContentType().toString())
+                            .build();
+
+                    return Mono.fromFuture(() -> s3AsyncClient.putObject(putObjectRequest,
+                                    AsyncRequestBody.fromBytes(bytes)))
+                            .doOnError(error -> log.error("Failed to upload file to S3", error))
+                            .thenReturn(key);
+                });
     }
 
-    private String generateFileUrl(Path path) {
-        return "/uploads/" + path.getFileName().toString();
+    private String generateFileUrl(String key) {
+        String fileName = key.substring(key.lastIndexOf('/') + 1);
+        return fileName;
     }
 
-    private Mono<Void> deleteFile(Path path) {
-        return Mono.fromCallable(() -> {
-                    if (Files.exists(path)) {
-                        try {
-                            Files.delete(path);
-                            log.info("Successfully deleted file: {}", path.getFileName());
-                            return true;
-                        } catch (IOException e) {
-                            throw new ResponseStatusException(
-                                    HttpStatus.INTERNAL_SERVER_ERROR, "파일 삭제 중 오류가 발생했습니다.");
-                        }
-                    }
-                    log.info("File does not exist, skipping deletion: {}", path.getFileName());
-                    return false;
-                })
+    private String extractKeyFromUrl(String fileName) {
+        return "uploads/" + fileName;
+    }
+
+    private Mono<Void> deleteFromS3(String key) {
+        DeleteObjectRequest deleteRequest = DeleteObjectRequest.builder()
+                .bucket(bucketName)
+                .key(key)
+                .build();
+
+        return Mono.fromFuture(() -> s3AsyncClient.deleteObject(deleteRequest))
+                .doOnError(error -> log.error("Failed to delete file from S3", error))
                 .then();
     }
 
-    private String extractFilenameFromUrl(String fileUrl) {
-        return Optional.ofNullable(fileUrl)
-                .map(url -> url.substring(url.lastIndexOf('/') + 1))
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST, "잘못된 파일 URL입니다."));
+    public String getFullUrl(String fileName) {
+        return String.format("https://%s.s3.%s.amazonaws.com/uploads/%s",
+                bucketName, region, fileName);
     }
 }

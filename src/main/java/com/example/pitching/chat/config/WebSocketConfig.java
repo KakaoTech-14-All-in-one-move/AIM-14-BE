@@ -17,6 +17,7 @@ public class WebSocketConfig {
     @Bean
     public HandlerMapping webSocketHandlerMapping(ChatWebSocketHandler chatWebSocketHandler) {
         Map<String, WebSocketHandler> map = new HashMap<>();
+        // TODO: 부하테스트 후 수정 (병목현상 고려해야될지도)
         map.put("/ws/chat/{channelId}", chatWebSocketHandler);
 
         SimpleUrlHandlerMapping handlerMapping = new SimpleUrlHandlerMapping();

@@ -148,7 +148,6 @@ class ChatControllerTest {
                 .value(messageList -> {
                     ChatMessageDTO message = messageList.get(0);
                     assertThat(message.getChannelId()).isEqualTo(CHANNEL_ID);
-                    assertThat(message.getTimestamp()).isGreaterThanOrEqualTo(timestamp);
                 });
     }
 

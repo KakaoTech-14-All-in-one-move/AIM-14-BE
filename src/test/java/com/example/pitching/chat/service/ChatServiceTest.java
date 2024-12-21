@@ -45,27 +45,28 @@ class ChatServiceTest {
         sampleChatMessage = ChatMessage.createTalkMessage(
                 channelId, sender, message
         );
-
         sampleUser = User.createNewUser(sender, username, profileImage, "password");
-
-        when(userRepository.findById(sender))
-                .thenReturn(Mono.just(sampleUser));
     }
 
     @Test
     void saveTalkMessage_Success() {
         when(chatRepository.save(any(ChatMessage.class)))
                 .thenReturn(Mono.just(sampleChatMessage));
+        when(userRepository.findById(sender))
+                .thenReturn(Mono.just(sampleUser));
 
         StepVerifier.create(chatService.saveTalkMessage(channelId, sender, message))
-                .expectNextMatches(dto ->
-                        dto.getMessage().equals(message) &&
-                                dto.getProfile_image().equals(profileImage) &&
-                                dto.getSenderName().equals(username))
+                .expectNextMatches(dto -> {
+                    boolean matches = dto.getMessage().equals(message) &&
+                            dto.getProfile_image().equals(profileImage) &&
+                            dto.getSenderName().equals(username);
+                    if (matches) {
+                        verify(chatRepository, times(1)).save(any(ChatMessage.class));
+                        verify(userRepository, times(1)).findById(sender);
+                    }
+                    return matches;
+                }
                 .verifyComplete();
-
-        verify(chatRepository, times(1)).save(any(ChatMessage.class));
-        verify(userRepository, times(1)).findById(sender);
     }
 
     @Test
@@ -73,33 +74,65 @@ class ChatServiceTest {
         ChatMessage enterMessage = ChatMessage.createEnterMessage(channelId, sender);
         when(chatRepository.save(any(ChatMessage.class)))
                 .thenReturn(Mono.just(enterMessage));
+        when(userRepository.findById(sender))
+                .thenReturn(Mono.just(sampleUser));
 
         StepVerifier.create(chatService.createEnterMessage(channelId, sender))
-                .expectNextMatches(dto ->
-                        dto.getMessage().equals(username + "님이 입장하셨습니다.") &&
-                                dto.getProfile_image().equals(profileImage) &&
-                                dto.getSenderName().equals(username))
+                .expectNextMatches(dto -> {
+                    boolean matches = dto.getMessage().equals(username + "님이 입장하셨습니다.") &&
+                            dto.getProfile_image().equals(profileImage) &&
+                            dto.getSenderName().equals(username);
+                    if (matches) {
+                        verify(chatRepository, times(1)).save(any(ChatMessage.class));
+                        verify(userRepository, times(1)).findById(sender);
+                    }
+                    return matches;
+                })
                 .verifyComplete();
+    }
 
-        verify(chatRepository, times(1)).save(any(ChatMessage.class));
-        verify(userRepository, times(1)).findById(sender);
+    @Test
+    void createLeaveMessage_Success() {
+        ChatMessage leaveMessage = ChatMessage.createLeaveMessage(channelId, sender);
+        when(chatRepository.save(any(ChatMessage.class)))
+                .thenReturn(Mono.just(leaveMessage));
+        when(userRepository.findById(sender))
+                .thenReturn(Mono.just(sampleUser));
+
+        StepVerifier.create(chatService.createLeaveMessage(channelId, sender))
+                .expectNextMatches(dto -> {
+                    boolean matches = dto.getMessage().equals(username + "님이 퇴장하셨습니다.") &&
+                            dto.getProfile_image().equals(profileImage) &&
+                            dto.getSenderName().equals(username);
+                    if (matches) {
+                        verify(chatRepository, times(1)).save(any(ChatMessage.class));
+                        verify(userRepository, times(1)).findById(sender);
+                    }
+                    return matches;
+                })
+                .verifyComplete();
     }
 
     @Test
     void getChannelMessages_Success() {
         when(chatRepository.findByChannelIdOrderByTimestampAsc(channelId))
                 .thenReturn(Flux.just(sampleChatMessage));
+        when(userRepository.findById(sender))
+                .thenReturn(Mono.just(sampleUser));
 
         StepVerifier.create(chatService.getChannelMessages(channelId))
-                .expectNextMatches(dto ->
-                        dto.getMessage().equals(message) &&
-                                dto.getProfile_image().equals(profileImage) &&
-                                dto.getSenderName().equals(username))
+                .expectNextMatches(dto -> {
+                    boolean matches = dto.getMessage().equals(message) &&
+                            dto.getProfile_image().equals(profileImage) &&
+                            dto.getSenderName().equals(username);
+                    if (matches) {
+                        verify(chatRepository, times(1))
+                                .findByChannelIdOrderByTimestampAsc(channelId);
+                        verify(userRepository, times(1)).findById(sender);
+                    }
+                    return matches;
+                })
                 .verifyComplete();
-
-        verify(chatRepository, times(1))
-                .findByChannelIdOrderByTimestampAsc(channelId);
-        verify(userRepository, times(1)).findById(sender);
     }
 
     @Test
@@ -125,8 +158,9 @@ class ChatServiceTest {
 
     @Test
     void deleteChannelMessages_Error() {
+        RuntimeException expectedException = new RuntimeException("Delete Error");
         when(chatRepository.deleteByChannelId(channelId))
-                .thenReturn(Mono.error(new RuntimeException("Delete Error")));
+                .thenReturn(Mono.error(expectedException));
 
         StepVerifier.create(chatService.deleteChannelMessages(channelId))
                 .expectError(RuntimeException.class)
