@@ -24,7 +24,7 @@ public class ServerService {
     private final UserRepository userRepository;
     private final ServerRepository serverRepository;
     private final UserServerMembershipRepository userServerMembershipRepository;
-    private final FileStorageService fileStorageService;
+    private final S3FileStorageService fileStorageService;
 
     private <T> Mono<T> mapCommonError(Mono<T> mono) {
         return mono
@@ -87,9 +87,22 @@ public class ServerService {
     public Mono<String> updateServerImage(Long serverId, FilePart file, String email) {
         return checkMemberAccess(serverId, email)
                 .flatMap(__ -> findServer(serverId))
-                .flatMap(server -> storeNewImage(file)
+                .flatMap(server -> fileStorageService.store(file)
                         .flatMap(newImageUrl -> updateServerAndHandleOldImage(server, newImageUrl)))
                 .transform(this::mapCommonError);
+    }
+
+    private Mono<String> updateServerAndHandleOldImage(Server server, String newImageUrl) {
+        String oldImageUrl = server.getServerImage();
+        server.setServerImage(newImageUrl);
+
+        Mono<Void> deleteOldImage = oldImageUrl != null && !oldImageUrl.isEmpty()
+                ? fileStorageService.delete(oldImageUrl)
+                : Mono.empty();
+
+        return deleteOldImage
+                .then(serverRepository.save(server))
+                .map(Server::getServerImage);
     }
 
     public Mono<Boolean> isValidServer(Long serverId) {
@@ -108,31 +121,6 @@ public class ServerService {
                 .hasElement()
                 .filter(hasAccess -> hasAccess)
                 .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.FORBIDDEN, "서버에 대한 접근 권한이 없습니다.")));
-    }
-
-    private Mono<String> storeNewImage(FilePart file) {
-        return fileStorageService.store(file)
-                .onErrorMap(error ->
-                        new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "이미지 저장 중 오류가 발생했습니다: " + error.getMessage())
-                );
-    }
-
-    private Mono<String> updateServerAndHandleOldImage(Server server, String newImageUrl) {
-        String oldImageUrl = server.getServerImage();
-        server.setServerImage(newImageUrl);
-
-        return serverRepository.save(server)
-                .map(Server::getServerImage)
-                .doOnNext(__ -> deleteOldImageIfExists(oldImageUrl));
-    }
-
-    private void deleteOldImageIfExists(String oldImageUrl) {
-        if (oldImageUrl != null && !oldImageUrl.isEmpty()) {
-            fileStorageService.delete(oldImageUrl)
-                    .doOnError(error -> log.error("Failed to delete old server image: {}", oldImageUrl, error))
-                    .onErrorMap(e -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "이전 이미지 삭제 중 오류가 발생했습니다."))
-                    .subscribe();
-        }
     }
 
     public Mono<Void> deleteServer(Long serverId, String email) {
