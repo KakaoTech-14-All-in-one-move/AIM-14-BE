@@ -2,6 +2,8 @@ package com.example.pitching.user.controller;
 
 import com.example.pitching.auth.jwt.JwtTokenProvider;
 import com.example.pitching.auth.userdetails.CustomUserDetailsService;
+import com.example.pitching.chat.handler.ChatWebSocketHandler;
+import com.example.pitching.chat.service.ChatService;
 import com.example.pitching.config.SecurityTestConfig;
 import com.example.pitching.user.domain.Channel;
 import com.example.pitching.user.domain.utility.ChannelCategory;
@@ -28,7 +30,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.List;
 
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ActiveProfiles("test")
 @WebFluxTest(ChannelController.class)
@@ -39,6 +41,12 @@ class ChannelControllerTest {
 
     @MockBean
     private ChannelService channelService;
+
+    @MockBean
+    private ChatService chatService;
+
+    @MockBean
+    private ChatWebSocketHandler chatWebSocketHandler;
 
     @MockBean
     private JwtTokenProvider jwtTokenProvider;
@@ -62,6 +70,12 @@ class ChannelControllerTest {
         testChannel = createTestChannel(DEFAULT_CHANNEL_NAME, ChannelCategory.CHAT);
         createChannelRequest = createChannelRequest(DEFAULT_CHANNEL_NAME, ChannelCategory.CHAT);
         setupAuthentication();
+
+        // ChatService와 ChatWebSocketHandler의 기본 동작 설정
+        when(chatService.deleteChannelMessages(any()))
+                .thenReturn(Mono.empty());
+        when(chatWebSocketHandler.closeChannelConnections(any()))
+                .thenReturn(Mono.empty());
     }
 
     private void setupAuthentication() {
@@ -194,6 +208,9 @@ class ChannelControllerTest {
 
         performDelete(BASE_URL + "/{channel_id}")
                 .expectStatus().isNoContent();
+
+        verify(chatWebSocketHandler, times(1)).closeChannelConnections(CHANNEL_ID);
+        verify(chatService, times(1)).deleteChannelMessages(CHANNEL_ID);
     }
 
     @Test
