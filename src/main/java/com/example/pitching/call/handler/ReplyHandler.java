@@ -53,8 +53,9 @@ public class ReplyHandler {
 
     public void cleanupResources(String userId) {
         log.debug("Clean up Resources in ReplyHandler");
-        disposeSubscriptionIfPresent(userId);
+        boolean isCurrentServerExist = disposeSubscriptionIfPresent(userId);
         removeUserSink(userId);
+        if (!isCurrentServerExist) return;
         removeActiveUserFromServer(userId)
                 .flatMap(serverId -> voiceStateManager.removeVoiceState(Long.valueOf(serverId), userId))
                 .subscribe();
@@ -363,12 +364,14 @@ public class ReplyHandler {
         });
     }
 
-    private void disposeSubscriptionIfPresent(String userId) {
+    private boolean disposeSubscriptionIfPresent(String userId) {
         UserSink userSink = userSinkMap.get(userId);
         if (userSink != null && userSink.doesSubscriberExists()) {
             userSink.dispose();
             log.debug("Dispose Subscription : {}", userId);
+            return true;
         }
+        return false;
     }
 
     private void removeUserSink(String userId) {
