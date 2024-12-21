@@ -36,7 +36,7 @@ class ServerServiceTest {
     @Mock
     private UserServerMembershipRepository userServerMembershipRepository;
     @Mock
-    private FileStorageService fileStorageService;
+    private S3FileStorageService fileStorageService;
     @Mock
     private FilePart filePart;
 
