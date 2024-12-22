@@ -47,7 +47,17 @@ public class ChatService {
                 messageDTO.getSender(),
                 messageDTO.getMessage()
         );
+
+        log.info("Attempting to save ChatMessage to DynamoDB: channelId={}, messageId={}",
+                chatMessage.getChannelId(), chatMessage.getMessageId());
+
         return chatRepository.save(chatMessage)
+                .doOnSuccess(savedMessage ->
+                        log.info("Successfully saved message to DynamoDB: messageId={}",
+                                savedMessage.getMessageId()))
+                .doOnError(e ->
+                        log.error("Failed to save message to DynamoDB: messageId={}, error={}",
+                                chatMessage.getMessageId(), e.getMessage(), e))
                 .thenReturn(messageDTO);
     }
 
