@@ -8,6 +8,8 @@ public record CandidateRequest(
         @JsonProperty("sdp_mid")
         String sdpMid,
         @JsonProperty("sdp_m_line_index")
-        int sdpMLineIndex
+        int sdpMLineIndex,
+        @JsonProperty("remote_peer_id")
+        String userId
 ) implements Data {
 }

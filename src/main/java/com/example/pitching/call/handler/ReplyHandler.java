@@ -349,7 +349,7 @@ public class ReplyHandler {
             if (user != null) {
                 IceCandidate candidate = new IceCandidate(candidateRequest.candidate().toString(),
                         candidateRequest.sdpMid(), candidateRequest.sdpMLineIndex());
-                user.addCandidate(candidate, user.getUserId());
+                user.addCandidate(candidate, candidateRequest.userId());
             }
         });
     }
