@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public record OfferRequest(
         @JsonProperty("sdp_offer")
-        String sdpOffer
+        String sdpOffer,
+        @JsonProperty("sender_id")
+        String senderId
 ) implements Data {
 }

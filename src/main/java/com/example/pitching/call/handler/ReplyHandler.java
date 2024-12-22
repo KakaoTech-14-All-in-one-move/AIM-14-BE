@@ -359,7 +359,17 @@ public class ReplyHandler {
         return Mono.fromRunnable(() -> {
             OfferRequest offerRequest = convertService.readDataFromMessage(receivedMessage, OfferRequest.class);
             final UserSession user = registry.getBySession(session);
-            final UserSession sender = registry.getByName(user.getUserId());
+            if (user == null) {
+                log.warn("User session not found");
+                return;
+            }
+
+            final UserSession sender = registry.getByName(offerRequest.senderId());
+            if (sender == null) {
+                log.warn("Sender {} not found", offerRequest.senderId());
+                return;
+            }
+
             final String sdpOffer = offerRequest.sdpOffer();
             user.receiveVideoFrom(sender, sdpOffer, convertService);
         });
