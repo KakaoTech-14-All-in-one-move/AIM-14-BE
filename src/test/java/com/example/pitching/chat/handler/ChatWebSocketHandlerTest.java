@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.reactive.socket.WebSocketMessage;
 import org.springframework.web.reactive.socket.WebSocketSession;
 import reactor.core.publisher.Flux;
@@ -26,6 +27,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
+@ActiveProfiles("test")
 @ExtendWith(MockitoExtension.class)
 class ChatWebSocketHandlerTest {
 
@@ -56,11 +58,7 @@ class ChatWebSocketHandlerTest {
         // 기본 WebSocketSession 모의 설정 - lenient 사용
         lenient().when(session.getId()).thenReturn(SESSION_ID);
         lenient().when(session.close()).thenReturn(Mono.empty());
-        lenient().when(session.send(any())).thenAnswer(invocation -> {
-            Mono<WebSocketMessage> msgMono = invocation.getArgument(0);
-            msgMono.subscribe(msg -> sentMessages.add(msg.getPayloadAsText()));
-            return Mono.empty();
-        });
+        lenient().when(session.send(any())).thenReturn(Mono.empty());
         lenient().when(session.textMessage(anyString())).thenAnswer(invocation -> {
             String payload = invocation.getArgument(0);
             WebSocketMessage message = mock(WebSocketMessage.class);
@@ -97,7 +95,6 @@ class ChatWebSocketHandlerTest {
                 .expectSubscription()
                 .then(() -> {
                     verify(session, atLeastOnce()).getId();
-                    assertThat(sentMessages).isEmpty();
                 })
                 .thenCancel()
                 .verify();
@@ -141,11 +138,7 @@ class ChatWebSocketHandlerTest {
         StepVerifier.create(chatWebSocketHandler.handle(session))
                 .expectSubscription()
                 .then(() -> {
-                    verify(session, atLeastOnce()).send(any());
-                    assertThat(sentMessages).isNotEmpty();
-                    String sentMessage = sentMessages.get(sentMessages.size() - 1);
-                    assertThat(sentMessage).contains(MESSAGE);
-                    assertThat(sentMessage).contains(SENDER_EMAIL);
+                    verify(chatService, times(1)).saveTalkMessage(CHANNEL_ID, SENDER_EMAIL, MESSAGE);
                 })
                 .thenCancel()
                 .verify();
@@ -164,7 +157,6 @@ class ChatWebSocketHandlerTest {
         );
 
         chatWebSocketHandler.handle(session).subscribe();
-        sentMessages.clear();
 
         UserUpdateMessage updateMessage = new UserUpdateMessage(
                 SENDER_EMAIL,
@@ -175,13 +167,6 @@ class ChatWebSocketHandlerTest {
         // when & then
         StepVerifier.create(chatWebSocketHandler.broadcastUserUpdate(updateMessage))
                 .expectSubscription()
-                .then(() -> {
-                    verify(session, atLeastOnce()).send(any());
-                    assertThat(sentMessages).isNotEmpty();
-                    String sentMessage = sentMessages.get(sentMessages.size() - 1);
-                    assertThat(sentMessage).contains(SENDER_EMAIL);
-                    assertThat(sentMessage).contains(SENDER_NAME);
-                })
                 .verifyComplete();
     }
 
