@@ -72,6 +72,10 @@ dependencies {
 	// s3
 	implementation 'software.amazon.awssdk:s3'
 
+	// rabbitmq
+	implementation 'org.springframework.boot:spring-boot-starter-amqp'
+	implementation 'io.projectreactor.rabbitmq:reactor-rabbitmq:1.5.6'
+
 	implementation("org.springframework:spring-websocket")
 }
 

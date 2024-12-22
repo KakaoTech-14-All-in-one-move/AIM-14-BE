@@ -111,7 +111,12 @@ spring:
     url: ${LOCAL_POSTGRESQL_URL}
     username: ${LOCAL_POSTGRESQL_USERNAME}
     password: ${LOCAL_POSTGRESQL_PASSWORD}
-
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: ${LOCAL_RABBITMQ_USERNAME}
+    password: ${LOCAL_RABBITMQ_PASSWORD}
+    connection-timeout: 10000
 logging:
   level:
     org.springframework.r2dbc: DEBUG
@@ -127,7 +132,12 @@ spring:
     url: ${PROD_POSTGRESQL_URL}
     username: ${PROD_POSTGRESQL_USERNAME}
     password: ${PROD_POSTGRESQL_PASSWORD}
-
+  rabbitmq:
+    host: ${PROD_RABBITMQ_HOST}
+    port: 5672
+    username: ${PROD_RABBITMQ_USERNAME}
+    password: ${PROD_RABBITMQ_PASSWORD}
+    connection-timeout: 10000
 redis:
   host: ${PROD_REDIS_HOST}
   port: ${PROD_REDIS_PORT:6379}
