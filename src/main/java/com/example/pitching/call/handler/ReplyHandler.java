@@ -292,6 +292,10 @@ public class ReplyHandler {
 
     private void leaveRoom(WebSocketSession session) {
         final UserSession user = registry.getBySession(session);
+        if (user == null) {
+            log.warn("User session not found, maybe not entered channel");
+            return;
+        }
         final Room room = roomManager.getRoom(user.getChannelId());
         room.leave(user);
         if (room.getParticipants().isEmpty()) {
