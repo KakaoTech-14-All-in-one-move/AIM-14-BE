@@ -96,11 +96,10 @@ public class ChatWebSocketHandler implements WebSocketHandler {
         ChatMessage chatMessage = command.getPayload().toChatMessage();
 
         return chatService.saveTalkMessage(
-                        chatMessage.getChannelId(),
-                        chatMessage.getSender(),
-                        chatMessage.getMessage()
-                )
-                .flatMap(messageDTO -> broadcastToChannel(messageDTO.getChannelId(), messageDTO));
+                chatMessage.getChannelId(),
+                chatMessage.getSender(),
+                chatMessage.getMessage()
+        ).then();
     }
 
     private Mono<Void> handleUnsubscribe(WebSocketSession session) {
@@ -146,7 +145,7 @@ public class ChatWebSocketHandler implements WebSocketHandler {
         }
     }
 
-    private Mono<Void> broadcastToChannel(Long channelId, ChatMessageDTO messageDTO) {
+    public Mono<Void> broadcastToChannel(Long channelId, ChatMessageDTO messageDTO) {
         Map<String, WebSocketSession> sessions = channelSubscriptions.get(channelId);
         if (sessions == null || sessions.isEmpty()) {
             return Mono.empty();
