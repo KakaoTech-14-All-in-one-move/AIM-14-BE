@@ -10,8 +10,8 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class RabbitMQConfig {
-    public static final String CHAT_QUEUE = "chat.queue.v2"; // 새로운 큐 이름
-    public static final String CHAT_EXCHANGE = "chat.exchange.v2"; // 새로운 exchange 이름
+    public static final String CHAT_QUEUE = "chat.queue.v2";
+    public static final String CHAT_EXCHANGE = "chat.exchange.v2";
     public static final String CHAT_ROUTING_KEY = "chat.routing.#";
 
     @Bean
