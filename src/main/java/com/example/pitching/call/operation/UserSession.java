@@ -73,6 +73,12 @@ public class UserSession implements Closeable {
 
         log.trace("USER [{}]: SdpOffer for {} is {}", this.userId, sender.getUserId(), sdpOffer);
 
+        WebRtcEndpoint existing = incomingMedia.get(sender.getUserId());
+        if (existing != null) {
+            existing.release();
+            incomingMedia.remove(sender.getUserId());
+        }
+
         final String ipSdpAnswer = this.getEndpointForUser(sender, convertService).processOffer(sdpOffer);
         Event response = Event.of(ResponseOperation.VIDEO_ANSWER, AnswerResponse.of(sender.userId, ipSdpAnswer), null);
 
