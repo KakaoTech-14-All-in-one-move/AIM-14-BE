@@ -9,10 +9,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
-import org.kurento.client.Continuation;
-import org.kurento.client.IceCandidate;
-import org.kurento.client.MediaPipeline;
-import org.kurento.client.WebRtcEndpoint;
+import org.kurento.client.*;
 import org.springframework.web.reactive.socket.WebSocketSession;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -71,21 +68,38 @@ public class UserSession implements Closeable {
     public void receiveVideoFrom(UserSession sender, String sdpOffer, ConvertService convertService) {
         log.info("USER [{}]: connecting with {} in room {}", this.userId, sender.getUserId(), this.channelId);
 
-        log.trace("USER [{}]: SdpOffer for {} is {}", this.userId, sender.getUserId(), sdpOffer);
+        try {
+            final WebRtcEndpoint endpoint = this.getEndpointForUser(sender, convertService);
+            if (endpoint == null) {
+                log.error("USER [{}]: Error creating endpoint for {}", this.userId, sender.getUserId());
+                return;
+            }
 
-        WebRtcEndpoint existing = incomingMedia.get(sender.getUserId());
-        if (existing != null) {
-            existing.release();
-            incomingMedia.remove(sender.getUserId());
+            // 연결 상태 로깅 추가
+            log.info("USER [{}]: Current endpoint state for {}: {}",
+                    this.userId, sender.getUserId(), endpoint.getConnectionState());
+
+            // 이미 연결된 경우 처리
+            if (endpoint.getConnectionState().equals(ConnectionState.CONNECTED)) {
+                log.warn("USER [{}]: Endpoint already connected for {}", this.userId, sender.getUserId());
+                return;
+            }
+
+            final String ipSdpAnswer = endpoint.processOffer(sdpOffer);
+            log.debug("USER [{}]: Generated SDP answer for {}: {}", this.userId, sender.getUserId(), ipSdpAnswer);
+
+            Event response = Event.of(ResponseOperation.VIDEO_ANSWER,
+                    AnswerResponse.of(sender.userId, ipSdpAnswer), null);
+
+            this.sendMessage(convertService.convertObjectToJson(response));
+
+            // ICE candidate 수집 시작
+            log.debug("USER [{}]: Starting ICE candidate gathering for {}", this.userId, sender.getUserId());
+            endpoint.gatherCandidates();
+
+        } catch (Exception e) {
+            log.error("USER [{}]: Error receiving video from {}", this.userId, sender.getUserId(), e);
         }
-
-        final String ipSdpAnswer = this.getEndpointForUser(sender, convertService).processOffer(sdpOffer);
-        Event response = Event.of(ResponseOperation.VIDEO_ANSWER, AnswerResponse.of(sender.userId, ipSdpAnswer), null);
-
-        log.trace("[{}]: SdpAnswer for {} is {}", this.userId, sender.getUserId(), ipSdpAnswer);
-        this.sendMessage(convertService.convertObjectToJson(response));
-        log.debug("gather candidates");
-        this.getEndpointForUser(sender, convertService).gatherCandidates();
     }
 
     private WebRtcEndpoint getEndpointForUser(final UserSession sender, ConvertService convertService) {
@@ -98,19 +112,23 @@ public class UserSession implements Closeable {
 
         WebRtcEndpoint incoming = incomingMedia.get(sender.getUserId());
         if (incoming == null) {
-            log.debug("PARTICIPANT {}: creating new endpoint for {}", this.userId, sender.getUserId());
-            incoming = new WebRtcEndpoint.Builder(pipeline).build();
+            try {
+                log.debug("PARTICIPANT {}: creating new endpoint for {}", this.userId, sender.getUserId());
+                incoming = new WebRtcEndpoint.Builder(pipeline).build();
 
-            incoming.addIceCandidateFoundListener(event -> {
-                Event response = Event.of(ResponseOperation.ICE_CANDIDATE, CandidateResponse.of(sender.getUserId(), event.getCandidate()), null);
-                sendMessage(convertService.convertObjectToJson(response));
-            });
+                incoming.addIceCandidateFoundListener(event -> {
+                    Event response = Event.of(ResponseOperation.ICE_CANDIDATE,
+                            CandidateResponse.of(sender.getUserId(), event.getCandidate()), null);
+                    sendMessage(convertService.convertObjectToJson(response));
+                });
 
-            incomingMedia.put(sender.getUserId(), incoming);
+                incomingMedia.put(sender.getUserId(), incoming);
+                sender.getOutgoingWebRtcPeer().connect(incoming);
+            } catch (Exception e) {
+                log.error("PARTICIPANT {}: Error creating endpoint for {}", this.userId, sender.getUserId(), e);
+                return null;
+            }
         }
-
-        log.debug("PARTICIPANT {}: obtained endpoint for {}", this.userId, sender.getUserId());
-        sender.getOutgoingWebRtcPeer().connect(incoming);
 
         return incoming;
     }
@@ -128,7 +146,7 @@ public class UserSession implements Closeable {
 
         final WebRtcEndpoint incoming = incomingMedia.remove(senderName);
 
-        if (incoming == null) { // TODO : http 에서 연결하여 생기는 문제인지 확인
+        if (incoming == null) {
             log.warn("PARTICIPANT {}: no incoming endpoint found for {} (remaining endpoints: {})",
                     this.userId,
                     senderName,
