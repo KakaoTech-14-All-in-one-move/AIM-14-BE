@@ -22,15 +22,28 @@ public class ChatMessageProcessor {
     public void processMessage(ChatMessageDTO message) {
         log.info("Received message from queue: {}", message.getMessageId());
 
-        // Save to DynamoDB
         Mono.just(message)
                 .flatMap(msg -> chatService.saveMessageToDynamoDB(msg))
-                // Save to Redis
-                .flatMap(chatRedisRepository::saveMessage)
-                // Broadcast to WebSocket
-                .flatMap(saved -> webSocketHandler.broadcastToChannel(
-                        message.getChannelId(), message))
-                .doOnError(e -> log.error("Error processing message: {}", e.getMessage()))
+                .flatMap(savedMsg ->
+                        // 각 작업을 독립적으로 처리
+                        chatRedisRepository.saveMessage(savedMsg)
+                                .onErrorResume(e -> {
+                                    log.error("Failed to save to Redis: {}", e.getMessage(), e);
+                                    return Mono.empty(); // Redis 실패해도 계속 진행
+                                })
+                                .then(webSocketHandler.broadcastToChannel(message.getChannelId(), message)
+                                        .onErrorResume(e -> {
+                                            log.error("Failed to broadcast: {}", e.getMessage(), e);
+                                            return Mono.empty(); // 브로드캐스트 실패해도 계속 진행
+                                        })
+                                )
+                )
+                .doOnError(e -> {
+                    log.error("Critical error in message processing: {}",
+                            message.getMessageId(),
+                            e
+                    );
+                })
                 .subscribe();
     }
 }
