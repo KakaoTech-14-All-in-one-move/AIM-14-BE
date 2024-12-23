@@ -346,6 +346,7 @@ public class ReplyHandler {
         return Mono.fromRunnable(() -> {
             final UserSession user = registry.getBySession(session);
             CandidateRequest candidateRequest = convertService.readDataFromMessage(receivedMessage, CandidateRequest.class);
+            log.info("ICE_CANDIDATE {}", candidateRequest.candidate());
 
             if (user != null) {
                 IceCandidate candidate = new IceCandidate(candidateRequest.candidate().toString(),

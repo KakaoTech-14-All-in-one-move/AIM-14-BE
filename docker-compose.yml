@@ -25,3 +25,14 @@ services:
       - KMS_MIN_PORT=40000
       - KMS_MAX_PORT=40050
       - KURENTO_LOG_LEVEL=DEBUG
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq_server
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: aim_14
+      RABBITMQ_DEFAULT_PASS: aim14pass
+    ports:
+      - "5672:5672"
+      - "15672:15672" # 관리 웹 UI 포트
