@@ -75,27 +75,28 @@ public class UserSession implements Closeable {
                 return;
             }
 
-            // 연결 상태 로깅 추가
+            // 상태 체크 추가
+            ConnectionState state = endpoint.getConnectionState();
             log.info("USER [{}]: Current endpoint state for {}: {}",
-                    this.userId, sender.getUserId(), endpoint.getConnectionState());
+                    this.userId, sender.getUserId(), state);
 
-            // 이미 연결된 경우 처리
-            if (endpoint.getConnectionState().equals(ConnectionState.CONNECTED)) {
-                log.warn("USER [{}]: Endpoint already connected for {}", this.userId, sender.getUserId());
-                return;
+            // 연결 재설정이 필요한 경우
+            if (state != ConnectionState.CONNECTED) {
+                endpoint.gatherCandidates(); // ICE 후보 재수집
             }
 
+            log.warn("USER [{}]: Request receiving video from {}", this.userId, sender.getUserId());
             final String ipSdpAnswer = endpoint.processOffer(sdpOffer);
-            log.debug("USER [{}]: Generated SDP answer for {}: {}", this.userId, sender.getUserId(), ipSdpAnswer);
-
-            Event response = Event.of(ResponseOperation.VIDEO_ANSWER,
+            Event response = Event.of(ResponseOperation.RECEIVE_VIDEO_ANSWER,
                     AnswerResponse.of(sender.userId, ipSdpAnswer), null);
 
             this.sendMessage(convertService.convertObjectToJson(response));
 
-            // ICE candidate 수집 시작
-            log.debug("USER [{}]: Starting ICE candidate gathering for {}", this.userId, sender.getUserId());
-            endpoint.gatherCandidates();
+            // ICE candidate 수집 완료 이벤트 추가
+            endpoint.addIceGatheringDoneListener(event -> {
+                log.info("USER [{}]: ICE gathering done for {}", this.userId, sender.getUserId());
+                // 추가 처리 필요시
+            });
 
         } catch (Exception e) {
             log.error("USER [{}]: Error receiving video from {}", this.userId, sender.getUserId(), e);
@@ -124,6 +125,7 @@ public class UserSession implements Closeable {
 
                 incomingMedia.put(sender.getUserId(), incoming);
                 sender.getOutgoingWebRtcPeer().connect(incoming);
+                log.warn("incomingMedia: {}", incomingMedia);
             } catch (Exception e) {
                 log.error("PARTICIPANT {}: Error creating endpoint for {}", this.userId, sender.getUserId(), e);
                 return null;

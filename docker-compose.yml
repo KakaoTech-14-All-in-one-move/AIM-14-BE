@@ -24,3 +24,4 @@ services:
     environment:
       - KMS_MIN_PORT=40000
       - KMS_MAX_PORT=40050
+      - KURENTO_LOG_LEVEL=DEBUG

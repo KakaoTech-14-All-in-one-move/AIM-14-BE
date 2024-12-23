@@ -14,7 +14,8 @@ public enum ResponseOperation implements Operation {
     LEAVE_CHANNEL_EVENT(14, "Success to leave voice/video channel."),
     UPDATE_STATE_EVENT(15, "Success to update state."),
     ICE_CANDIDATE(16, "Received ICE candidate from the remote peer for WebRTC connection"),
-    VIDEO_ANSWER(17, "Response to video offer containing session description for WebRTC"),
+    RECEIVE_VIDEO_ANSWER(17, "Response to video offer containing session description for WebRTC"),
+    CANCEL_VIDEO_ANSWER(18, ""),
     ;
     ;
 

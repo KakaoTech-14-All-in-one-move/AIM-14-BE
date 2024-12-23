@@ -79,6 +79,7 @@ public class ReplyHandler {
                     case RequestOperation.UPDATE_STATE -> updateState(session, receivedMessage);
                     case RequestOperation.ON_ICE_CANDIDATE -> onIceCandidate(session, receivedMessage);
                     case RequestOperation.RECEIVE_VIDEO -> receiveVideoFrom(session, receivedMessage);
+                    case RequestOperation.CANCEL_VIDEO -> cancelVideoFrom(session, receivedMessage);
                 })
                 .doOnNext(requestOperation -> log.debug("[{}] Send Message : {}", getUserIdFromSession(session), receivedMessage));
     }
@@ -361,10 +362,12 @@ public class ReplyHandler {
      */
     private Mono<String> receiveVideoFrom(WebSocketSession session, String receivedMessage) {
         return Mono.fromRunnable(() -> {
+            log.info("receiveVideoFrom : {}", receivedMessage);
             OfferRequest offerRequest = convertService.readDataFromMessage(receivedMessage, OfferRequest.class);
             final UserSession user = registry.getBySession(session);
+
             if (user == null) {
-                log.warn("User session not found");
+                log.warn("User session not found : [{}]", getUserIdFromSession(session));
                 return;
             }
 
@@ -374,8 +377,50 @@ public class ReplyHandler {
                 return;
             }
 
+            // 연결 상태 검증 추가
+            Room room = roomManager.getRoom(user.getChannelId());
+            if (!room.getParticipants().contains(sender)) {
+                log.warn("Sender {} is not in room {}", sender.getUserId(), user.getChannelId());
+                return;
+            }
+
             final String sdpOffer = offerRequest.sdpOffer();
             user.receiveVideoFrom(sender, sdpOffer, convertService);
+        });
+    }
+
+    /**
+     * @param session
+     * @param receivedMessage
+     * @return runnable
+     */
+    private Mono<String> cancelVideoFrom(WebSocketSession session, String receivedMessage) {
+        return Mono.fromRunnable(() -> {
+            log.info("cancelVideoFrom : {}", receivedMessage);
+            CancelRequest cancelRequest = convertService.readDataFromMessage(receivedMessage, CancelRequest.class);
+
+            final UserSession user = registry.getBySession(session);
+            if (user == null) {
+                log.warn("User session not found : [{}]", getUserIdFromSession(session));
+                return;
+            }
+
+            final UserSession sender = registry.getByName(cancelRequest.senderId());
+            if (sender == null) {
+                log.warn("Sender {} not found", cancelRequest.senderId());
+                return;
+            }
+
+            // 연결 상태 검증
+            Room room = roomManager.getRoom(user.getChannelId());
+            if (!room.getParticipants().contains(sender)) {
+                log.warn("Sender {} is not in room {}", sender.getUserId(), user.getChannelId());
+                return;
+            }
+
+            // WebRTC endpoint 연결 취소
+            user.cancelVideoFrom(sender);
+            log.info("USER [{}]: Successfully cancelled video from {}", user.getUserId(), sender.getUserId());
         });
     }
 
