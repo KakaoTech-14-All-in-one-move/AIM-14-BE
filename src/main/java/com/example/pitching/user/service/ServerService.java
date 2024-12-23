@@ -25,6 +25,7 @@ public class ServerService {
     private final ServerRepository serverRepository;
     private final UserServerMembershipRepository userServerMembershipRepository;
     private final S3FileStorageService fileStorageService;
+    private final ServerMemberCounter memberCounter;
 
     private <T> Mono<T> mapCommonError(Mono<T> mono) {
         return mono
@@ -39,6 +40,9 @@ public class ServerService {
                 serverRepository.save(Server.createNewServer(
                                 request.server_name(),
                                 request.server_image()))
+                        .flatMap(server -> memberCounter.initializeCount(server.getServerId(), 0L)
+                                .then(memberCounter.incrementCount(server.getServerId()))
+                                .then(Mono.just(server)))
                         .flatMap(server -> {
                             UserServerMembership membership = UserServerMembership.createMembership(email, server.getServerId());
                             return userServerMembershipRepository.save(membership)
@@ -59,10 +63,17 @@ public class ServerService {
                                 .hasElement()
                                 .flatMap(exists -> {
                                     if (exists) {
-                                        return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "이미 초대된 사용자입니다."));
+                                        return Mono.error(new ResponseStatusException(
+                                                HttpStatus.BAD_REQUEST,
+                                                "이미 초대된 사용자입니다."
+                                        ));
                                     }
-                                    UserServerMembership membership = UserServerMembership.createMembership(email, serverId);
-                                    return userServerMembershipRepository.save(membership);
+
+                                    return memberCounter.incrementCount(serverId)
+                                            .flatMap(count -> {
+                                                UserServerMembership membership = UserServerMembership.createMembership(email, serverId);
+                                                return userServerMembershipRepository.save(membership);
+                                            });
                                 }))
                         .then()
         );
@@ -132,6 +143,7 @@ public class ServerService {
 
     private Mono<Void> deleteServerAndRelatedData(Server server, Long serverId, String email) {
         return userServerMembershipRepository.deleteByServerIdAndEmail(serverId, email)
+                .then(memberCounter.decrementCount(serverId))  // Redis 카운트 감소
                 .then(userServerMembershipRepository.countByServerId(serverId))
                 .filter(memberCount -> memberCount == 0)
                 .flatMap(__ -> {
