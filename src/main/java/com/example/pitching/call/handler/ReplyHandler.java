@@ -63,7 +63,8 @@ public class ReplyHandler {
 
     public void cleanupSession(WebSocketSession session) {
         log.debug("Clean up Session in ReplyHandler");
-        UserSession user = registry.removeBySession(session);
+        String userIdFromSession = getUserIdFromSession(session);
+        UserSession user = registry.removeByUserId(userIdFromSession);
         if (user != null && roomManager.doesRoomExists(user.getChannelId())) {
             roomManager.getRoom(user.getChannelId()).leave(user);
         }
@@ -293,7 +294,8 @@ public class ReplyHandler {
     }
 
     private void leaveRoom(WebSocketSession session) {
-        final UserSession user = registry.getBySession(session);
+        String userIdFromSession = getUserIdFromSession(session);
+        final UserSession user = registry.getByName(userIdFromSession);
         if (user == null) {
             log.warn("User session not found, maybe not entered channel");
             return;
@@ -346,7 +348,8 @@ public class ReplyHandler {
      */
     private Mono<String> onIceCandidate(WebSocketSession session, String receivedMessage) {
         return Mono.fromRunnable(() -> {
-            final UserSession user = registry.getBySession(session);
+            String userIdFromSession = getUserIdFromSession(session);
+            final UserSession user = registry.getByName(userIdFromSession);
             CandidateRequest candidateRequest = convertService.readDataFromMessage(receivedMessage, CandidateRequest.class);
             log.info("ICE_CANDIDATE {}", candidateRequest.candidate());
 
@@ -355,7 +358,7 @@ public class ReplyHandler {
                         candidateRequest.sdpMid(), candidateRequest.sdpMLineIndex());
                 user.addCandidate(candidate, candidateRequest.userId());
             } else {
-                log.warn("User session not found - onIceCandidate : [{}] - {}", getUserIdFromSession(session), session.getId());
+                log.warn("User session not found - onIceCandidate : [{}] - {}", userIdFromSession, session.getId());
             }
         });
     }
@@ -369,22 +372,23 @@ public class ReplyHandler {
         return Mono.fromRunnable(() -> {
             log.info("receiveVideoFrom : {}", receivedMessage);
             OfferRequest offerRequest = convertService.readDataFromMessage(receivedMessage, OfferRequest.class);
-            final UserSession user = registry.getBySession(session);
+            String userIdFromSession = getUserIdFromSession(session);
+            final UserSession user = registry.getByName(userIdFromSession);
 
             if (user == null) {
-                log.warn("User session not found - receiveVideoFrom : [{}] - {}", getUserIdFromSession(session), session.getId());
+                log.warn("User session not found - receiveVideoFrom : [{}] - {}", userIdFromSession, session.getId());
                 return;
             }
 
             final UserSession sender = registry.getByName(offerRequest.senderId());
-            log.info("SENDER : {}", sender);
+            log.info("SENDER - request : {}", sender);
             if (sender == null) {
                 log.warn("Sender {} not found", offerRequest.senderId());
                 return;
             }
 
             // 연결 상태 검증 추가
-            log.error("GET ROOM : {}", user);
+            log.info("USER - session : {}", user);
             Room room = roomManager.getRoom(user.getChannelId());
             if (!room.getParticipants().contains(sender)) {
                 log.warn("Sender {} is not in room {} - receiveVideoFrom : session {}", sender.getUserId(), sender.getChannelId(), sender.getSession().getId());
@@ -406,9 +410,10 @@ public class ReplyHandler {
             log.info("cancelVideoFrom : {}", receivedMessage);
             CancelRequest cancelRequest = convertService.readDataFromMessage(receivedMessage, CancelRequest.class);
 
-            final UserSession user = registry.getBySession(session);
+            String userIdFromSession = getUserIdFromSession(session);
+            final UserSession user = registry.getByName(userIdFromSession);
             if (user == null) {
-                log.warn("User session not found - cancelVideoFrom: [{}]", getUserIdFromSession(session));
+                log.warn("User session not found - cancelVideoFrom: [{}]", userIdFromSession);
                 return;
             }
 
