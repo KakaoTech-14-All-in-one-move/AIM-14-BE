@@ -105,7 +105,7 @@ public class UserSession implements Closeable {
 
     private WebRtcEndpoint getEndpointForUser(final UserSession sender, ConvertService convertService) {
         if (sender.getUserId().equals(userId)) {
-            log.debug("PARTICIPANT {}: configuring loopback", this.userId);
+            log.info("PARTICIPANT {}: configuring loopback", this.userId);
             return outgoingMedia;
         }
 

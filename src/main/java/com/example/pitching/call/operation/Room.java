@@ -23,6 +23,7 @@ import java.util.concurrent.ConcurrentMap;
 public class Room implements Closeable {
     @Getter
     private final Long channelId;
+    @Getter
     private final MediaPipeline pipeline;
     private final ConcurrentMap<String, UserSession> participants = new ConcurrentHashMap<>();
 
@@ -38,6 +39,7 @@ public class Room implements Closeable {
     public UserSession join(String userName, WebSocketSession session, ConvertService convertService) {
         log.info("ROOM {}: adding USER [{}]", this.channelId, userName);
         final UserSession participant = UserSession.of(userName, this.channelId, session, this.pipeline);
+        log.info("participant : {}", participant);
         participant.addIceCandidateFoundListener(convertService);
         participants.put(participant.getUserId(), participant);
         return participant;
@@ -47,6 +49,7 @@ public class Room implements Closeable {
         try {
             log.info("USER [{}]: Leaving room {}", user.getUserId(), this.channelId);
             this.removeParticipant(user.getUserId());
+            log.info("Remained Room [{}] users : {}", this.channelId, participants.values());
             user.close();
         } catch (IOException e) {
             log.error("PARTICIPANT {}: Could not leave room {}", user.getUserId(), this.channelId, e);

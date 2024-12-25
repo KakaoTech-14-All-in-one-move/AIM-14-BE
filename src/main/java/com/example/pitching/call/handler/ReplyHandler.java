@@ -64,8 +64,9 @@ public class ReplyHandler {
     public void cleanupSession(WebSocketSession session) {
         log.debug("Clean up Session in ReplyHandler");
         UserSession user = registry.removeBySession(session);
-        if (user == null) return;
-        roomManager.getRoom(user.getChannelId()).leave(user);
+        if (user != null && roomManager.doesRoomExists(user.getChannelId())) {
+            roomManager.getRoom(user.getChannelId()).leave(user);
+        }
     }
 
     public Mono<String> handleMessages(WebSocketSession session, String receivedMessage) {
@@ -221,13 +222,13 @@ public class ReplyHandler {
                 .flatMap(isValid -> isValid ?
                         Mono.empty() : Mono.error(new InvalidValueException(ErrorCode.INVALID_CHANNEL_ID, String.valueOf(channelRequest.channelId()))))
                 .then(activeUserManager.isCorrectAccess(userId, channelRequest.serverId()))
-                .then(userRepository.findByUserId(Long.parseLong(userId)))
-                .flatMap(user -> createUserAndVoiceStateTuple(userId, user, channelRequest))
-                .map(tuple -> ChannelEnterResponse.from(tuple.getT1().getProfileImage(), tuple.getT2()))
                 .doOnSuccess(ignored -> {
                     joinRoom(session, channelRequest.channelId());
                     log.info("USER [{}] Enter {} channel ({})", userId, channelRequest.channelType(), channelRequest.channelId());
                 })
+                .then(userRepository.findByUserId(Long.parseLong(userId)))
+                .flatMap(user -> createUserAndVoiceStateTuple(userId, user, channelRequest))
+                .map(tuple -> ChannelEnterResponse.from(tuple.getT1().getProfileImage(), tuple.getT2()))
                 .flatMap(this::putChannelEnterToStream);
     }
 
@@ -297,6 +298,7 @@ public class ReplyHandler {
             log.warn("User session not found, maybe not entered channel");
             return;
         }
+        if (!roomManager.doesRoomExists(user.getChannelId())) return;
         final Room room = roomManager.getRoom(user.getChannelId());
         room.leave(user);
         if (room.getParticipants().isEmpty()) {
@@ -353,7 +355,7 @@ public class ReplyHandler {
                         candidateRequest.sdpMid(), candidateRequest.sdpMLineIndex());
                 user.addCandidate(candidate, candidateRequest.userId());
             } else {
-                log.warn("User session not found - onIceCandidate : [{}]", getUserIdFromSession(session));
+                log.warn("User session not found - onIceCandidate : [{}] - {}", getUserIdFromSession(session), session.getId());
             }
         });
     }
@@ -370,20 +372,22 @@ public class ReplyHandler {
             final UserSession user = registry.getBySession(session);
 
             if (user == null) {
-                log.warn("User session not found - receiveVideoFrom : [{}]", getUserIdFromSession(session));
+                log.warn("User session not found - receiveVideoFrom : [{}] - {}", getUserIdFromSession(session), session.getId());
                 return;
             }
 
             final UserSession sender = registry.getByName(offerRequest.senderId());
+            log.info("SENDER : {}", sender);
             if (sender == null) {
                 log.warn("Sender {} not found", offerRequest.senderId());
                 return;
             }
 
             // 연결 상태 검증 추가
+            log.error("GET ROOM : {}", user);
             Room room = roomManager.getRoom(user.getChannelId());
             if (!room.getParticipants().contains(sender)) {
-                log.warn("Sender {} is not in room {}", sender.getUserId(), user.getChannelId());
+                log.warn("Sender {} is not in room {} - receiveVideoFrom : session {}", sender.getUserId(), sender.getChannelId(), sender.getSession().getId());
                 return;
             }
 
@@ -410,7 +414,7 @@ public class ReplyHandler {
 
             final UserSession sender = registry.getByName(cancelRequest.senderId());
             if (sender == null) {
-                log.warn("Sender {} not found", cancelRequest.senderId());
+                log.warn("Sender {} not found - cancelVideoFrom", cancelRequest.senderId());
                 return;
             }
 
