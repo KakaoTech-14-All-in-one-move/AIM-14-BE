@@ -39,7 +39,9 @@ public class UserSession implements Closeable {
 
     public void addIceCandidateFoundListener(ConvertService convertService) {
         this.outgoingMedia.addIceCandidateFoundListener(event -> {
-            Event response = Event.of(ResponseOperation.ICE_CANDIDATE, CandidateResponse.of(userId, event.getCandidate()), null);
+            Event response = Event.of(ResponseOperation.ICE_CANDIDATE,
+                    CandidateResponse.of(userId, event.getCandidate()), null);
+            log.info("SEND ICE CANDIDATE - joinRoom : {}", response);
             sendMessage(convertService.convertObjectToJson(response));
         });
     }
@@ -80,6 +82,11 @@ public class UserSession implements Closeable {
             log.debug("USER [{}]: Current endpoint state for {}: {}",
                     this.userId, sender.getUserId(), state);
 
+            // ICE candidate 수집 완료 이벤트 추가
+            endpoint.addIceGatheringDoneListener(event -> {
+                log.info("USER [{}]: ICE gathering done for {}", this.userId, sender.getUserId());
+            });
+
             // 연결 재설정이 필요한 경우
             if (state != ConnectionState.CONNECTED) {
                 endpoint.gatherCandidates(); // ICE 후보 재수집
@@ -91,13 +98,6 @@ public class UserSession implements Closeable {
                     AnswerResponse.of(sender.userId, ipSdpAnswer), null);
 
             this.sendMessage(convertService.convertObjectToJson(response));
-
-            // ICE candidate 수집 완료 이벤트 추가
-            endpoint.addIceGatheringDoneListener(event -> {
-                log.info("USER [{}]: ICE gathering done for {}", this.userId, sender.getUserId());
-                // 추가 처리 필요시
-            });
-
         } catch (Exception e) {
             log.error("USER [{}]: Error receiving video from {}", this.userId, sender.getUserId(), e);
         }
@@ -109,27 +109,27 @@ public class UserSession implements Closeable {
             return outgoingMedia;
         }
 
-        log.debug("PARTICIPANT {}: receiving video from {}", this.userId, sender.getUserId());
-
         WebRtcEndpoint incoming = incomingMedia.get(sender.getUserId());
         if (incoming == null) {
             try {
-                log.debug("PARTICIPANT {}: creating new endpoint for {}", this.userId, sender.getUserId());
                 incoming = new WebRtcEndpoint.Builder(pipeline).build();
 
                 incoming.addIceCandidateFoundListener(event -> {
                     Event response = Event.of(ResponseOperation.ICE_CANDIDATE,
                             CandidateResponse.of(sender.getUserId(), event.getCandidate()), null);
+                    log.info("SEND ICE CANDIDATE - getEndpointForUser: {}", response);
                     sendMessage(convertService.convertObjectToJson(response));
                 });
 
                 incomingMedia.put(sender.getUserId(), incoming);
                 sender.getOutgoingWebRtcPeer().connect(incoming);
-                log.info("incomingMedia: {}", incomingMedia);
+                log.info("PARTICIPANT {}: Created endpoint for {} - INCOMING : {}", this.userId, sender.getUserId(), incoming);
             } catch (Exception e) {
                 log.error("PARTICIPANT {}: Error creating endpoint for {}", this.userId, sender.getUserId(), e);
                 return null;
             }
+        } else {
+            log.info("PARTICIPANT {}: receiving video from {} - INCOMING : {}", this.userId, sender.getUserId(), incoming);
         }
 
         return incoming;
