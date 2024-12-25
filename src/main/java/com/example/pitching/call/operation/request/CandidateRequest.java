@@ -9,7 +9,7 @@ public record CandidateRequest(
         String sdpMid,
         @JsonProperty("sdp_m_line_index")
         int sdpMLineIndex,
-        @JsonProperty("remote_peer_id")
+        @JsonProperty("target_id")
         String userId
 ) implements Data {
 }

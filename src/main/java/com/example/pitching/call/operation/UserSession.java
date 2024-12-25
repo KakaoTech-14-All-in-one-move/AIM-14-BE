@@ -77,7 +77,7 @@ public class UserSession implements Closeable {
 
             // 상태 체크 추가
             ConnectionState state = endpoint.getConnectionState();
-            log.info("USER [{}]: Current endpoint state for {}: {}",
+            log.debug("USER [{}]: Current endpoint state for {}: {}",
                     this.userId, sender.getUserId(), state);
 
             // 연결 재설정이 필요한 경우
@@ -85,7 +85,7 @@ public class UserSession implements Closeable {
                 endpoint.gatherCandidates(); // ICE 후보 재수집
             }
 
-            log.warn("USER [{}]: Request receiving video from {}", this.userId, sender.getUserId());
+            log.info("USER [{}]: Request receiving video from {}", this.userId, sender.getUserId());
             final String ipSdpAnswer = endpoint.processOffer(sdpOffer);
             Event response = Event.of(ResponseOperation.RECEIVE_VIDEO_ANSWER,
                     AnswerResponse.of(sender.userId, ipSdpAnswer), null);
@@ -125,7 +125,7 @@ public class UserSession implements Closeable {
 
                 incomingMedia.put(sender.getUserId(), incoming);
                 sender.getOutgoingWebRtcPeer().connect(incoming);
-                log.warn("incomingMedia: {}", incomingMedia);
+                log.info("incomingMedia: {}", incomingMedia);
             } catch (Exception e) {
                 log.error("PARTICIPANT {}: Error creating endpoint for {}", this.userId, sender.getUserId(), e);
                 return null;

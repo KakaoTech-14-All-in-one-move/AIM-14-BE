@@ -224,11 +224,11 @@ public class ReplyHandler {
                 .then(userRepository.findByUserId(Long.parseLong(userId)))
                 .flatMap(user -> createUserAndVoiceStateTuple(userId, user, channelRequest))
                 .map(tuple -> ChannelEnterResponse.from(tuple.getT1().getProfileImage(), tuple.getT2()))
-                .flatMap(this::putChannelEnterToStream)
                 .doOnSuccess(ignored -> {
                     joinRoom(session, channelRequest.channelId());
                     log.info("USER [{}] Enter {} channel ({})", userId, channelRequest.channelType(), channelRequest.channelId());
-                });
+                })
+                .flatMap(this::putChannelEnterToStream);
     }
 
     private Mono<Tuple2<User, VoiceState>> createUserAndVoiceStateTuple(String userId, User user, ChannelRequest
@@ -352,6 +352,8 @@ public class ReplyHandler {
                 IceCandidate candidate = new IceCandidate(candidateRequest.candidate().toString(),
                         candidateRequest.sdpMid(), candidateRequest.sdpMLineIndex());
                 user.addCandidate(candidate, candidateRequest.userId());
+            } else {
+                log.warn("User session not found - onIceCandidate : [{}]", getUserIdFromSession(session));
             }
         });
     }
@@ -368,7 +370,7 @@ public class ReplyHandler {
             final UserSession user = registry.getBySession(session);
 
             if (user == null) {
-                log.warn("User session not found : [{}]", getUserIdFromSession(session));
+                log.warn("User session not found - receiveVideoFrom : [{}]", getUserIdFromSession(session));
                 return;
             }
 
@@ -402,7 +404,7 @@ public class ReplyHandler {
 
             final UserSession user = registry.getBySession(session);
             if (user == null) {
-                log.warn("User session not found : [{}]", getUserIdFromSession(session));
+                log.warn("User session not found - cancelVideoFrom: [{}]", getUserIdFromSession(session));
                 return;
             }
 
