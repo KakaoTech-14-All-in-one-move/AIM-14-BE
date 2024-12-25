@@ -38,7 +38,7 @@ public class UserSession implements Closeable {
     }
 
     public void addIceCandidateFoundListener(ConvertService convertService) {
-        log.warn("ADD ICE CANDIDATE FOUND LISTENER : {} / {}", this.userId, this.outgoingMedia);
+        log.info("ADD ICE CANDIDATE FOUND LISTENER : {} / {}", this.userId, this.outgoingMedia);
         this.outgoingMedia.addIceCandidateFoundListener(event -> {
             Event response = Event.of(ResponseOperation.ICE_CANDIDATE,
                     CandidateResponse.of(userId, event.getCandidate()), null);
@@ -58,7 +58,7 @@ public class UserSession implements Closeable {
 
 
     public void addCandidate(IceCandidate candidate, String userId) {
-        log.warn("Add Ice Candidate : this.userId[{}], userId[{}], candidate[{}]", this.userId, userId, candidate);
+        log.info("Add Ice Candidate : this.userId[{}], userId[{}], candidate[{}]", this.userId, userId, candidate);
         if (this.userId.compareTo(userId) == 0) {
             log.info("SAME : [{}] outgoingMedia - {}", userId, outgoingMedia);
             outgoingMedia.addIceCandidate(candidate);
@@ -81,27 +81,18 @@ public class UserSession implements Closeable {
                 return;
             }
 
-            // 상태 체크 추가
-            ConnectionState state = endpoint.getConnectionState();
-            log.debug("USER [{}]: Current endpoint state for {}: {}",
-                    this.userId, sender.getUserId(), state);
+            log.debug("USER [{}]: SdpOffer for {} is {}", this.userId, sender.getUserId(), sdpOffer);
 
-            // ICE candidate 수집 완료 이벤트 추가
-            endpoint.addIceGatheringDoneListener(event -> {
-                log.info("USER [{}]: ICE gathering done for {}", this.userId, sender.getUserId());
-            });
-
-            // 연결 재설정이 필요한 경우
-            if (state != ConnectionState.CONNECTED) {
-                endpoint.gatherCandidates(); // ICE 후보 재수집
-            }
-
-            log.info("USER [{}]: Request receiving video from {}", this.userId, sender.getUserId());
             final String ipSdpAnswer = endpoint.processOffer(sdpOffer);
             Event response = Event.of(ResponseOperation.RECEIVE_VIDEO_ANSWER,
                     AnswerResponse.of(sender.userId, ipSdpAnswer), null);
 
+            log.debug("USER [{}]: SdpAnswer for {} is {}", this.userId, sender.getUserId(), ipSdpAnswer);
             this.sendMessage(convertService.convertObjectToJson(response));
+
+            log.debug("gather candidates");
+            endpoint.gatherCandidates();
+
         } catch (Exception e) {
             log.error("USER [{}]: Error receiving video from {}", this.userId, sender.getUserId(), e);
         }
