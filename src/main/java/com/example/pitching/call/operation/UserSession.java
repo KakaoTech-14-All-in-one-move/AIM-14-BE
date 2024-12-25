@@ -38,6 +38,7 @@ public class UserSession implements Closeable {
     }
 
     public void addIceCandidateFoundListener(ConvertService convertService) {
+        log.warn("ADD ICE CANDIDATE FOUND LISTENER : {} / {}", this.userId, this.outgoingMedia);
         this.outgoingMedia.addIceCandidateFoundListener(event -> {
             Event response = Event.of(ResponseOperation.ICE_CANDIDATE,
                     CandidateResponse.of(userId, event.getCandidate()), null);
@@ -57,10 +58,13 @@ public class UserSession implements Closeable {
 
 
     public void addCandidate(IceCandidate candidate, String userId) {
+        log.warn("Add Ice Candidate : this.userId[{}], userId[{}], candidate[{}]", this.userId, userId, candidate);
         if (this.userId.compareTo(userId) == 0) {
+            log.info("SAME : [{}] outgoingMedia - {}", userId, outgoingMedia);
             outgoingMedia.addIceCandidate(candidate);
         } else {
             WebRtcEndpoint webRtc = incomingMedia.get(userId);
+            log.info("DIFF : [{}] incomingMedia - {} / {}", userId, incomingMedia, webRtc);
             if (webRtc != null) {
                 webRtc.addIceCandidate(candidate);
             }
@@ -122,7 +126,6 @@ public class UserSession implements Closeable {
                 });
 
                 incomingMedia.put(sender.getUserId(), incoming);
-                sender.getOutgoingWebRtcPeer().connect(incoming);
                 log.info("PARTICIPANT {}: Created endpoint for {} - INCOMING : {}", this.userId, sender.getUserId(), incoming);
             } catch (Exception e) {
                 log.error("PARTICIPANT {}: Error creating endpoint for {}", this.userId, sender.getUserId(), e);
@@ -131,6 +134,7 @@ public class UserSession implements Closeable {
         } else {
             log.info("PARTICIPANT {}: receiving video from {} - INCOMING : {}", this.userId, sender.getUserId(), incoming);
         }
+        sender.getOutgoingWebRtcPeer().connect(incoming);
 
         return incoming;
     }
