@@ -370,7 +370,7 @@ public class ReplyHandler {
      */
     private Mono<String> receiveVideoFrom(WebSocketSession session, String receivedMessage) {
         return Mono.fromRunnable(() -> {
-            log.info("receiveVideoFrom : {}", receivedMessage);
+            log.debug("receiveVideoFrom : {}", receivedMessage);
             OfferRequest offerRequest = convertService.readDataFromMessage(receivedMessage, OfferRequest.class);
             String userIdFromSession = getUserIdFromSession(session);
             final UserSession user = registry.getByName(userIdFromSession);
@@ -381,14 +381,14 @@ public class ReplyHandler {
             }
 
             final UserSession sender = registry.getByName(offerRequest.senderId());
-            log.info("SENDER - request : {}", sender);
+            log.debug("SENDER - request : {}", sender);
             if (sender == null) {
                 log.warn("Sender {} not found", offerRequest.senderId());
                 return;
             }
 
             // 연결 상태 검증 추가
-            log.info("USER - session : {}", user);
+            log.debug("USER - session : {}", user);
             Room room = roomManager.getRoom(user.getChannelId());
             if (!room.getParticipants().contains(sender)) {
                 log.warn("Sender {} is not in room {} - receiveVideoFrom : session {}", sender.getUserId(), sender.getChannelId(), sender.getSession().getId());
@@ -407,7 +407,7 @@ public class ReplyHandler {
      */
     private Mono<String> cancelVideoFrom(WebSocketSession session, String receivedMessage) {
         return Mono.fromRunnable(() -> {
-            log.info("cancelVideoFrom : {}", receivedMessage);
+            log.debug("cancelVideoFrom : {}", receivedMessage);
             CancelRequest cancelRequest = convertService.readDataFromMessage(receivedMessage, CancelRequest.class);
 
             String userIdFromSession = getUserIdFromSession(session);

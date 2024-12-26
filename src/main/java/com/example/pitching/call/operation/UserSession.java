@@ -38,11 +38,11 @@ public class UserSession implements Closeable {
     }
 
     public void addIceCandidateFoundListener(ConvertService convertService) {
-        log.info("ADD ICE CANDIDATE FOUND LISTENER : {} / {}", this.userId, this.outgoingMedia);
+        log.debug("ADD ICE CANDIDATE FOUND LISTENER : {} / {}", this.userId, this.outgoingMedia);
         this.outgoingMedia.addIceCandidateFoundListener(event -> {
             Event response = Event.of(ResponseOperation.ICE_CANDIDATE,
                     CandidateResponse.of(userId, event.getCandidate()), null);
-            log.info("SEND ICE CANDIDATE - joinRoom : {}", response);
+            log.debug("SEND ICE CANDIDATE - joinRoom : {}", response);
             sendMessage(convertService.convertObjectToJson(response));
         });
     }
@@ -58,13 +58,13 @@ public class UserSession implements Closeable {
 
 
     public void addCandidate(IceCandidate candidate, String userId) {
-        log.info("Add Ice Candidate : this.userId[{}], userId[{}], candidate[{}]", this.userId, userId, candidate);
+        log.debug("Add Ice Candidate : this.userId[{}], userId[{}], candidate[{}]", this.userId, userId, candidate);
         if (this.userId.compareTo(userId) == 0) {
-            log.info("SAME : [{}] outgoingMedia - {}", userId, outgoingMedia);
+            log.debug("SAME : [{}] outgoingMedia - {}", userId, outgoingMedia);
             outgoingMedia.addIceCandidate(candidate);
         } else {
             WebRtcEndpoint webRtc = incomingMedia.get(userId);
-            log.info("DIFF : [{}] incomingMedia - {} / {}", userId, incomingMedia, webRtc);
+            log.debug("DIFF : [{}] incomingMedia - {} / {}", userId, incomingMedia, webRtc);
             if (webRtc != null) {
                 webRtc.addIceCandidate(candidate);
             }
@@ -112,7 +112,7 @@ public class UserSession implements Closeable {
                 incoming.addIceCandidateFoundListener(event -> {
                     Event response = Event.of(ResponseOperation.ICE_CANDIDATE,
                             CandidateResponse.of(sender.getUserId(), event.getCandidate()), null);
-                    log.info("SEND ICE CANDIDATE - getEndpointForUser: {}", response);
+                    log.debug("SEND ICE CANDIDATE - getEndpointForUser: {}", response);
                     sendMessage(convertService.convertObjectToJson(response));
                 });
 
