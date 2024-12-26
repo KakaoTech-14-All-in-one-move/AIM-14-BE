@@ -25,6 +25,11 @@ services:
       - KMS_MIN_PORT=40000
       - KMS_MAX_PORT=40050
       - KURENTO_LOG_LEVEL=DEBUG
+      - KMS_STUN_IP=stun.l.google.com
+      - KMS_STUM_PORT=19302
+      - KMS_TURN_URL=aim14:aim14@13.124.102.218:3478?transport=udp
+#    volumes:
+#      - ./WebRtcEndpoint.conf.ini:/etc/kurento/modules/kurento/WebRtcEndpoint.conf.ini
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -36,3 +41,11 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672" # 관리 웹 UI 포트
+
+  coturn:
+    image: coturn/coturn
+    container_name: coturn_server
+    network_mode: host
+    volumes:
+      - ./turnserver.conf:/etc/turnserver.conf
+    restart: always
